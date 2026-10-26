@@ -30,7 +30,7 @@ const printNow = {};
 
 for (const combo of (VISUAL ? COMBOS : COMBOS.filter(c => c.w === 1100 && c.theme === 'light'))) {
   const main = combo.w === 1100 && combo.theme === 'light';
-  test.describe.serial(`@${combo.w}-${combo.theme}`, () => {
+  test.describe(`@${combo.w}-${combo.theme}`, () => {
     let page;
     test.beforeAll(async () => { page = await openContext(browser, combo); await covStart(page); });
     test.afterAll(async () => { await page.context().close(); });

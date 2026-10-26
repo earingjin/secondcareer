@@ -199,6 +199,12 @@ function inBrowser() {
     for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) if (nodes[i][1] === nodes[j][1]) pairs.push(nodes[i][0] + ' === ' + nodes[j][0]);
     out.globals = { json: copy(roots), keyOrder: Object.fromEntries(Object.keys(roots).map(k => [k, Object.keys(roots[k])])), nodeCount: nodes.length, identity: pairs.sort() };
   }
+  // ---------- H. 코멘트·키워드 데이터의 직접 덤프(키 순서·배열 순서 포함) ----------
+  out.feedbackData = {
+    CMT: copy(CMT), KW_AGE: copy(KW_AGE), KW_GOAL: copy(KW_GOAL), KW_PRO: copy(KW_PRO), GOAL_TO_KW: copy(GOAL_TO_KW),
+    keyOrder: { CMT: Object.keys(CMT), KW_AGE: Object.keys(KW_AGE), KW_GOAL: Object.keys(KW_GOAL) },
+    counts: { CMT: Object.keys(CMT).length, KW_AGE: Object.values(KW_AGE).flat().length, KW_GOAL: Object.values(KW_GOAL).flat().length, KW_PRO: KW_PRO.length, GOAL_TO_KW: GOAL_TO_KW.length },
+  };
   return out;
 }
 

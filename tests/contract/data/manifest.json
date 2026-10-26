@@ -40,6 +40,11 @@
    "storedBytes": 17726,
    "contentBytes": 17726,
    "contentSha256": "b23cda638cc8ee7f3046772fa08eb7b9c85acc6f4673f97cf2fac4db5331c3b7"
+  },
+  "feedback-data.json": {
+   "storedBytes": 13864,
+   "contentBytes": 13864,
+   "contentSha256": "7432c962e117d2c4d59a71f83bae78ca171649f676690f3f8ef0c471e6f7c2f3"
   }
  },
  "counts": {
@@ -52,6 +57,7 @@
   "fixtureAssessments": 69,
   "fixtureResultGenerated": 0,
   "commentCount": 15,
+  "feedbackKeywords": 42,
   "globalNodes": 67,
   "identityPairs": 5,
   "seedPersons": 54,

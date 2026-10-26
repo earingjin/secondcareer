@@ -49,6 +49,13 @@ test('문항 전역(QT·QLABEL·OPT·LIM·REQUIRED·WSTEPS·C_CODES·SH·FACTORS
   expect(g.identity, '=== 인 배열·객체 쌍(집합)').toEqual(w.identity);
   expect(new Set(g.identity).size).toBe(g.identity.length);
 });
+test('코멘트·키워드 데이터 직접 덤프(CMT·KW_AGE·KW_GOAL·KW_PRO·GOAL_TO_KW): 값·키 순서·배열 순서', () => {
+  const w = want('feedback-data.json'), g = got('feedback-data.json');
+  expect(g.counts).toEqual({ CMT: 15, KW_AGE: 15, KW_GOAL: 18, KW_PRO: 9, GOAL_TO_KW: 7 });
+  expect(firstDiff(w, g)).toBeNull();
+  // JSON 문자열 비교로 키 순서까지 확인
+  for (const k of ['CMT', 'KW_AGE', 'KW_GOAL', 'KW_PRO', 'GOAL_TO_KW']) expect(JSON.stringify(g[k]), k).toBe(JSON.stringify(w[k]));
+});
 test('정답표 파일이 모두 내용 단위로 같다(압축 해제 기준)', () => {
   const m = JSON.parse(read('manifest.json').toString());
   for (const n of Object.keys(files)) { expect(contentOf(n, files[n]).equals(contentOf(n, read(n))), n).toBe(true); expect(contentSha(n, files[n]), n + ' manifest').toBe(m.files[n].contentSha256); }
