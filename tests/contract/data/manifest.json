@@ -35,6 +35,11 @@
    "storedBytes": 21519,
    "contentBytes": 21519,
    "contentSha256": "70394e6a172eeb58906363f7a32a679a1b0ef15625005b41fa0baccd80d2a14d"
+  },
+  "globals.json": {
+   "storedBytes": 17726,
+   "contentBytes": 17726,
+   "contentSha256": "b23cda638cc8ee7f3046772fa08eb7b9c85acc6f4673f97cf2fac4db5331c3b7"
   }
  },
  "counts": {
@@ -47,6 +52,8 @@
   "fixtureAssessments": 69,
   "fixtureResultGenerated": 0,
   "commentCount": 15,
+  "globalNodes": 67,
+  "identityPairs": 5,
   "seedPersons": 54,
   "seedEnterprises": 12
  }

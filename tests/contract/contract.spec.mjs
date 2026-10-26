@@ -42,6 +42,13 @@ test('코멘트 전문(CMT)과 cmtParts 출력(제목/본문 분리)', () => {
   expect(want('comments.json').count).toBe(15);
   expect(firstDiff(want('comments.json'), got('comments.json'))).toBeNull();
 });
+test('문항 전역(QT·QLABEL·OPT·LIM·REQUIRED·WSTEPS·C_CODES·SH·FACTORS): JSON 동일성과 === 쌍 집합', () => {
+  const w = want('globals.json'), g = got('globals.json');
+  expect(firstDiff(w.json, g.json), 'JSON 값').toBeNull();
+  expect(g.keyOrder, '키 순서').toEqual(w.keyOrder);
+  expect(g.identity, '=== 인 배열·객체 쌍(집합)').toEqual(w.identity);
+  expect(new Set(g.identity).size).toBe(g.identity.length);
+});
 test('정답표 파일이 모두 내용 단위로 같다(압축 해제 기준)', () => {
   const m = JSON.parse(read('manifest.json').toString());
   for (const n of Object.keys(files)) { expect(contentOf(n, files[n]).equals(contentOf(n, read(n))), n).toBe(true); expect(contentSha(n, files[n]), n + ' manifest').toBe(m.files[n].contentSha256); }

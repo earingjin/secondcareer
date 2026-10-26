@@ -24,6 +24,7 @@ export function toFiles(d) {
     'seed.json.gz': gz(d.seed),
     'messages.json': j(d.messages),
     'comments.json': j(d.comments),
+    'globals.json': j(d.globals),
   };
 }
 
@@ -46,7 +47,7 @@ if (path.resolve(process.argv[1] || '') === fileURLToPath(import.meta.url)) {
     missingCases: d.missing.length,
     ansTextCodes: Object.keys(d.ansText).length, ansTextValues: Object.values(d.ansText).reduce((a, v) => a + v.length, 0),
     repAssessments: d.reps.length, fixtureAssessments: d.fixtureAssessments.length, fixtureResultGenerated: d.fixtureResultGenerated.length,
-    commentCount: d.comments.count, seedPersons: d.seed.db.length, seedEnterprises: d.seed.ent.length,
+    commentCount: d.comments.count, globalNodes: d.globals.nodeCount, identityPairs: d.globals.identity.length, seedPersons: d.seed.db.length, seedEnterprises: d.seed.ent.length,
   };
   fs.writeFileSync(path.join(DATA, 'manifest.json'), JSON.stringify(manifest, null, 1) + '\n');
   console.log(JSON.stringify(manifest.counts, null, 1));

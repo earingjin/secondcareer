@@ -188,6 +188,17 @@ function inBrowser() {
     // 예외는 종류만 기록한다(메시지에는 변수명이 들어가 단계마다 달라질 수 있다). 'toString' 등은 CMT[code] 가 프로토타입 메서드를 돌려줘 예외가 난다(현재 동작).
     edge: [['Code_Z_99'], [''], ['code_a_01'], ['toString'], ['constructor'], [undefined]].map(([c]) => { let r; try { r = cmtParts(c); } catch (e) { r = 'ERR ' + e.constructor.name; } return [c === undefined ? '(undefined)' : c, r]; }),
   };
+  // ---------- G. 문항 관련 전역의 값과 객체 동일성(===) ----------
+  // JSON 은 키 순서까지 기록한다. identity 는 같은 배열·객체를 가리키는 위치 쌍을 전부 기록한다(예: WSTEPS[3].codes === C_CODES).
+  {
+    const roots = { QT, QLABEL, OPT, LIM, REQUIRED, WSTEPS, C_CODES, SH, FACTORS };
+    const nodes = [];
+    const walk = (o, p) => { if (o && typeof o === 'object') { nodes.push([p, o]); Object.keys(o).forEach(k => walk(o[k], p + (Array.isArray(o) ? '[' + k + ']' : '[' + JSON.stringify(k) + ']'))); } };
+    Object.keys(roots).forEach(k => walk(roots[k], k));
+    const pairs = [];
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) if (nodes[i][1] === nodes[j][1]) pairs.push(nodes[i][0] + ' === ' + nodes[j][0]);
+    out.globals = { json: copy(roots), keyOrder: Object.fromEntries(Object.keys(roots).map(k => [k, Object.keys(roots[k])])), nodeCount: nodes.length, identity: pairs.sort() };
+  }
   return out;
 }
 

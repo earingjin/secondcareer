@@ -28,7 +28,9 @@ test('외부 스크립트 태그는 한 묶음이고 로드 순서가 파일 번
 test('분할 파일: 헤더 주석은 정확히 첫 줄 하나, 모듈 문법 없음', () => {
   for (const f of files) {
     const { head, text } = body(f);
-    expect(head, f).toMatch(/^\/\/ src\/js\/\S+ — legacy\/index\.original\.html \d+–\d+행/);
+    // legacy 에서 옮긴 파일은 행 범위 헤더, 이후 단계의 신규 파일(00-question-defs.js)은 '신규' 헤더
+    if (f === 'js/00-question-defs.js') expect(head, f).toMatch(/^\/\/ src\/js\/00-question-defs\.js — 단계 2b 신규/);
+    else expect(head, f).toMatch(/^\/\/ src\/js\/\S+ — legacy\/index\.original\.html \d+–\d+행/);
     expect(text, f).not.toMatch(/^\s*(import|export)\s/m);
   }
   expect(src).not.toMatch(/type="module"/);
