@@ -1,2 +1,4 @@
 legacy/** -text
 tests/golden/data/** -text
+tests/snapshot/baseline/** -text
+tests/snapshot/fixture.json -text
