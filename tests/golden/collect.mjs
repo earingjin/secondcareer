@@ -4,6 +4,7 @@ import { chromium } from '@playwright/test';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { covStart, covTake } from '../coverage/cov.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const LEGACY_HTML = path.resolve(here, '../../legacy/index.original.html');
@@ -225,9 +226,11 @@ export async function collect(htmlPath = LEGACY_HTML, { now = FIXED_NOW } = {}) 
     const page = await newPage(browser, { now });
     const errors = [];
     page.on('pageerror', e => errors.push(String(e)));
+    await covStart(page);
     await page.goto(pathToFileURL(htmlPath).href);
     await page.waitForFunction(() => typeof computeResult === 'function' && typeof selfTests === 'function');
     const data = await page.evaluate(inBrowser);
+    await covTake(page, 'golden:collect');
     data.pageErrors = errors;
     return data;
   } finally {

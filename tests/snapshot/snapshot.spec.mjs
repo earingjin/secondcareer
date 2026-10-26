@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { SCENES } from './scenes.mjs';
 import { COMBOS, openContext, runScene, printPages, cssFingerprint } from './capture.mjs';
 import { LEGACY_HTML } from '../golden/collect.mjs';
+import { covStart, covTake } from '../coverage/cov.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const BASE = path.join(here, 'baseline');
@@ -31,7 +32,7 @@ for (const combo of (VISUAL ? COMBOS : COMBOS.filter(c => c.w === 1100 && c.them
   const main = combo.w === 1100 && combo.theme === 'light';
   test.describe.serial(`@${combo.w}-${combo.theme}`, () => {
     let page;
-    test.beforeAll(async () => { page = await openContext(browser, combo); });
+    test.beforeAll(async () => { page = await openContext(browser, combo); await covStart(page); });
     test.afterAll(async () => { await page.context().close(); });
     for (const s of scenes) {
       if (VISUAL ? !s.png : !main) continue;
@@ -46,6 +47,7 @@ for (const combo of (VISUAL ? COMBOS : COMBOS.filter(c => c.w === 1100 && c.them
             expect(j(json) === rd(jf), '집계 JSON 이 기준과 다름').toBe(true);
           }
           if (s.print) printNow[s.id] = await printPages(page);
+          await covTake(page, 'snapshot:' + s.id);
         }
         if (VISUAL && s.png) {
           const buf = await page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide', type: 'jpeg', quality: 80 });

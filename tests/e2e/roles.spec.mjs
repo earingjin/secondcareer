@@ -5,6 +5,7 @@ import { test, expect, chromium } from '@playwright/test';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
 import { newPage, LEGACY_HTML } from '../golden/collect.mjs';
+import { covStart, covTake } from '../coverage/cov.mjs';
 
 const target = process.env.TARGET_HTML ? path.resolve(process.env.TARGET_HTML) : LEGACY_HTML;
 const URL0 = pathToFileURL(target).href;
@@ -14,7 +15,8 @@ const st = {}; // 단계 사이에 넘기는 값(자동 부여된 코드·비밀
 
 let browser, page;
 test.describe.configure({ mode: 'serial' });
-test.beforeAll(async () => { browser = await chromium.launch(); page = await newPage(browser); await page.goto(URL0); });
+test.beforeAll(async () => { browser = await chromium.launch(); page = await newPage(browser); await covStart(page); await page.goto(URL0); });
+test.afterEach(async ({}, info) => { await covTake(page, 'e2e:' + info.title); });
 test.afterAll(async () => { await browser.close(); });
 
 const body = () => page.locator('body');
