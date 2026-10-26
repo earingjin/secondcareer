@@ -1,0 +1,119 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="on">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="narrow" style="padding-top:20px">
+<div class="stepper">
+<div class="st  done">
+<i>✓</i>참여 동의</div>
+<div class="st on ">
+<i>2</i>기본정보</div>
+<div class="st  ">
+<i>3</i>경력목표</div>
+<div class="st  ">
+<i>4</i>진단 15문항</div>
+<div class="st  ">
+<i>5</i>서비스 기대</div>
+<div class="st  ">
+<i>6</i>검토·제출</div>
+</div>
+<div class="card">
+<div class="whead">
+<span class="hintline">2 / 6 단계 · 전체 18 / 38 응답</span>
+<h2>기본정보</h2>
+<p class="sub">현재 또는 최근 경력을 기준으로 입력해 주세요.</p>
+<div class="progressbar">
+<span style="width:47.368421052631575%">
+</span>
+</div>
+</div>
+<div class="q " id="q-A3">
+<div class="qt">
+<small>문항 3 · 필수</small>귀하의 성함을 입력해주세요.</div>
+<input class="in" maxlength="20" value="박미래" oninput="setF('reg.name',this.value)" aria-label="성함">
+</div>
+<div class="q " id="q-A4">
+<div class="qt">
+<small>문항 4 · 필수</small>귀하의 성별을 입력해주세요.</div>
+<div class="chips" role="radiogroup">
+<button type="button" role="radio" class="chip on" aria-checked="true" onclick="setF('reg.gender',&quot;남&quot;);render()">남성</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.gender',&quot;여&quot;);render()">여성</button>
+</div>
+</div>
+<div class="q " id="q-A5">
+<div class="qt">
+<small>문항 5 · 필수</small>귀하의 연령대를 입력해주세요.</div>
+<div class="hintline" style="margin:-6px 0 10px">생년월일을 입력합니다. (웹 변경 사항)</div>
+<input class="in" inputmode="numeric" maxlength="10" placeholder="YYYY-MM-DD (예: 1968-03-15)" value="1972-06-15" oninput="this.value=fmtDate(this.value);setBirth(this.value)" aria-label="생년월일">
+<div class="hintline" id="age-a5" style="margin-top:6px">만 54세 · 평가용 연령 54세 (원본 방식: 응답연도-출생연도)</div>
+</div>
+<div class="q " id="q-PH">
+<div class="qt">
+<small>추가 항목 · 필수</small>휴대전화번호를 입력해주세요.</div>
+<div class="hintline" style="margin:-6px 0 10px">원본에 없는 웹 추가 항목입니다.</div>
+<input class="in" inputmode="tel" maxlength="13" placeholder="010-1234-5678" value="010-3333-4444" oninput="this.value=fmtPhone(this.value);setF('reg.phone',this.value)" aria-label="휴대전화번호">
+</div>
+<div class="q " id="q-EM">
+<div class="qt">
+<small>추가 항목 · 필수</small>이메일 주소를 입력해주세요.</div>
+<div class="hintline" style="margin:-6px 0 10px">원본에 없는 웹 추가 항목입니다.</div>
+<input class="in" inputmode="email" maxlength="60" placeholder="name@example.com" value="demo2@example.com" oninput="setF('reg.email',this.value.trim())" aria-label="이메일">
+</div>
+<div class="q " id="q-A6">
+<div class="qt">
+<small>문항 6 · 필수</small>현재 소속회사를 입력해주세요.(없다면 이전 소속회사)</div>
+<input class="in" maxlength="40" value="㈜한빛전자" oninput="setCareer(0,'co',this.value)" aria-label="co">
+</div>
+<div class="q " id="q-A7">
+<div class="qt">
+<small>문항 7 · 필수</small>현재 또는 최근까지의 직급/직책을 입력해주세요.</div>
+<input class="in" maxlength="40" value="부장" oninput="setCareer(0,'title',this.value)" aria-label="title">
+</div>
+<div class="q " id="q-A8">
+<div class="qt">
+<small>문항 8 · 필수</small>최근까지 어떤 업무를 하셨나요?(부서명)</div>
+<input class="in" maxlength="60" placeholder="예: 인사팀 채용 업무" value="연구 개발" oninput="setCareer(0,'task',this.value)" aria-label="task">
+</div>
+<div class="q " id="q-A9">
+<div class="qt">
+<small>문항 9 · 필수</small>최종 근무처의 주요 업종은 무엇인가요?</div>
+<div class="chips" role="radiogroup">
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.industry',&quot;일반 사무&quot;);render()">일반 사무</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.industry',&quot;생산/제조&quot;);render()">생산/제조</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.industry',&quot;운수/물류&quot;);render()">운수/물류</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.industry',&quot;건설&quot;);render()">건설</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.industry',&quot;전기/가스/수도&quot;);render()">전기/가스/수도</button>
+<button type="button" role="radio" class="chip on" aria-checked="true" onclick="setF('reg.industry',&quot;법률&quot;);render()">법률</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.industry',&quot;금융&quot;);render()">금융</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.industry',&quot;홍보/기획&quot;);render()">홍보/기획</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.industry',&quot;연구/기술(R&amp;D)&quot;);render()">연구/기술직(R&amp;D)</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.industry',&quot;교육&quot;);render()">교육</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.industry',&quot;복지/서비스&quot;);render()">복지/서비스</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.industry',&quot;기타&quot;);render()">기타</button>
+</div>
+</div>
+<div class="q " id="q-A10">
+<div class="qt">
+<small>문항 10 · 필수</small>퇴직 후 매월 어느 정도의 소득수준을 기대하시나요?</div>
+<div class="chips" role="radiogroup">
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.income',&quot;기존 임금 이상&quot;);render()">기존 임금이상</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.income',&quot;기존 임금 80% 수준&quot;);render()">기존 임금 80% 수준</button>
+<button type="button" role="radio" class="chip on" aria-checked="true" onclick="setF('reg.income',&quot;기존 임금 60% 수준&quot;);render()">기존 임금 60% 수준</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.income',&quot;기존 임금 40% 수준&quot;);render()">기존 임금 40% 수준</button>
+<button type="button" role="radio" class="chip " aria-checked="false" onclick="setF('reg.income',&quot;기타&quot;);render()">기타</button>
+</div>
+</div>
+<div class="acts" style="justify-content:space-between;margin-top:14px">
+<button class="btn ghost" onclick="goStep(0)">이전</button>
+<button class="btn" onclick="nextFrom(1)">다음 · 경력목표</button>
+</div>
+</div>
+</div>

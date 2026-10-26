@@ -1,0 +1,247 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')" class="on">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="wrap" style="padding-top:26px">
+<h2 style="font-size:24px">관리자 페이지</h2>
+<div class="hintline">기업별 세컨플래닝을 만들고 컨설턴트·내담자를 등록한 뒤, 진행 현황과 결과 리포트를 확인합니다.</div>
+<div class="perm">
+<b>관리자 권한</b> 기업·컨설턴트·고객사 담당자·내담자 등록/삭제 · 기업 로고와 결과보고서 설정 · 전체 기업의 현황과 보고서 조회</div>
+  <div class="tabs">
+<button class="" onclick="S.tab='p1';render();window.scrollTo(0,0)">PART 01 · 기업·계정 관리</button>
+<button class="" onclick="S.tab='p2';render();window.scrollTo(0,0)">PART 02 · 진단 현황</button>
+<button class="on" onclick="S.tab='rep';render();window.scrollTo(0,0)">사전사후 보고서</button>
+<button class="" onclick="S.tab='ver';render();window.scrollTo(0,0)">원본 대조 검증</button>
+</div>
+  <div class="toolbar" style="margin-top:0">
+<div class="filters">
+<select class="in" aria-label="기업" onchange="S.rep.company=this.value;render()">
+<option>전체</option>
+<option>다이소</option>
+<option selected="">㈜한빛전자</option>
+<option>대한제약</option>
+<option>㈜새봄물산</option>
+<option>가온정밀</option>
+<option>나래식품</option>
+<option>다온물류</option>
+<option>라온소프트</option>
+<option>마루건설</option>
+<option>바른제약</option>
+<option>새길산업</option>
+<option>아람전자</option>
+</select>
+</div>
+<div class="acts">
+<button class="btn mint sm" onclick="exportPptx(false)">PPT 다운받기</button>
+<button class="btn ghost sm" onclick="window.print()">현재 화면 PDF로 저장(인쇄)</button>
+</div>
+</div>
+  <div class="rnav noprint">
+<button class="rarrow" disabled="" onclick="rmove(-1)" aria-label="이전 화면">‹</button>
+<div class="rtitle">
+<b>1 / 9</b>사전사후 결과</div>
+<button class="rarrow" onclick="rmove(1)" aria-label="다음 화면">›</button>
+</div>
+  <div class="rdots noprint">
+<button class="on" onclick="rgo('r1')" aria-label="1번 화면" aria-current="true">1</button>
+<button class="" onclick="rgo('r2')" aria-label="2번 화면">2</button>
+<button class="" onclick="rgo('r3')" aria-label="3번 화면">3</button>
+<button class="" onclick="rgo('r4')" aria-label="4번 화면">4</button>
+<button class="" onclick="rgo('r5')" aria-label="5번 화면">5</button>
+<button class="" onclick="rgo('r6')" aria-label="6번 화면">6</button>
+<button class="" onclick="rgo('r7')" aria-label="7번 화면">7</button>
+<button class="" onclick="rgo('r8')" aria-label="8번 화면">8</button>
+<button class="" onclick="rgo('r9')" aria-label="9번 화면">9</button>
+</div>
+  <div id="rslide" class="">
+<section class="sheet">
+<div class="sh-head">
+<span>일을통한행복한삶 (The better life, The Better Career)</span>
+<span>사전사후 참여결과 보고서</span>
+</div>
+<div class="rbase">[Base: ㈜한빛전자 사전·사후 참여자(n=4), 단위: 명]</div>
+<div class="tiles">
+<div class="tile">
+<span>사전·사후 참여자</span>
+<b>4명</b>
+</div>
+<div class="tile c3">
+<span>사전 평균 합계 (75점)</span>
+<b>52.4</b>
+</div>
+<div class="tile c2">
+<span>사후 평균 합계 (75점)</span>
+<b>58.6</b>
+</div>
+<div class="tile c1">
+<span>전체 변화율</span>
+<b>11.8% ▲</b>
+</div>
+</div>
+  <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+<div class="legend">
+<span>
+<i class="sw" style="background:var(--pre)">
+</i>사전_평균</span>
+<span>
+<i class="sw" style="background:var(--post)">
+</i>사후_평균</span>
+</div>
+<span class="hintline">영역별 원점수(15점 만점 기준) · 변화율 순위 TOP3 표시</span>
+</div>
+  <svg viewBox="0 0 720 350" role="img" aria-label="영역별 사전 사후 평균 원점수">
+<line x1="34" x2="710" y1="294" y2="294" class="grid">
+</line>
+<text x="28" y="298" class="axis" text-anchor="end">0</text>
+<line x1="34" x2="710" y1="277.73333333333335" y2="277.73333333333335" class="grid">
+</line>
+<text x="28" y="281.73333333333335" class="axis" text-anchor="end">1</text>
+<line x1="34" x2="710" y1="261.4666666666667" y2="261.4666666666667" class="grid">
+</line>
+<text x="28" y="265.4666666666667" class="axis" text-anchor="end">2</text>
+<line x1="34" x2="710" y1="245.2" y2="245.2" class="grid">
+</line>
+<text x="28" y="249.2" class="axis" text-anchor="end">3</text>
+<line x1="34" x2="710" y1="228.93333333333334" y2="228.93333333333334" class="grid">
+</line>
+<text x="28" y="232.93333333333334" class="axis" text-anchor="end">4</text>
+<line x1="34" x2="710" y1="212.66666666666669" y2="212.66666666666669" class="grid">
+</line>
+<text x="28" y="216.66666666666669" class="axis" text-anchor="end">5</text>
+<line x1="34" x2="710" y1="196.39999999999998" y2="196.39999999999998" class="grid">
+</line>
+<text x="28" y="200.39999999999998" class="axis" text-anchor="end">6</text>
+<line x1="34" x2="710" y1="180.13333333333333" y2="180.13333333333333" class="grid">
+</line>
+<text x="28" y="184.13333333333333" class="axis" text-anchor="end">7</text>
+<line x1="34" x2="710" y1="163.86666666666667" y2="163.86666666666667" class="grid">
+</line>
+<text x="28" y="167.86666666666667" class="axis" text-anchor="end">8</text>
+<line x1="34" x2="710" y1="147.6" y2="147.6" class="grid">
+</line>
+<text x="28" y="151.6" class="axis" text-anchor="end">9</text>
+<line x1="34" x2="710" y1="131.33333333333334" y2="131.33333333333334" class="grid">
+</line>
+<text x="28" y="135.33333333333334" class="axis" text-anchor="end">10</text>
+<line x1="34" x2="710" y1="115.06666666666669" y2="115.06666666666669" class="grid">
+</line>
+<text x="28" y="119.06666666666669" class="axis" text-anchor="end">11</text>
+<line x1="34" x2="710" y1="98.79999999999998" y2="98.79999999999998" class="grid">
+</line>
+<text x="28" y="102.79999999999998" class="axis" text-anchor="end">12</text>
+<line x1="34" x2="710" y1="82.53333333333333" y2="82.53333333333333" class="grid">
+</line>
+<text x="28" y="86.53333333333333" class="axis" text-anchor="end">13</text>
+<line x1="34" x2="710" y1="66.26666666666665" y2="66.26666666666665" class="grid">
+</line>
+<text x="28" y="70.26666666666665" class="axis" text-anchor="end">14</text>
+<line x1="34" x2="710" y1="50" y2="50" class="grid">
+</line>
+<text x="28" y="54" class="axis" text-anchor="end">15</text>
+<rect x="63.099999999999994" y="118.32" width="36" height="175.68" rx="4" class="rpre">
+</rect>
+<text x="81.1" y="113.32" class="val" text-anchor="middle">10.8</text>
+<rect x="104.1" y="102.05333333333331" width="36" height="191.9466666666667" rx="4" class="rpost">
+</rect>
+<text x="122.1" y="97.05333333333331" class="val" text-anchor="middle">11.8</text>
+<text x="101.6" y="314" class="lab" text-anchor="middle">자기인식</text>
+<text x="101.6" y="16" class="top " text-anchor="middle">9.3% ▲</text>
+<rect x="198.29999999999998" y="134.58666666666664" width="36" height="159.41333333333336" rx="4" class="rpre">
+</rect>
+<text x="216.29999999999998" y="129.58666666666664" class="val" text-anchor="middle">9.8</text>
+<rect x="239.29999999999998" y="106.93333333333331" width="36" height="187.0666666666667" rx="4" class="rpost">
+</rect>
+<text x="257.29999999999995" y="101.93333333333331" class="val" text-anchor="middle">11.5</text>
+<text x="236.79999999999998" y="314" class="lab" text-anchor="middle">직업탐색</text>
+<text x="236.79999999999998" y="16" class="top " text-anchor="middle">17.3% ▲</text>
+<text x="236.79999999999998" y="42" class="rank" text-anchor="middle">1st</text>
+<rect x="333.5" y="134.58666666666664" width="36" height="159.41333333333336" rx="4" class="rpre">
+</rect>
+<text x="351.5" y="129.58666666666664" class="val" text-anchor="middle">9.8</text>
+<rect x="374.5" y="115.06666666666669" width="36" height="178.9333333333333" rx="4" class="rpost">
+</rect>
+<text x="392.5" y="110.06666666666669" class="val" text-anchor="middle">11</text>
+<text x="372" y="314" class="lab" text-anchor="middle">의사결정</text>
+<text x="372" y="16" class="top " text-anchor="middle">12.2% ▲</text>
+<text x="372" y="42" class="rank" text-anchor="middle">3rd</text>
+<rect x="468.69999999999993" y="115.06666666666669" width="36" height="178.9333333333333" rx="4" class="rpre">
+</rect>
+<text x="486.69999999999993" y="110.06666666666669" class="val" text-anchor="middle">11</text>
+<rect x="509.69999999999993" y="90.66666666666666" width="36" height="203.33333333333334" rx="4" class="rpost">
+</rect>
+<text x="527.6999999999999" y="85.66666666666666" class="val" text-anchor="middle">12.5</text>
+<text x="507.19999999999993" y="314" class="lab" text-anchor="middle">커리어플랜</text>
+<text x="507.19999999999993" y="16" class="top " text-anchor="middle">13.6% ▲</text>
+<text x="507.19999999999993" y="42" class="rank" text-anchor="middle">2nd</text>
+<rect x="603.9" y="115.06666666666669" width="36" height="178.9333333333333" rx="4" class="rpre">
+</rect>
+<text x="621.9" y="110.06666666666669" class="val" text-anchor="middle">11</text>
+<rect x="644.9" y="102.05333333333331" width="36" height="191.9466666666667" rx="4" class="rpost">
+</rect>
+<text x="662.9" y="97.05333333333331" class="val" text-anchor="middle">11.8</text>
+<text x="642.4" y="314" class="lab" text-anchor="middle">목표실행</text>
+<text x="642.4" y="16" class="top " text-anchor="middle">7.3% ▲</text>
+</svg>
+  <div class="scroll">
+<table class="t c">
+<tbody>
+<tr>
+<th>구분</th>
+<th>자기인식</th>
+<th>직업탐색</th>
+<th>의사결정</th>
+<th>커리어플랜</th>
+<th>목표실행</th>
+</tr>
+<tr>
+<th>사전_평균</th>
+<td>10.8</td>
+<td>9.8</td>
+<td>9.8</td>
+<td>11</td>
+<td>11</td>
+</tr>
+<tr>
+<th>사후_평균</th>
+<td>11.8</td>
+<td>11.5</td>
+<td>11</td>
+<td>12.5</td>
+<td>11.8</td>
+</tr>
+<tr>
+<th>변화율(%)</th>
+<td>9.3% ▲</td>
+<td>17.3% ▲</td>
+<td>12.2% ▲</td>
+<td>13.6% ▲</td>
+<td>7.3% ▲</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sh-foot">
+<span class="ft-l">
+<span class="logo-hdc">
+<svg viewBox="0 0 28 22" width="26" height="20" aria-hidden="true">
+<path d="M2 4h24M2 11h24M2 18h24" stroke="#2F7C82" stroke-width="4" stroke-linecap="round">
+</path>
+<path d="M6 4h6M12 11h8M8 18h10" stroke="#9FC4C7" stroke-width="4" stroke-linecap="round">
+</path>
+</svg>The Human<br>Data Center</span>
+</span>
+<span>Copyright © 2026 JMCAREER All rights reserved. / www.humandc.co.kr</span>
+<span>1 / 9</span>
+</div>
+</section>
+</div>
+  <p class="hintline noprint" style="text-align:center">좌우 화살표, 키보드 ← → 또는 화면을 옆으로 밀어서 다음 화면을 볼 수 있어요.</p>
+</div>

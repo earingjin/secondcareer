@@ -1,0 +1,214 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')" class="on">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="wrap" style="padding-top:26px">
+<h2 style="font-size:24px">관리자 페이지</h2>
+<div class="hintline">기업별 세컨플래닝을 만들고 컨설턴트·내담자를 등록한 뒤, 진행 현황과 결과 리포트를 확인합니다.</div>
+<div class="perm">
+<b>관리자 권한</b> 기업·컨설턴트·고객사 담당자·내담자 등록/삭제 · 기업 로고와 결과보고서 설정 · 전체 기업의 현황과 보고서 조회</div>
+  <div class="tabs">
+<button class="" onclick="S.tab='p1';render();window.scrollTo(0,0)">PART 01 · 기업·계정 관리</button>
+<button class="" onclick="S.tab='p2';render();window.scrollTo(0,0)">PART 02 · 진단 현황</button>
+<button class="on" onclick="S.tab='rep';render();window.scrollTo(0,0)">사전사후 보고서</button>
+<button class="" onclick="S.tab='ver';render();window.scrollTo(0,0)">원본 대조 검증</button>
+</div>
+  <div class="toolbar" style="margin-top:0">
+<div class="filters">
+<select class="in" aria-label="기업" onchange="S.rep.company=this.value;render()">
+<option selected="">전체</option>
+<option>다이소</option>
+<option>㈜한빛전자</option>
+<option>대한제약</option>
+<option>㈜새봄물산</option>
+<option>가온정밀</option>
+<option>나래식품</option>
+<option>다온물류</option>
+<option>라온소프트</option>
+<option>마루건설</option>
+<option>바른제약</option>
+<option>새길산업</option>
+<option>아람전자</option>
+</select>
+</div>
+<div class="acts">
+<button class="btn mint sm" onclick="exportPptx(false)">PPT 다운받기</button>
+<button class="btn ghost sm" onclick="window.print()">현재 화면 PDF로 저장(인쇄)</button>
+</div>
+</div>
+  <div class="rnav noprint">
+<button class="rarrow" onclick="rmove(-1)" aria-label="이전 화면">‹</button>
+<div class="rtitle">
+<b>4 / 9</b>만족도_심리적 안정감</div>
+<button class="rarrow" onclick="rmove(1)" aria-label="다음 화면">›</button>
+</div>
+  <div class="rdots noprint">
+<button class="" onclick="rgo('r1')" aria-label="1번 화면">1</button>
+<button class="" onclick="rgo('r2')" aria-label="2번 화면">2</button>
+<button class="" onclick="rgo('r3')" aria-label="3번 화면">3</button>
+<button class="on" onclick="rgo('r4')" aria-label="4번 화면" aria-current="true">4</button>
+<button class="" onclick="rgo('r5')" aria-label="5번 화면">5</button>
+<button class="" onclick="rgo('r6')" aria-label="6번 화면">6</button>
+<button class="" onclick="rgo('r7')" aria-label="7번 화면">7</button>
+<button class="" onclick="rgo('r8')" aria-label="8번 화면">8</button>
+<button class="" onclick="rgo('r9')" aria-label="9번 화면">9</button>
+</div>
+  <div id="rslide" class="">
+<section class="sheet">
+<div class="sh-head">
+<span>일을통한행복한삶 (The better life, The Better Career)</span>
+<span>사전사후 참여결과 보고서</span>
+</div>
+<div class="rbase">[Base: 전체 기업 사전·사후 참여자(n=13), 만족도 응답 n=13, 단위: 명]</div>
+<div class="qbar">Q 3.0 서비스 이후 심리적 안정감</div>
+  <div class="tiles" style="grid-template-columns:repeat(3,1fr);margin-top:14px">
+<div class="tile">
+<span>사전 긍정적 마음 상태</span>
+<b>30.8%</b>
+</div>
+<div class="tile c2">
+<span>사후 긍정적 마음 상태</span>
+<b>100%</b>
+</div>
+<div class="tile c1">
+<span>변화</span>
+<b>+69.2%p</b>
+</div>
+</div>
+  <p class="hintline">긍정적 마음 상태 = ‘잘 될 것이라고 믿는다’ + ‘구체적으로 준비하고 있어 안심이다’ 선택 비율</p>
+  <h3 class="st">Q 3.1 마음 상태 사전·사후 분포 (명)</h3>
+<div class="legend">
+<span>
+<i class="sw" style="background:var(--pre)">
+</i>사전응답</span>
+<span>
+<i class="sw" style="background:var(--post)">
+</i>사후응답</span>
+</div>
+  <svg viewBox="0 0 720 310" role="img" aria-label="마음 상태 사전 사후 분포">
+<line x1="34" x2="710" y1="254" y2="254" class="grid">
+</line>
+<text x="28" y="258" class="axis" text-anchor="end">0</text>
+<line x1="34" x2="710" y1="217.33333333333334" y2="217.33333333333334" class="grid">
+</line>
+<text x="28" y="221.33333333333334" class="axis" text-anchor="end">2</text>
+<line x1="34" x2="710" y1="180.66666666666669" y2="180.66666666666669" class="grid">
+</line>
+<text x="28" y="184.66666666666669" class="axis" text-anchor="end">4</text>
+<line x1="34" x2="710" y1="144" y2="144" class="grid">
+</line>
+<text x="28" y="148" class="axis" text-anchor="end">6</text>
+<line x1="34" x2="710" y1="107.33333333333334" y2="107.33333333333334" class="grid">
+</line>
+<text x="28" y="111.33333333333334" class="axis" text-anchor="end">8</text>
+<line x1="34" x2="710" y1="70.66666666666666" y2="70.66666666666666" class="grid">
+</line>
+<text x="28" y="74.66666666666666" class="axis" text-anchor="end">10</text>
+<line x1="34" x2="710" y1="34" y2="34" class="grid">
+</line>
+<text x="28" y="38" class="axis" text-anchor="end">12</text>
+<rect x="51.83333333333334" y="217.33333333333334" width="36" height="36.666666666666664" rx="4" class="rpre">
+</rect>
+<text x="69.83333333333334" y="212.33333333333334" class="val" text-anchor="middle">2</text>
+<rect x="92.83333333333334" y="52.33333333333334" width="36" height="201.66666666666666" rx="4" class="rpost">
+</rect>
+<text x="110.83333333333334" y="47.33333333333334" class="val" text-anchor="middle">11</text>
+<text x="90.33333333333334" y="274" class="lab" text-anchor="middle">잘 될 것이라</text>
+<text x="90.33333333333334" y="289" class="lab" text-anchor="middle">믿는다</text>
+<rect x="164.50000000000003" y="217.33333333333334" width="36" height="36.666666666666664" rx="4" class="rpre">
+</rect>
+<text x="182.50000000000003" y="212.33333333333334" class="val" text-anchor="middle">2</text>
+<rect x="205.50000000000003" y="217.33333333333334" width="36" height="36.666666666666664" rx="4" class="rpost">
+</rect>
+<text x="223.50000000000003" y="212.33333333333334" class="val" text-anchor="middle">2</text>
+<text x="203.00000000000003" y="274" class="lab" text-anchor="middle">구체적으로</text>
+<text x="203.00000000000003" y="289" class="lab" text-anchor="middle">준비해 안심</text>
+<rect x="277.1666666666667" y="217.33333333333334" width="36" height="36.666666666666664" rx="4" class="rpre">
+</rect>
+<text x="295.1666666666667" y="212.33333333333334" class="val" text-anchor="middle">2</text>
+<rect x="318.1666666666667" y="254" width="36" height="0" rx="4" class="rpost">
+</rect>
+<text x="336.1666666666667" y="249" class="val" text-anchor="middle">0</text>
+<text x="315.6666666666667" y="274" class="lab" text-anchor="middle">체감되지 않아</text>
+<text x="315.6666666666667" y="289" class="lab" text-anchor="middle">모르겠다</text>
+<rect x="389.8333333333333" y="180.66666666666669" width="36" height="73.33333333333333" rx="4" class="rpre">
+</rect>
+<text x="407.8333333333333" y="175.66666666666669" class="val" text-anchor="middle">4</text>
+<rect x="430.8333333333333" y="254" width="36" height="0" rx="4" class="rpost">
+</rect>
+<text x="448.8333333333333" y="249" class="val" text-anchor="middle">0</text>
+<text x="428.3333333333333" y="274" class="lab" text-anchor="middle">이제부터 진로</text>
+<text x="428.3333333333333" y="289" class="lab" text-anchor="middle">생각할 예정</text>
+<rect x="502.5" y="235.66666666666666" width="36" height="18.333333333333332" rx="4" class="rpre">
+</rect>
+<text x="520.5" y="230.66666666666666" class="val" text-anchor="middle">1</text>
+<rect x="543.5" y="254" width="36" height="0" rx="4" class="rpost">
+</rect>
+<text x="561.5" y="249" class="val" text-anchor="middle">0</text>
+<text x="541" y="274" class="lab" text-anchor="middle">사람 만나는</text>
+<text x="541" y="289" class="lab" text-anchor="middle">것이 위축</text>
+<rect x="615.1666666666667" y="217.33333333333334" width="36" height="36.666666666666664" rx="4" class="rpre">
+</rect>
+<text x="633.1666666666667" y="212.33333333333334" class="val" text-anchor="middle">2</text>
+<rect x="656.1666666666667" y="254" width="36" height="0" rx="4" class="rpost">
+</rect>
+<text x="674.1666666666667" y="249" class="val" text-anchor="middle">0</text>
+<text x="653.6666666666667" y="274" class="lab" text-anchor="middle">진로 고민으로</text>
+<text x="653.6666666666667" y="289" class="lab" text-anchor="middle">잠을 설침</text>
+</svg>
+  <h3 class="st">Q 3.2 심리적 안정감 문항 (5점 척도)</h3>
+  <div class="hbrow ">
+<div class="hl">상담 이후 막연한 불안이 줄었다</div>
+<div class="hb">
+<span style="width:84.00000000000001%">
+</span>
+</div>
+<div class="hv">
+<b>4.2점</b>
+</div>
+</div>
+<div class="hbrow ">
+<div class="hl">미래에 대한 자신감이 높아졌다</div>
+<div class="hb">
+<span style="width:98.00000000000001%">
+</span>
+</div>
+<div class="hv">
+<b>4.9점</b>
+</div>
+</div>
+<div class="hbrow ">
+<div class="hl">마음이 이전보다 안정되었다</div>
+<div class="hb">
+<span style="width:82%">
+</span>
+</div>
+<div class="hv">
+<b>4.1점</b>
+</div>
+</div>
+<div class="sh-foot">
+<span class="ft-l">
+<span class="logo-hdc">
+<svg viewBox="0 0 28 22" width="26" height="20" aria-hidden="true">
+<path d="M2 4h24M2 11h24M2 18h24" stroke="#2F7C82" stroke-width="4" stroke-linecap="round">
+</path>
+<path d="M6 4h6M12 11h8M8 18h10" stroke="#9FC4C7" stroke-width="4" stroke-linecap="round">
+</path>
+</svg>The Human<br>Data Center</span>
+</span>
+<span>Copyright © 2026 JMCAREER All rights reserved. / www.humandc.co.kr</span>
+<span>4 / 9</span>
+</div>
+</section>
+</div>
+  <p class="hintline noprint" style="text-align:center">좌우 화살표, 키보드 ← → 또는 화면을 옆으로 밀어서 다음 화면을 볼 수 있어요.</p>
+</div>

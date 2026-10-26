@@ -1,0 +1,30 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="on">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="narrow" style="padding-top:34px">
+<div class="card">
+    <span class="badge-s s-pre">제출 완료</span>
+    <h2 style="margin-top:10px">한솔님, 안녕하세요</h2>
+    <p class="sub">다이소 · 아이디 22223333</p>
+    <div class="done-box">
+<b>응답이 제출되었습니다.</b>
+<p>진단 결과는 상담에 참여하실 때 담당 상담사가 직접 설명하고 지면으로 전달해 드립니다. 제출한 응답은 상담사만 수정할 수 있습니다.</p>
+      <p class="hintline" style="margin-top:8px">담당 상담사 가상상담사 A · 010-0000-0102 · counselor-a@example.com</p>
+</div>
+    <div class="acts" style="gap:10px;margin-top:16px">
+      
+      <button class="btn mint" onclick="S.mode2='post';S.step=3;S.pstep=1;nav('wizard')">사후 진단 시작</button>
+      <button class="btn ghost" onclick="logout()">나가기</button>
+    </div>
+    
+  </div>
+</div>

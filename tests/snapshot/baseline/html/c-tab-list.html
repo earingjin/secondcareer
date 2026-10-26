@@ -1,0 +1,890 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')" class="on">상담사</button>
+      <button id="m-a" onclick="setMode('admin')">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="wrap" style="padding-top:26px">
+<div class="filters" style="justify-content:space-between">
+<div>
+<h2 style="font-size:24px">상담사 페이지</h2>
+<div class="hintline">담당 내담자의 진행 현황과 결과 리포트를 확인합니다.</div>
+</div>
+  <label class="hintline" style="display:flex;gap:8px;align-items:center">상담사 선택(데모) <select class="in" onchange="S.cc=this.value;S.f.company='전체';S.f.page=1;S.cent=null;S.created=[];render()">
+<option value="12">가상상담사 B (12)</option>
+<option value="27">가상상담사 C (27)</option>
+<option value="102" selected="">가상상담사 A (102)</option>
+</select>
+</label>
+</div>
+  <div class="perm">
+<b>상담사 권한</b> 담당 내담자 조회 · 결과 리포트 열람 · 응답 수정(재계산·이력) · 내담자 등록(본인 담당으로 자동 배정) · 담당 내담자 사전사후 보고서<span class="no">기업·컨설턴트·고객사 담당자 등록/삭제, 로고 변경, 다른 상담사의 내담자 조회는 관리자 권한입니다.</span>
+</div>
+  <div class="tabs">
+<button class="on" onclick="S.ctab='list';S.created=[];S.bulk='';S.berr='';render();window.scrollTo(0,0)">내 내담자 현황</button>
+<button class="" onclick="S.ctab='reg';S.created=[];S.bulk='';S.berr='';render();window.scrollTo(0,0)">내담자 등록</button>
+<button class="" onclick="S.ctab='rep';S.created=[];S.bulk='';S.berr='';render();window.scrollTo(0,0)">사전사후 보고서</button>
+</div>
+  <div class="part">
+<h2>내 내담자 현황</h2>
+</div>
+  <section class="sec">
+<div class="filters">
+<label class="hintline" style="display:flex;gap:8px;align-items:center">기업 <select class="in" onchange="setFc(this.value)">
+<option>전체</option>
+<option>다이소</option>
+<option>㈜한빛전자</option>
+</select>
+</label>
+</div>
+  <div class="tiles">
+<div class="tile">
+<span>대상자</span>
+<b>42</b>
+</div>
+<div class="tile c2">
+<span>진단 완료</span>
+<b>31</b>
+</div>
+<div class="tile c3">
+<span>미완료 인원</span>
+<b>11</b>
+</div>
+<div class="tile c1">
+<span>사후 완료 인원</span>
+<b>7</b>
+</div>
+</div>
+</section>
+  <section class="card sec" id="plist" style="padding:20px 18px">
+<h2 style="padding:0 6px">참여자 리스트 및 진행사항</h2>
+  <div class="filters" style="padding:10px 6px 0">
+<select class="in" aria-label="상태" onchange="setFs(this.value)">
+<option selected="">전체</option>
+<option>미시작</option>
+<option>진행 중</option>
+<option>사전 완료</option>
+<option>사후 완료</option>
+</select>
+<input class="in" placeholder="이름·아이디 검색" value="" onchange="setFq(this.value)">
+<span class="hintline">리포트 ↓ 는 결과 화면을 열고 인쇄창(PDF로 저장)을 띄웁니다.</span>
+</div>
+  <div class="scroll">
+<table class="t zebra">
+<tbody>
+<tr>
+<th>참여자</th>
+<th>기업</th>
+<th>아이디</th>
+<th>담당 컨설턴트</th>
+<th>진행여부</th>
+<th>상태</th>
+<th>사전</th>
+<th>사후</th>
+<th>생성된 리포트</th>
+</tr>
+  <tr>
+<td>
+<b>길동</b>
+<br>
+<span class="hintline">홍길동</span>
+</td>
+<td>다이소</td>
+<td>11112222</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+</span> <span class="hintline">4/4</span>
+</td>
+  <td>
+<span class="badge-s s-post">사후 완료</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2023-01-11</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2023-03-02</span>
+</td>
+  <td>
+<div class="acts">
+<button class="btn sm" onclick="dl('11112222','p')">내담자용 3p ↓</button>
+<button class="btn sm" onclick="dl('11112222','c')">상담사용 5p ↓</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>한솔</b>
+<br>
+<span class="hintline">이한솔</span>
+</td>
+<td>다이소</td>
+<td>22223333</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+</span> <span class="hintline">4/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('22223333','post')">사후 안내 복사</button>
+</td>
+  <td>
+<span class="badge-s s-pre">사전 완료</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-02</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<button class="btn sm" onclick="dl('22223333','p')">내담자용 3p ↓</button>
+<button class="btn sm" onclick="dl('22223333','c')">상담사용 5p ↓</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>하늘</b>
+</td>
+<td>다이소</td>
+<td>77778888</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="">
+</i>
+<i class="">
+</i>
+<i class="">
+</i>
+<i class="">
+</i>
+</span> <span class="hintline">0/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('77778888')">링크 복사</button>
+</td>
+  <td>
+<span class="badge-s s-new">미시작</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<span class="hintline">진단 완료 후 생성</span>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>은하</b>
+<br>
+<span class="hintline">오은하</span>
+</td>
+<td>㈜한빛전자</td>
+<td>88889999</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+</span> <span class="hintline">4/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('88889999','post')">사후 안내 복사</button>
+</td>
+  <td>
+<span class="badge-s s-pre">사전 완료</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-06</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<button class="btn sm" onclick="dl('88889999','p')">내담자용 3p ↓</button>
+<button class="btn sm" onclick="dl('88889999','c')">상담사용 5p ↓</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>햇살1</b>
+</td>
+<td>다이소</td>
+<td>30000000</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="">
+</i>
+<i class="">
+</i>
+<i class="">
+</i>
+<i class="">
+</i>
+</span> <span class="hintline">0/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('30000000')">링크 복사</button>
+</td>
+  <td>
+<span class="badge-s s-new">미시작</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<span class="hintline">진단 완료 후 생성</span>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>바람2</b>
+<br>
+<span class="hintline">이수빈</span>
+</td>
+<td>㈜한빛전자</td>
+<td>30007771</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="">
+</i>
+<i class="">
+</i>
+</span> <span class="hintline">2/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('30007771')">링크 복사</button>
+</td>
+  <td>
+<span class="badge-s s-prog">진행 중 2/4</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<span class="hintline">진단 완료 후 생성</span>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>노을4</b>
+<br>
+<span class="hintline">최하은</span>
+</td>
+<td>다이소</td>
+<td>30023313</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+</span> <span class="hintline">4/4</span>
+</td>
+  <td>
+<span class="badge-s s-post">사후 완료</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-04</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-20</span>
+</td>
+  <td>
+<div class="acts">
+<button class="btn sm" onclick="dl('30023313','p')">내담자용 3p ↓</button>
+<button class="btn sm" onclick="dl('30023313','c')">상담사용 5p ↓</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>새벽7</b>
+<br>
+<span class="hintline">조예준</span>
+</td>
+<td>다이소</td>
+<td>30046626</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="">
+</i>
+<i class="">
+</i>
+</span> <span class="hintline">2/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('30046626')">링크 복사</button>
+</td>
+  <td>
+<span class="badge-s s-prog">진행 중 2/4</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<span class="hintline">진단 완료 후 생성</span>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>소나무8</b>
+<br>
+<span class="hintline">윤유진</span>
+</td>
+<td>㈜한빛전자</td>
+<td>30054397</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+</span> <span class="hintline">4/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('30054397','post')">사후 안내 복사</button>
+</td>
+  <td>
+<span class="badge-s s-pre">사전 완료</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-08</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<button class="btn sm" onclick="dl('30054397','p')">내담자용 3p ↓</button>
+<button class="btn sm" onclick="dl('30054397','c')">상담사용 5p ↓</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>이슬10</b>
+<br>
+<span class="hintline">임소율</span>
+</td>
+<td>다이소</td>
+<td>30069939</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+</span> <span class="hintline">4/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('30069939','post')">사후 안내 복사</button>
+</td>
+  <td>
+<span class="badge-s s-pre">사전 완료</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-10</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<button class="btn sm" onclick="dl('30069939','p')">내담자용 3p ↓</button>
+<button class="btn sm" onclick="dl('30069939','c')">상담사용 5p ↓</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>구름13</b>
+<br>
+<span class="hintline">박민수</span>
+</td>
+<td>다이소</td>
+<td>30093252</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+</span> <span class="hintline">4/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('30093252','post')">사후 안내 복사</button>
+</td>
+  <td>
+<span class="badge-s s-pre">사전 완료</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-13</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<button class="btn sm" onclick="dl('30093252','p')">내담자용 3p ↓</button>
+<button class="btn sm" onclick="dl('30093252','c')">상담사용 5p ↓</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>노을14</b>
+<br>
+<span class="hintline">최수빈</span>
+</td>
+<td>㈜한빛전자</td>
+<td>30101023</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+</span> <span class="hintline">4/4</span>
+</td>
+  <td>
+<span class="badge-s s-post">사후 완료</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-14</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-20</span>
+</td>
+  <td>
+<div class="acts">
+<button class="btn sm" onclick="dl('30101023','p')">내담자용 3p ↓</button>
+<button class="btn sm" onclick="dl('30101023','c')">상담사용 5p ↓</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>단풍16</b>
+</td>
+<td>다이소</td>
+<td>30116565</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="">
+</i>
+<i class="">
+</i>
+<i class="">
+</i>
+<i class="">
+</i>
+</span> <span class="hintline">0/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('30116565')">링크 복사</button>
+</td>
+  <td>
+<span class="badge-s s-new">미시작</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<span class="hintline">진단 완료 후 생성</span>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>별빛19</b>
+<br>
+<span class="hintline">장예준</span>
+</td>
+<td>다이소</td>
+<td>30139878</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+</span> <span class="hintline">4/4</span>
+</td>
+  <td>
+<span class="badge-s s-post">사후 완료</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-19</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-20</span>
+</td>
+  <td>
+<div class="acts">
+<button class="btn sm" onclick="dl('30139878','p')">내담자용 3p ↓</button>
+<button class="btn sm" onclick="dl('30139878','c')">상담사용 5p ↓</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>이슬20</b>
+<br>
+<span class="hintline">임유진</span>
+</td>
+<td>㈜한빛전자</td>
+<td>30147649</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+</span> <span class="hintline">4/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('30147649','post')">사후 안내 복사</button>
+</td>
+  <td>
+<span class="badge-s s-pre">사전 완료</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-01</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<button class="btn sm" onclick="dl('30147649','p')">내담자용 3p ↓</button>
+<button class="btn sm" onclick="dl('30147649','c')">상담사용 5p ↓</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>바람22</b>
+<br>
+<span class="hintline">이소율</span>
+</td>
+<td>다이소</td>
+<td>30163191</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="">
+</i>
+<i class="">
+</i>
+</span> <span class="hintline">2/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('30163191')">링크 복사</button>
+</td>
+  <td>
+<span class="badge-s s-prog">진행 중 2/4</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<span class="hintline">진단 완료 후 생성</span>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>파도25</b>
+<br>
+<span class="hintline">정민수</span>
+</td>
+<td>다이소</td>
+<td>30186504</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+</span> <span class="hintline">4/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('30186504','post')">사후 안내 복사</button>
+</td>
+  <td>
+<span class="badge-s s-pre">사전 완료</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-06</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<button class="btn sm" onclick="dl('30186504','p')">내담자용 3p ↓</button>
+<button class="btn sm" onclick="dl('30186504','c')">상담사용 5p ↓</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>단풍26</b>
+</td>
+<td>㈜한빛전자</td>
+<td>30194275</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="">
+</i>
+<i class="">
+</i>
+<i class="">
+</i>
+<i class="">
+</i>
+</span> <span class="hintline">0/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('30194275')">링크 복사</button>
+</td>
+  <td>
+<span class="badge-s s-new">미시작</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<span class="hintline">진단 완료 후 생성</span>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>소나무28</b>
+<br>
+<span class="hintline">윤하은</span>
+</td>
+<td>다이소</td>
+<td>30209817</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+<i class="on">
+</i>
+</span> <span class="hintline">4/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('30209817','post')">사후 안내 복사</button>
+</td>
+  <td>
+<span class="badge-s s-pre">사전 완료</span>
+</td>
+<td>
+<span class="badge-s s-post">완료</span>
+<br>
+<span class="hintline">2026-10-09</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<button class="btn sm" onclick="dl('30209817','p')">내담자용 3p ↓</button>
+<button class="btn sm" onclick="dl('30209817','c')">상담사용 5p ↓</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>햇살31</b>
+</td>
+<td>다이소</td>
+<td>30233130</td>
+<td>가상상담사 A</td>
+  <td>
+<span class="dots" title="등록·목표·진단·기대">
+<i class="">
+</i>
+<i class="">
+</i>
+<i class="">
+</i>
+<i class="">
+</i>
+</span> <span class="hintline">0/4</span>
+<br>
+<button class="btn ghost sm" style="margin-top:6px" onclick="copyLink('30233130')">링크 복사</button>
+</td>
+  <td>
+<span class="badge-s s-new">미시작</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+<td>
+<span class="badge-s s-new">미완료</span>
+</td>
+  <td>
+<div class="acts">
+<span class="hintline">진단 완료 후 생성</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+  <div class="hintline" style="text-align:center;margin-top:12px">1–20 / 총 42명 (페이지당 20명)</div>
+  <div class="pager" role="navigation" aria-label="페이지">
+<button disabled="" onclick="goPage(0)" aria-label="이전 페이지">‹</button>
+<button class="on" aria-current="page" onclick="goPage(1)">1</button>
+<button class="" onclick="goPage(2)">2</button>
+<button class="" onclick="goPage(3)">3</button>
+<button onclick="goPage(2)" aria-label="다음 페이지">›</button>
+</div>
+</section>
+</div>

@@ -1,0 +1,370 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')" class="on">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="wrap" style="padding-top:26px">
+<h2 style="font-size:24px">관리자 페이지</h2>
+<div class="hintline">기업별 세컨플래닝을 만들고 컨설턴트·내담자를 등록한 뒤, 진행 현황과 결과 리포트를 확인합니다.</div>
+<div class="perm">
+<b>관리자 권한</b> 기업·컨설턴트·고객사 담당자·내담자 등록/삭제 · 기업 로고와 결과보고서 설정 · 전체 기업의 현황과 보고서 조회</div>
+  <div class="tabs">
+<button class="" onclick="S.tab='p1';render();window.scrollTo(0,0)">PART 01 · 기업·계정 관리</button>
+<button class="" onclick="S.tab='p2';render();window.scrollTo(0,0)">PART 02 · 진단 현황</button>
+<button class="on" onclick="S.tab='rep';render();window.scrollTo(0,0)">사전사후 보고서</button>
+<button class="" onclick="S.tab='ver';render();window.scrollTo(0,0)">원본 대조 검증</button>
+</div>
+  <div class="toolbar" style="margin-top:0">
+<div class="filters">
+<select class="in" aria-label="기업" onchange="S.rep.company=this.value;render()">
+<option selected="">전체</option>
+<option>다이소</option>
+<option>㈜한빛전자</option>
+<option>대한제약</option>
+<option>㈜새봄물산</option>
+<option>가온정밀</option>
+<option>나래식품</option>
+<option>다온물류</option>
+<option>라온소프트</option>
+<option>마루건설</option>
+<option>바른제약</option>
+<option>새길산업</option>
+<option>아람전자</option>
+</select>
+</div>
+<div class="acts">
+<button class="btn mint sm" onclick="exportPptx(false)">PPT 다운받기</button>
+<button class="btn ghost sm" onclick="window.print()">현재 화면 PDF로 저장(인쇄)</button>
+</div>
+</div>
+  <div class="rnav noprint">
+<button class="rarrow" onclick="rmove(-1)" aria-label="이전 화면">‹</button>
+<div class="rtitle">
+<b>6 / 9</b>만족도_컨설팅 기대 및 효과</div>
+<button class="rarrow" onclick="rmove(1)" aria-label="다음 화면">›</button>
+</div>
+  <div class="rdots noprint">
+<button class="" onclick="rgo('r1')" aria-label="1번 화면">1</button>
+<button class="" onclick="rgo('r2')" aria-label="2번 화면">2</button>
+<button class="" onclick="rgo('r3')" aria-label="3번 화면">3</button>
+<button class="" onclick="rgo('r4')" aria-label="4번 화면">4</button>
+<button class="" onclick="rgo('r5')" aria-label="5번 화면">5</button>
+<button class="on" onclick="rgo('r6')" aria-label="6번 화면" aria-current="true">6</button>
+<button class="" onclick="rgo('r7')" aria-label="7번 화면">7</button>
+<button class="" onclick="rgo('r8')" aria-label="8번 화면">8</button>
+<button class="" onclick="rgo('r9')" aria-label="9번 화면">9</button>
+</div>
+  <div id="rslide" class="">
+<section class="sheet">
+<div class="sh-head">
+<span>일을통한행복한삶 (The better life, The Better Career)</span>
+<span>사전사후 참여결과 보고서</span>
+</div>
+<div class="rbase">[Base: 전체 기업 사전·사후 참여자(n=13), 만족도 응답 n=13, 단위: 명]</div>
+<div class="qbar">Q 5.0 사전(컨설팅 기대), 사후(가장 도움이 된 부분)</div>
+  <div class="sidechart">
+<div style="padding-top:34px">
+<div>
+<div class="topitem t1">
+<b>01</b>
+<span>재취업(채용전략부터 입사까지) 지원 (38.5%, 5명)</span>
+</div>
+<div class="topitem t2">
+<b>02</b>
+<span>커리어목표 및 방향설정과 플랜설계 (15.4%, 2명)</span>
+</div>
+<div class="topitem t3">
+<b>03</b>
+<span>막연함 개선(심리안정/자신감 증진) (15.4%, 2명)</span>
+</div>
+</div>
+</div>
+<div>
+<div class="legend">
+<span>
+<i class="sw" style="background:var(--pre)">
+</i>사전응답(기대)</span>
+<span>
+<i class="sw" style="background:var(--post)">
+</i>사후응답(도움이 된 부분)</span>
+</div>
+<svg viewBox="0 0 720 320" role="img" aria-label="컨설팅 기대와 도움이 된 부분">
+<line x1="34" x2="710" y1="264" y2="264" class="grid">
+</line>
+<text x="28" y="268" class="axis" text-anchor="end">0</text>
+<line x1="34" x2="710" y1="227.66666666666669" y2="227.66666666666669" class="grid">
+</line>
+<text x="28" y="231.66666666666669" class="axis" text-anchor="end">1</text>
+<line x1="34" x2="710" y1="191.33333333333334" y2="191.33333333333334" class="grid">
+</line>
+<text x="28" y="195.33333333333334" class="axis" text-anchor="end">2</text>
+<line x1="34" x2="710" y1="155" y2="155" class="grid">
+</line>
+<text x="28" y="159" class="axis" text-anchor="end">3</text>
+<line x1="34" x2="710" y1="118.66666666666669" y2="118.66666666666669" class="grid">
+</line>
+<text x="28" y="122.66666666666669" class="axis" text-anchor="end">4</text>
+<line x1="34" x2="710" y1="82.33333333333331" y2="82.33333333333331" class="grid">
+</line>
+<text x="28" y="86.33333333333331" class="axis" text-anchor="end">5</text>
+<line x1="34" x2="710" y1="46" y2="46" class="grid">
+</line>
+<text x="28" y="50" class="axis" text-anchor="end">6</text>
+<rect x="43.78571428571428" y="227.66666666666669" width="36" height="36.33333333333333" rx="4" class="rpre">
+</rect>
+<text x="61.78571428571428" y="222.66666666666669" class="val" text-anchor="middle">1</text>
+<rect x="84.78571428571428" y="191.33333333333334" width="36" height="72.66666666666666" rx="4" class="rpost">
+</rect>
+<text x="102.78571428571428" y="186.33333333333334" class="val" text-anchor="middle">2</text>
+<text x="82.28571428571428" y="284" class="lab" text-anchor="middle">심리진단</text>
+<text x="82.28571428571428" y="299" class="lab" text-anchor="middle">및 분석</text>
+<rect x="140.35714285714283" y="191.33333333333334" width="36" height="72.66666666666666" rx="4" class="rpre">
+</rect>
+<text x="158.35714285714283" y="186.33333333333334" class="val" text-anchor="middle">2</text>
+<rect x="181.35714285714283" y="191.33333333333334" width="36" height="72.66666666666666" rx="4" class="rpost">
+</rect>
+<text x="199.35714285714283" y="186.33333333333334" class="val" text-anchor="middle">2</text>
+<text x="178.85714285714283" y="284" class="lab" text-anchor="middle">커리어목표</text>
+<text x="178.85714285714283" y="299" class="lab" text-anchor="middle">·방향설정</text>
+<text x="178.85714285714283" y="38" class="rank" text-anchor="middle">TOP 2</text>
+<rect x="236.92857142857144" y="191.33333333333334" width="36" height="72.66666666666666" rx="4" class="rpre">
+</rect>
+<text x="254.92857142857144" y="186.33333333333334" class="val" text-anchor="middle">2</text>
+<rect x="277.92857142857144" y="191.33333333333334" width="36" height="72.66666666666666" rx="4" class="rpost">
+</rect>
+<text x="295.92857142857144" y="186.33333333333334" class="val" text-anchor="middle">2</text>
+<text x="275.42857142857144" y="284" class="lab" text-anchor="middle">막연함 개선</text>
+<text x="275.42857142857144" y="299" class="lab" text-anchor="middle">(심리안정)</text>
+<text x="275.42857142857144" y="38" class="rank" text-anchor="middle">TOP 3</text>
+<rect x="333.5" y="82.33333333333331" width="36" height="181.66666666666669" rx="4" class="rpre">
+</rect>
+<text x="351.5" y="77.33333333333331" class="val" text-anchor="middle">5</text>
+<rect x="374.5" y="227.66666666666669" width="36" height="36.33333333333333" rx="4" class="rpost">
+</rect>
+<text x="392.5" y="222.66666666666669" class="val" text-anchor="middle">1</text>
+<text x="372" y="284" class="lab" text-anchor="middle">재취업</text>
+<text x="372" y="299" class="lab" text-anchor="middle">(채용~입사)</text>
+<text x="372" y="38" class="rank" text-anchor="middle">TOP 1</text>
+<rect x="430.07142857142856" y="227.66666666666669" width="36" height="36.33333333333333" rx="4" class="rpre">
+</rect>
+<text x="448.07142857142856" y="222.66666666666669" class="val" text-anchor="middle">1</text>
+<rect x="471.07142857142856" y="191.33333333333334" width="36" height="72.66666666666666" rx="4" class="rpost">
+</rect>
+<text x="489.07142857142856" y="186.33333333333334" class="val" text-anchor="middle">2</text>
+<text x="468.57142857142856" y="284" class="lab" text-anchor="middle">창업</text>
+<text x="468.57142857142856" y="299" class="lab" text-anchor="middle">컨설팅</text>
+<rect x="526.6428571428572" y="191.33333333333334" width="36" height="72.66666666666666" rx="4" class="rpre">
+</rect>
+<text x="544.6428571428572" y="186.33333333333334" class="val" text-anchor="middle">2</text>
+<rect x="567.6428571428572" y="118.66666666666669" width="36" height="145.33333333333331" rx="4" class="rpost">
+</rect>
+<text x="585.6428571428572" y="113.66666666666669" class="val" text-anchor="middle">4</text>
+<text x="565.1428571428572" y="284" class="lab" text-anchor="middle">자산관리</text>
+<text x="565.1428571428572" y="299" class="lab" text-anchor="middle">가이드</text>
+<rect x="623.2142857142858" y="264" width="36" height="0" rx="4" class="rpre">
+</rect>
+<text x="641.2142857142858" y="259" class="val" text-anchor="middle">0</text>
+<rect x="664.2142857142858" y="264" width="36" height="0" rx="4" class="rpost">
+</rect>
+<text x="682.2142857142858" y="259" class="val" text-anchor="middle">0</text>
+<text x="661.7142857142858" y="284" class="lab" text-anchor="middle">새로운 경력설계</text>
+<text x="661.7142857142858" y="299" class="lab" text-anchor="middle">·자기개발</text>
+</svg>
+</div>
+</div>
+  <div class="sat2" style="margin-top:22px">
+<div>
+<div class="qbar">Q 5.2 컨설팅 전 기대했던 부분의 충족도</div>
+  <div class="pie">
+<svg viewBox="0 0 100 100" role="img" aria-label="종합평균 4.1점">
+<circle cx="50" cy="50" r="30" fill="none" style="stroke:var(--line);stroke-width:60">
+</circle>
+<circle cx="50" cy="50" r="30" fill="none" style="stroke:var(--coral);stroke-width:60" stroke-dasharray="154.5663585566178 188.49555921538757" transform="rotate(-90 50 50)">
+</circle>
+</svg>
+</div>
+<div class="pie-lab">종합평균 4.1점</div>
+  <div class="hbrow tot">
+<div class="hl">Total , 전체 긍정 만족도</div>
+<div class="hb">
+<span style="width:100%">
+</span>
+</div>
+<div class="hv">
+<b>100%</b>13명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q1. 매우 그렇다</div>
+<div class="hb">
+<span style="width:7.7%">
+</span>
+</div>
+<div class="hv">
+<b>7.7%</b>1명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q2. 그렇다</div>
+<div class="hb">
+<span style="width:92.3%">
+</span>
+</div>
+<div class="hv">
+<b>92.3%</b>12명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q3. 보통</div>
+<div class="hb">
+<span style="width:0%">
+</span>
+</div>
+<div class="hv">
+<b>0%</b>0명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q4. 아니다</div>
+<div class="hb">
+<span style="width:0%">
+</span>
+</div>
+<div class="hv">
+<b>0%</b>0명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q5. 매우 아니다</div>
+<div class="hb">
+<span style="width:0%">
+</span>
+</div>
+<div class="hv">
+<b>0%</b>0명</div>
+</div>
+</div>
+<div>
+</div>
+</div>
+  <div class="qbar" style="margin-top:26px">Q 6.0 사전(경력준비에 장애가 되는 요인), 사후(가장 크게 극복된 장애요인)</div>
+  <div class="sidechart">
+<div style="padding-top:34px">
+<div>
+<div class="topitem t1">
+<b>01</b>
+<span>필요한 정보의 부족 극복 (55%, 11건)</span>
+</div>
+<div class="topitem t2">
+<b>02</b>
+<span>목표에 대한 확신의 부족 극복 (35%, 7건)</span>
+</div>
+<div class="topitem t3">
+<b>03</b>
+<span>하고자 하는 의지 부족 극복 (5%, 1건)</span>
+</div>
+</div>
+</div>
+<div>
+<div class="legend">
+<span>
+<i class="sw" style="background:var(--pre)">
+</i>사전응답</span>
+<span>
+<i class="sw" style="background:var(--post)">
+</i>사후응답</span>
+</div>
+<svg viewBox="0 0 720 320" role="img" aria-label="경력준비 장애요인 사전 사후">
+<line x1="34" x2="710" y1="264" y2="264" class="grid">
+</line>
+<text x="28" y="268" class="axis" text-anchor="end">0</text>
+<line x1="34" x2="710" y1="227.66666666666669" y2="227.66666666666669" class="grid">
+</line>
+<text x="28" y="231.66666666666669" class="axis" text-anchor="end">2</text>
+<line x1="34" x2="710" y1="191.33333333333334" y2="191.33333333333334" class="grid">
+</line>
+<text x="28" y="195.33333333333334" class="axis" text-anchor="end">4</text>
+<line x1="34" x2="710" y1="155" y2="155" class="grid">
+</line>
+<text x="28" y="159" class="axis" text-anchor="end">6</text>
+<line x1="34" x2="710" y1="118.66666666666669" y2="118.66666666666669" class="grid">
+</line>
+<text x="28" y="122.66666666666669" class="axis" text-anchor="end">8</text>
+<line x1="34" x2="710" y1="82.33333333333331" y2="82.33333333333331" class="grid">
+</line>
+<text x="28" y="86.33333333333331" class="axis" text-anchor="end">10</text>
+<line x1="34" x2="710" y1="46" y2="46" class="grid">
+</line>
+<text x="28" y="50" class="axis" text-anchor="end">12</text>
+<rect x="63.099999999999994" y="227.66666666666669" width="36" height="36.33333333333333" rx="4" class="rpre">
+</rect>
+<text x="81.1" y="222.66666666666669" class="val" text-anchor="middle">2</text>
+<rect x="104.1" y="264" width="36" height="0" rx="4" class="rpost">
+</rect>
+<text x="122.1" y="259" class="val" text-anchor="middle">0</text>
+<text x="101.6" y="284" class="lab" text-anchor="middle">진로에 대한</text>
+<text x="101.6" y="299" class="lab" text-anchor="middle">불확실성</text>
+<rect x="198.29999999999998" y="209.5" width="36" height="54.5" rx="4" class="rpre">
+</rect>
+<text x="216.29999999999998" y="204.5" class="val" text-anchor="middle">3</text>
+<rect x="239.29999999999998" y="136.83333333333331" width="36" height="127.16666666666667" rx="4" class="rpost">
+</rect>
+<text x="257.29999999999995" y="131.83333333333331" class="val" text-anchor="middle">7</text>
+<text x="236.79999999999998" y="284" class="lab" text-anchor="middle">목표에 대한</text>
+<text x="236.79999999999998" y="299" class="lab" text-anchor="middle">확신의 부족</text>
+<text x="236.79999999999998" y="38" class="rank" text-anchor="middle">TOP 2</text>
+<rect x="172.2" y="42" width="129.2" height="264" class="dbox">
+</rect>
+<rect x="333.5" y="245.83333333333334" width="36" height="18.166666666666664" rx="4" class="rpre">
+</rect>
+<text x="351.5" y="240.83333333333334" class="val" text-anchor="middle">1</text>
+<rect x="374.5" y="245.83333333333334" width="36" height="18.166666666666664" rx="4" class="rpost">
+</rect>
+<text x="392.5" y="240.83333333333334" class="val" text-anchor="middle">1</text>
+<text x="372" y="284" class="lab" text-anchor="middle">하고자 하는</text>
+<text x="372" y="299" class="lab" text-anchor="middle">의지 부족</text>
+<text x="372" y="38" class="rank" text-anchor="middle">TOP 3</text>
+<rect x="307.4" y="42" width="129.2" height="264" class="dbox">
+</rect>
+<rect x="468.69999999999993" y="82.33333333333331" width="36" height="181.66666666666669" rx="4" class="rpre">
+</rect>
+<text x="486.69999999999993" y="77.33333333333331" class="val" text-anchor="middle">10</text>
+<rect x="509.69999999999993" y="64.16666666666669" width="36" height="199.83333333333331" rx="4" class="rpost">
+</rect>
+<text x="527.6999999999999" y="59.166666666666686" class="val" text-anchor="middle">11</text>
+<text x="507.19999999999993" y="284" class="lab" text-anchor="middle">필요한</text>
+<text x="507.19999999999993" y="299" class="lab" text-anchor="middle">정보부족</text>
+<text x="507.19999999999993" y="38" class="rank" text-anchor="middle">TOP 1</text>
+<rect x="442.5999999999999" y="42" width="129.2" height="264" class="dbox">
+</rect>
+<rect x="603.9" y="82.33333333333331" width="36" height="181.66666666666669" rx="4" class="rpre">
+</rect>
+<text x="621.9" y="77.33333333333331" class="val" text-anchor="middle">10</text>
+<rect x="644.9" y="245.83333333333334" width="36" height="18.166666666666664" rx="4" class="rpost">
+</rect>
+<text x="662.9" y="240.83333333333334" class="val" text-anchor="middle">1</text>
+<text x="642.4" y="284" class="lab" text-anchor="middle">전문 네트워크</text>
+<text x="642.4" y="299" class="lab" text-anchor="middle">부족</text>
+</svg>
+</div>
+</div>
+  <p class="fnote">중복선택 문항으로 사전과 사후의 응답 건수가 다를 수 있습니다 (사전 26건, 사후 20건)</p>
+<div class="sh-foot">
+<span class="ft-l">
+<span class="logo-hdc">
+<svg viewBox="0 0 28 22" width="26" height="20" aria-hidden="true">
+<path d="M2 4h24M2 11h24M2 18h24" stroke="#2F7C82" stroke-width="4" stroke-linecap="round">
+</path>
+<path d="M6 4h6M12 11h8M8 18h10" stroke="#9FC4C7" stroke-width="4" stroke-linecap="round">
+</path>
+</svg>The Human<br>Data Center</span>
+</span>
+<span>Copyright © 2026 JMCAREER All rights reserved. / www.humandc.co.kr</span>
+<span>6 / 9</span>
+</div>
+</section>
+</div>
+  <p class="hintline noprint" style="text-align:center">좌우 화살표, 키보드 ← → 또는 화면을 옆으로 밀어서 다음 화면을 볼 수 있어요.</p>
+</div>

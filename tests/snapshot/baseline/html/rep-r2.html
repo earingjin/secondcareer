@@ -1,0 +1,379 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')" class="on">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="wrap" style="padding-top:26px">
+<h2 style="font-size:24px">관리자 페이지</h2>
+<div class="hintline">기업별 세컨플래닝을 만들고 컨설턴트·내담자를 등록한 뒤, 진행 현황과 결과 리포트를 확인합니다.</div>
+<div class="perm">
+<b>관리자 권한</b> 기업·컨설턴트·고객사 담당자·내담자 등록/삭제 · 기업 로고와 결과보고서 설정 · 전체 기업의 현황과 보고서 조회</div>
+  <div class="tabs">
+<button class="" onclick="S.tab='p1';render();window.scrollTo(0,0)">PART 01 · 기업·계정 관리</button>
+<button class="" onclick="S.tab='p2';render();window.scrollTo(0,0)">PART 02 · 진단 현황</button>
+<button class="on" onclick="S.tab='rep';render();window.scrollTo(0,0)">사전사후 보고서</button>
+<button class="" onclick="S.tab='ver';render();window.scrollTo(0,0)">원본 대조 검증</button>
+</div>
+  <div class="toolbar" style="margin-top:0">
+<div class="filters">
+<select class="in" aria-label="기업" onchange="S.rep.company=this.value;render()">
+<option selected="">전체</option>
+<option>다이소</option>
+<option>㈜한빛전자</option>
+<option>대한제약</option>
+<option>㈜새봄물산</option>
+<option>가온정밀</option>
+<option>나래식품</option>
+<option>다온물류</option>
+<option>라온소프트</option>
+<option>마루건설</option>
+<option>바른제약</option>
+<option>새길산업</option>
+<option>아람전자</option>
+</select>
+</div>
+<div class="acts">
+<button class="btn mint sm" onclick="exportPptx(false)">PPT 다운받기</button>
+<button class="btn ghost sm" onclick="window.print()">현재 화면 PDF로 저장(인쇄)</button>
+</div>
+</div>
+  <div class="rnav noprint">
+<button class="rarrow" onclick="rmove(-1)" aria-label="이전 화면">‹</button>
+<div class="rtitle">
+<b>2 / 9</b>사전사후 상세</div>
+<button class="rarrow" onclick="rmove(1)" aria-label="다음 화면">›</button>
+</div>
+  <div class="rdots noprint">
+<button class="" onclick="rgo('r1')" aria-label="1번 화면">1</button>
+<button class="on" onclick="rgo('r2')" aria-label="2번 화면" aria-current="true">2</button>
+<button class="" onclick="rgo('r3')" aria-label="3번 화면">3</button>
+<button class="" onclick="rgo('r4')" aria-label="4번 화면">4</button>
+<button class="" onclick="rgo('r5')" aria-label="5번 화면">5</button>
+<button class="" onclick="rgo('r6')" aria-label="6번 화면">6</button>
+<button class="" onclick="rgo('r7')" aria-label="7번 화면">7</button>
+<button class="" onclick="rgo('r8')" aria-label="8번 화면">8</button>
+<button class="" onclick="rgo('r9')" aria-label="9번 화면">9</button>
+</div>
+  <div id="rslide" class="">
+<section class="sheet">
+<div class="sh-head">
+<span>일을통한행복한삶 (The better life, The Better Career)</span>
+<span>사전사후 참여결과 보고서</span>
+</div>
+<div class="rbase">[Base: 전체 기업 사전·사후 참여자(n=13), 단위: 명]</div>
+<div class="axisnote">
+<span>cognition</span>
+<i>
+</i>
+<span>behavior</span>
+</div>
+  <div class="scroll">
+<table class="t c" style="min-width:900px">
+<tbody>
+<tr>
+<th rowspan="2">사전<br>사후<br>모두응답</th>
+<th colspan="4">요인1_자기인식</th>
+<th colspan="4">요인2_직업탐색</th>
+<th colspan="4">요인3_의사결정</th>
+<th colspan="4">요인4_커리어플랜</th>
+<th colspan="4">요인5_목표실행</th>
+</tr>
+  <tr>
+<th>특성인식</th>
+<th>가치인식</th>
+<th>상황인식</th>
+<th>종합 <sup>5th</sup>
+</th>
+<th>직업타당성</th>
+<th>정보수집</th>
+<th>정보분석</th>
+<th>종합 <sup>1st</sup>
+</th>
+<th>결정수준</th>
+<th>객관성평가</th>
+<th>실현가능성</th>
+<th>종합 <sup>4th</sup>
+</th>
+<th>커리어계획</th>
+<th>현실적목표</th>
+<th>리스크평가</th>
+<th>종합 <sup>2nd</sup>
+</th>
+<th>목표확신</th>
+<th>도전의식</th>
+<th>실행력</th>
+<th>종합 <sup>3rd</sup>
+</th>
+</tr>
+  <tr>
+<th>사전_평균점수</th>
+<td class="">3.3</td>
+<td class="">3.3</td>
+<td class="">3.5</td>
+<td class="" style="font-weight:800">10.2</td>
+<td class="">3.5</td>
+<td class="">3.3</td>
+<td class="">3.3</td>
+<td class="" style="font-weight:800">10.2</td>
+<td class="">3.5</td>
+<td class="">3.5</td>
+<td class="">3.2</td>
+<td class="" style="font-weight:800">10.2</td>
+<td class="">3.4</td>
+<td class="">3.5</td>
+<td class="">3.5</td>
+<td class="" style="font-weight:800">10.5</td>
+<td class="">3.4</td>
+<td class="">3.4</td>
+<td class="">3.5</td>
+<td class="" style="font-weight:800">10.2</td>
+</tr>
+<tr>
+<th>사후_평균점수</th>
+<td class="">3.5</td>
+<td class="">4.1</td>
+<td class="">3.6</td>
+<td class="" style="font-weight:800">11.2</td>
+<td class="">4.2</td>
+<td class="">3.6</td>
+<td class="">4.0</td>
+<td class="" style="font-weight:800">11.8</td>
+<td class="">3.7</td>
+<td class="">4.2</td>
+<td class="">3.5</td>
+<td class="" style="font-weight:800">11.3</td>
+<td class="">4.2</td>
+<td class="">3.7</td>
+<td class="">4.2</td>
+<td class="" style="font-weight:800">12.1</td>
+<td class="">3.5</td>
+<td class="">4.2</td>
+<td class="">3.7</td>
+<td class="" style="font-weight:800">11.4</td>
+</tr>
+<tr>
+<th>변화 스코어(Point)</th>
+<td class="">+0.2</td>
+<td class="">+0.8</td>
+<td class="">+0.1</td>
+<td class="" style="font-weight:800">+1</td>
+<td class="">+0.7</td>
+<td class="">+0.3</td>
+<td class="">+0.7</td>
+<td class="" style="font-weight:800">+1.6</td>
+<td class="">+0.2</td>
+<td class="">+0.7</td>
+<td class="">+0.3</td>
+<td class="" style="font-weight:800">+1.1</td>
+<td class="">+0.8</td>
+<td class="">+0.2</td>
+<td class="">+0.7</td>
+<td class="" style="font-weight:800">+1.6</td>
+<td class="">+0.1</td>
+<td class="">+0.8</td>
+<td class="">+0.2</td>
+<td class="" style="font-weight:800">+1.2</td>
+</tr>
+<tr>
+<th>변화율(%)</th>
+<td class="">+6.1</td>
+<td class="hl1">+24.2</td>
+<td class="">+2.9</td>
+<td class="" style="font-weight:800">+9.8</td>
+<td class="hl1">+20</td>
+<td class="">+9.1</td>
+<td class="hl1">+21.2</td>
+<td class="hl2" style="font-weight:800">▲+15.7</td>
+<td class="">+5.7</td>
+<td class="">+20</td>
+<td class="">+9.4</td>
+<td class="" style="font-weight:800">+10.8</td>
+<td class="hl1">+23.5</td>
+<td class="">+5.7</td>
+<td class="">+20</td>
+<td class="hl2" style="font-weight:800">▲+15.2</td>
+<td class="">+2.9</td>
+<td class="hl1">+23.5</td>
+<td class="">+5.7</td>
+<td class="hl2" style="font-weight:800">▲+11.8</td>
+</tr>
+</tbody>
+</table>
+</div>
+  <p class="fnote">요인은 5점 평균, 종합은 영역별 원점수(15점 만점) 기준 · 노란색: 요인별 변화율 TOP5, 주황색: 영역 종합 변화율 TOP3</p>
+  <div class="legend" style="margin-top:12px">
+<span>
+<i class="sw" style="background:var(--ink-soft);opacity:.4">
+</i>사전_평균</span>
+<span>
+<i class="sw" style="background:linear-gradient(90deg,var(--a1),var(--a3),var(--a5))">
+</i>사후_평균 (영역별 색 구분)</span>
+</div>
+  <div class="scroll">
+<div style="min-width:880px">
+<svg viewBox="0 0 1000 340" role="img" aria-label="요인별 사전 사후 평균">
+<line x1="34" x2="990" y1="284" y2="284" class="grid">
+</line>
+<text x="28" y="288" class="axis" text-anchor="end">0</text>
+<line x1="34" x2="990" y1="235.2" y2="235.2" class="grid">
+</line>
+<text x="28" y="239.2" class="axis" text-anchor="end">1</text>
+<line x1="34" x2="990" y1="186.39999999999998" y2="186.39999999999998" class="grid">
+</line>
+<text x="28" y="190.39999999999998" class="axis" text-anchor="end">2</text>
+<line x1="34" x2="990" y1="137.6" y2="137.6" class="grid">
+</line>
+<text x="28" y="141.6" class="axis" text-anchor="end">3</text>
+<line x1="34" x2="990" y1="88.79999999999998" y2="88.79999999999998" class="grid">
+</line>
+<text x="28" y="92.79999999999998" class="axis" text-anchor="end">4</text>
+<line x1="34" x2="990" y1="40" y2="40" class="grid">
+</line>
+<text x="28" y="44" class="axis" text-anchor="end">5</text>
+<rect x="40.50000000000001" y="122.96000000000001" width="22.866666666666667" height="161.04" rx="4" class="rgray">
+</rect>
+<text x="51.93333333333334" y="117.96000000000001" class="val" text-anchor="middle">3.3</text>
+<rect x="68.36666666666667" y="113.20000000000002" width="22.866666666666667" height="170.79999999999998" rx="4" class="ra1">
+</rect>
+<text x="79.80000000000001" y="108.20000000000002" class="val" text-anchor="middle">3.5</text>
+<text x="65.86666666666667" y="304" class="lab" text-anchor="middle">특성인식</text>
+<rect x="104.23333333333332" y="122.96000000000001" width="22.866666666666667" height="161.04" rx="4" class="rgray">
+</rect>
+<text x="115.66666666666666" y="117.96000000000001" class="val" text-anchor="middle">3.3</text>
+<rect x="132.1" y="83.92000000000002" width="22.866666666666667" height="200.07999999999998" rx="4" class="ra1">
+</rect>
+<text x="143.53333333333333" y="78.92000000000002" class="val" text-anchor="middle">4.1</text>
+<text x="129.6" y="304" class="lab" text-anchor="middle">가치인식</text>
+<text x="129.6" y="16" class="top " text-anchor="middle">24.2 ▲</text>
+<rect x="100.73333333333332" y="36" width="57.733333333333334" height="290" class="dbox">
+</rect>
+<rect x="167.96666666666667" y="113.20000000000002" width="22.866666666666667" height="170.79999999999998" rx="4" class="rgray">
+</rect>
+<text x="179.4" y="108.20000000000002" class="val" text-anchor="middle">3.5</text>
+<rect x="195.83333333333334" y="108.32" width="22.866666666666667" height="175.68" rx="4" class="ra1">
+</rect>
+<text x="207.26666666666668" y="103.32" class="val" text-anchor="middle">3.6</text>
+<text x="193.33333333333334" y="304" class="lab" text-anchor="middle">상황인식</text>
+<rect x="231.7" y="113.20000000000002" width="22.866666666666667" height="170.79999999999998" rx="4" class="rgray">
+</rect>
+<text x="243.13333333333333" y="108.20000000000002" class="val" text-anchor="middle">3.5</text>
+<rect x="259.56666666666666" y="79.03999999999999" width="22.866666666666667" height="204.96" rx="4" class="ra2">
+</rect>
+<text x="271" y="74.03999999999999" class="val" text-anchor="middle">4.2</text>
+<text x="257.06666666666666" y="304" class="lab" text-anchor="middle">직업타당성</text>
+<text x="257.06666666666666" y="16" class="top " text-anchor="middle">20 ▲</text>
+<rect x="228.2" y="36" width="57.733333333333334" height="290" class="dbox">
+</rect>
+<rect x="295.43333333333334" y="122.96000000000001" width="22.866666666666667" height="161.04" rx="4" class="rgray">
+</rect>
+<text x="306.8666666666667" y="117.96000000000001" class="val" text-anchor="middle">3.3</text>
+<rect x="323.3" y="108.32" width="22.866666666666667" height="175.68" rx="4" class="ra2">
+</rect>
+<text x="334.73333333333335" y="103.32" class="val" text-anchor="middle">3.6</text>
+<text x="320.8" y="304" class="lab" text-anchor="middle">정보수집</text>
+<rect x="359.1666666666667" y="122.96000000000001" width="22.866666666666667" height="161.04" rx="4" class="rgray">
+</rect>
+<text x="370.6" y="117.96000000000001" class="val" text-anchor="middle">3.3</text>
+<rect x="387.03333333333336" y="88.79999999999998" width="22.866666666666667" height="195.20000000000002" rx="4" class="ra2">
+</rect>
+<text x="398.4666666666667" y="83.79999999999998" class="val" text-anchor="middle">4</text>
+<text x="384.53333333333336" y="304" class="lab" text-anchor="middle">정보분석</text>
+<text x="384.53333333333336" y="16" class="top " text-anchor="middle">21.2 ▲</text>
+<rect x="355.6666666666667" y="36" width="57.733333333333334" height="290" class="dbox">
+</rect>
+<rect x="422.9" y="113.20000000000002" width="22.866666666666667" height="170.79999999999998" rx="4" class="rgray">
+</rect>
+<text x="434.3333333333333" y="108.20000000000002" class="val" text-anchor="middle">3.5</text>
+<rect x="450.76666666666665" y="103.44" width="22.866666666666667" height="180.56" rx="4" class="ra3">
+</rect>
+<text x="462.2" y="98.44" class="val" text-anchor="middle">3.7</text>
+<text x="448.26666666666665" y="304" class="lab" text-anchor="middle">결정수준</text>
+<rect x="486.6333333333333" y="113.20000000000002" width="22.866666666666667" height="170.79999999999998" rx="4" class="rgray">
+</rect>
+<text x="498.06666666666666" y="108.20000000000002" class="val" text-anchor="middle">3.5</text>
+<rect x="514.5" y="79.03999999999999" width="22.866666666666667" height="204.96" rx="4" class="ra3">
+</rect>
+<text x="525.9333333333333" y="74.03999999999999" class="val" text-anchor="middle">4.2</text>
+<text x="512" y="304" class="lab" text-anchor="middle">객관성평가</text>
+<rect x="550.3666666666667" y="127.84" width="22.866666666666667" height="156.16" rx="4" class="rgray">
+</rect>
+<text x="561.8" y="122.84" class="val" text-anchor="middle">3.2</text>
+<rect x="578.2333333333333" y="113.20000000000002" width="22.866666666666667" height="170.79999999999998" rx="4" class="ra3">
+</rect>
+<text x="589.6666666666666" y="108.20000000000002" class="val" text-anchor="middle">3.5</text>
+<text x="575.7333333333333" y="304" class="lab" text-anchor="middle">실현가능성</text>
+<rect x="614.1" y="118.08000000000001" width="22.866666666666667" height="165.92" rx="4" class="rgray">
+</rect>
+<text x="625.5333333333333" y="113.08000000000001" class="val" text-anchor="middle">3.4</text>
+<rect x="641.9666666666667" y="79.03999999999999" width="22.866666666666667" height="204.96" rx="4" class="ra4">
+</rect>
+<text x="653.4" y="74.03999999999999" class="val" text-anchor="middle">4.2</text>
+<text x="639.4666666666667" y="304" class="lab" text-anchor="middle">커리어계획</text>
+<text x="639.4666666666667" y="16" class="top " text-anchor="middle">23.5 ▲</text>
+<rect x="610.6" y="36" width="57.733333333333334" height="290" class="dbox">
+</rect>
+<rect x="677.8333333333334" y="113.20000000000002" width="22.866666666666667" height="170.79999999999998" rx="4" class="rgray">
+</rect>
+<text x="689.2666666666667" y="108.20000000000002" class="val" text-anchor="middle">3.5</text>
+<rect x="705.7" y="103.44" width="22.866666666666667" height="180.56" rx="4" class="ra4">
+</rect>
+<text x="717.1333333333333" y="98.44" class="val" text-anchor="middle">3.7</text>
+<text x="703.2" y="304" class="lab" text-anchor="middle">현실적목표</text>
+<rect x="741.5666666666667" y="113.20000000000002" width="22.866666666666667" height="170.79999999999998" rx="4" class="rgray">
+</rect>
+<text x="753" y="108.20000000000002" class="val" text-anchor="middle">3.5</text>
+<rect x="769.4333333333334" y="79.03999999999999" width="22.866666666666667" height="204.96" rx="4" class="ra4">
+</rect>
+<text x="780.8666666666667" y="74.03999999999999" class="val" text-anchor="middle">4.2</text>
+<text x="766.9333333333334" y="304" class="lab" text-anchor="middle">리스크평가</text>
+<rect x="805.3" y="118.08000000000001" width="22.866666666666667" height="165.92" rx="4" class="rgray">
+</rect>
+<text x="816.7333333333332" y="113.08000000000001" class="val" text-anchor="middle">3.4</text>
+<rect x="833.1666666666666" y="113.20000000000002" width="22.866666666666667" height="170.79999999999998" rx="4" class="ra5">
+</rect>
+<text x="844.5999999999999" y="108.20000000000002" class="val" text-anchor="middle">3.5</text>
+<text x="830.6666666666666" y="304" class="lab" text-anchor="middle">목표확신</text>
+<rect x="869.0333333333333" y="118.08000000000001" width="22.866666666666667" height="165.92" rx="4" class="rgray">
+</rect>
+<text x="880.4666666666666" y="113.08000000000001" class="val" text-anchor="middle">3.4</text>
+<rect x="896.9" y="79.03999999999999" width="22.866666666666667" height="204.96" rx="4" class="ra5">
+</rect>
+<text x="908.3333333333333" y="74.03999999999999" class="val" text-anchor="middle">4.2</text>
+<text x="894.4" y="304" class="lab" text-anchor="middle">도전의식</text>
+<text x="894.4" y="16" class="top " text-anchor="middle">23.5 ▲</text>
+<rect x="865.5333333333333" y="36" width="57.733333333333334" height="290" class="dbox">
+</rect>
+<rect x="932.7666666666667" y="113.20000000000002" width="22.866666666666667" height="170.79999999999998" rx="4" class="rgray">
+</rect>
+<text x="944.1999999999999" y="108.20000000000002" class="val" text-anchor="middle">3.5</text>
+<rect x="960.6333333333333" y="103.44" width="22.866666666666667" height="180.56" rx="4" class="ra5">
+</rect>
+<text x="972.0666666666666" y="98.44" class="val" text-anchor="middle">3.7</text>
+<text x="958.1333333333333" y="304" class="lab" text-anchor="middle">실행력</text>
+</svg>
+</div>
+</div>
+<div class="sh-foot">
+<span class="ft-l">
+<span class="logo-hdc">
+<svg viewBox="0 0 28 22" width="26" height="20" aria-hidden="true">
+<path d="M2 4h24M2 11h24M2 18h24" stroke="#2F7C82" stroke-width="4" stroke-linecap="round">
+</path>
+<path d="M6 4h6M12 11h8M8 18h10" stroke="#9FC4C7" stroke-width="4" stroke-linecap="round">
+</path>
+</svg>The Human<br>Data Center</span>
+</span>
+<span>Copyright © 2026 JMCAREER All rights reserved. / www.humandc.co.kr</span>
+<span>2 / 9</span>
+</div>
+</section>
+</div>
+  <p class="hintline noprint" style="text-align:center">좌우 화살표, 키보드 ← → 또는 화면을 옆으로 밀어서 다음 화면을 볼 수 있어요.</p>
+</div>

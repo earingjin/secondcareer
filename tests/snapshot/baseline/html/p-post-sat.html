@@ -1,0 +1,193 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="on">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="narrow" style="padding-top:20px">
+<div class="card">
+<h2>사후 만족도 설문</h2>
+<p class="sub">상담을 마친 지금의 생각을 알려 주세요. 서비스 개선과 보고서에 집계로만 사용됩니다.</p>
+  <div class="q">
+<div class="qt">
+<small>Q1</small>세컨플래닝 서비스에 대한 전반적인 만족도</div>
+<div class="scale" role="radiogroup">
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q1',1)">1</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q1',2)">2</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q1',3)">3</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q1',4)">4</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q1',5)">5</button>
+</div>
+<div class="scale-legend">
+<span>매우 불만족</span>
+<span>
+</span>
+<span>매우 만족</span>
+</div>
+</div>
+  <div class="q">
+<div class="qt">
+<small>Q2</small>새로운 경력을 만들어 가는 데 유익했습니까?</div>
+<div class="scale" role="radiogroup">
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q2',1)">1</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q2',2)">2</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q2',3)">3</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q2',4)">4</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q2',5)">5</button>
+</div>
+<div class="scale-legend">
+<span>전혀 아니다</span>
+<span>
+</span>
+<span>매우 그렇다</span>
+</div>
+</div>
+  <div class="q">
+<div class="qt">
+<small>Q3-1</small>상담 이후 막연한 불안이 줄었다</div>
+<div class="scale" role="radiogroup">
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3a',1)">1</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3a',2)">2</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3a',3)">3</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3a',4)">4</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3a',5)">5</button>
+</div>
+<div class="scale-legend">
+<span>전혀 아니다</span>
+<span>
+</span>
+<span>매우 그렇다</span>
+</div>
+</div>
+  <div class="q">
+<div class="qt">
+<small>Q3-2</small>미래에 대한 자신감이 높아졌다</div>
+<div class="scale" role="radiogroup">
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3b',1)">1</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3b',2)">2</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3b',3)">3</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3b',4)">4</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3b',5)">5</button>
+</div>
+<div class="scale-legend">
+<span>전혀 아니다</span>
+<span>
+</span>
+<span>매우 그렇다</span>
+</div>
+</div>
+  <div class="q">
+<div class="qt">
+<small>Q3-3</small>마음이 이전보다 안정되었다</div>
+<div class="scale" role="radiogroup">
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3c',1)">1</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3c',2)">2</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3c',3)">3</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3c',4)">4</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q3c',5)">5</button>
+</div>
+<div class="scale-legend">
+<span>전혀 아니다</span>
+<span>
+</span>
+<span>매우 그렇다</span>
+</div>
+</div>
+  <div class="q">
+<div class="qt">
+<small>Q3-4</small>서비스 이후 현재의 마음 상태는 어떠하십니까?</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d32',0)">잘 될 것이라고 믿는다.</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d32',1)">구체적으로 준비하고 있어 안심이다.</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d32',2)">체감되지 않아 잘 모르겠다.</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d32',3)">이제부터 진로를 생각할 예정이다.</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d32',4)">사람을 만나는 것에 위축된다.</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d32',5)">진로 고민으로 잠을 설친다.</button>
+</div>
+</div>
+  <div class="q">
+<div class="qt">
+<small>Q4</small>서비스 이후 가장 고민되는 부분 3가지를 순서대로 선택해 주세요.</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d33',0)">수입감소 등 경제적 상황</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d33',1)">역할이나 활동영역의 축소</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d33',2)">사회적 관계의 축소</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d33',3)">상대적으로 많아진 시간에 대한 활용</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d33',4)">가족과의 관계 문제</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d33',5)">건강 유지 또는 관리</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d33',6)">인생의 공허함</button>
+</div>
+</div>
+  <div class="q">
+<div class="qt">
+<small>Q5-1</small>컨설팅에서 가장 도움이 된 부분 한 가지를 선택해 주세요.</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d34',0)">심리진단 및 분석(강점, 적성 등)</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d34',1)">커리어목표 및 방향설정과 플랜설계</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d34',2)">막연함 개선(심리안정/자신감 증진)</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d34',3)">재취업(채용전략부터 입사까지) 지원</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d34',4)">창업컨설팅(아이템, 전략 등)</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d34',5)">자산관리(재테크, 부동산 등) 가이드</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d34',6)">새로운 경력설계와 자기개발 방법</button>
+</div>
+</div>
+  <div class="q">
+<div class="qt">
+<small>Q5-2</small>컨설팅 전에 기대했던 부분이 충족되었습니까?</div>
+<div class="scale" role="radiogroup">
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q5fit',1)">1</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q5fit',2)">2</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q5fit',3)">3</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q5fit',4)">4</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="setSat('q5fit',5)">5</button>
+</div>
+<div class="scale-legend">
+<span>전혀 아니다</span>
+<span>
+</span>
+<span>매우 그렇다</span>
+</div>
+</div>
+  <div class="q">
+<div class="qt">
+<small>Q6</small>가장 크게 극복된 경력준비 장애요인 (최대 2가지)</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d35',0)">진로에 대한 불확실성</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d35',1)">목표에 대한 확신의 부족</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d35',2)">하고자 하는 의지 부족</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d35',3)">필요한 정보의 부족</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.d35',4)">전문 네트워크(인맥/기관) 부족</button>
+</div>
+</div>
+  <div class="q">
+<div class="qt">
+<small>Q7</small>서비스에서 개선이 필요하다고 느낀 점 (최대 2가지)</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.q7',0)">상담 시간·회기 수</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.q7',1)">진단 문항 수·소요시간</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.q7',2)">결과 리포트 내용</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.q7',3)">상담 후 사후 지원·정보 제공</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.q7',4)">온라인 시스템 사용성</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.q7',5)">상담 일정 조율</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('sat.q7',6)">특별히 없음</button>
+</div>
+<div class="field" style="margin-top:12px">
+<label for="q7t">더 나은 서비스를 위한 의견·담당 컨설턴트에게 보내는 메시지 (선택)</label>
+<textarea class="in" id="q7t" maxlength="200" oninput="S.user.sat=S.user.sat||{};S.user.sat.q7txt=this.value;save()">
+</textarea>
+</div>
+</div>
+  <div class="err">
+</div>
+  <div class="acts" style="justify-content:space-between;margin-top:10px">
+<button class="btn ghost" onclick="S.pstep=1;S.err='';render();window.scrollTo(0,0)">이전</button>
+<button class="btn mint" onclick="finishPost()">사후 진단 제출</button>
+</div>
+</div>
+</div>

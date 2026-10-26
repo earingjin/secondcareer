@@ -1,0 +1,555 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')" class="on">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="wrap" style="padding-top:26px">
+<h2 style="font-size:24px">관리자 페이지</h2>
+<div class="hintline">기업별 세컨플래닝을 만들고 컨설턴트·내담자를 등록한 뒤, 진행 현황과 결과 리포트를 확인합니다.</div>
+<div class="perm">
+<b>관리자 권한</b> 기업·컨설턴트·고객사 담당자·내담자 등록/삭제 · 기업 로고와 결과보고서 설정 · 전체 기업의 현황과 보고서 조회</div>
+  <div class="tabs">
+<button class="" onclick="S.tab='p1';render();window.scrollTo(0,0)">PART 01 · 기업·계정 관리</button>
+<button class="" onclick="S.tab='p2';render();window.scrollTo(0,0)">PART 02 · 진단 현황</button>
+<button class="" onclick="S.tab='rep';render();window.scrollTo(0,0)">사전사후 보고서</button>
+<button class="on" onclick="S.tab='ver';render();window.scrollTo(0,0)">원본 대조 검증</button>
+</div>
+  <section class="card">
+<h2 style="margin:0 0 6px">원본 엑셀 대조 검증 <span class="badge-s s-post">57 / 57 일치</span>
+</h2>
+  <p class="sub">원본 엑셀(Result 시트 샘플·평가기준표)·샘플 PDF와 구현 지시서 §10 기능 테스트(T01~T16)를 이 화면에서 재현합니다. 엑셀 매크로를 직접 실행한 대조는 아닙니다.</p>
+  <div class="scroll">
+<table class="t zebra">
+<tbody>
+<tr>
+<th>기준</th>
+<th>항목</th>
+<th>기대값</th>
+<th>계산값</th>
+<th>결과</th>
+</tr>
+<tr>
+<td>엑셀 Result 5행</td>
+<td>자기인식 환산/판정</td>
+<td>16.7 / 다소 낮음</td>
+<td>16.7 / 다소 낮음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>엑셀 Result 5행</td>
+<td>직업탐색 환산/판정</td>
+<td>66.7 / 다소 높음</td>
+<td>66.7 / 다소 높음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>엑셀 Result 5행</td>
+<td>의사결정 환산/판정</td>
+<td>25 / 다소 낮음</td>
+<td>25 / 다소 낮음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>엑셀 Result 5행</td>
+<td>커리어플랜 환산/판정</td>
+<td>25 / 다소 낮음</td>
+<td>25 / 다소 낮음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>엑셀 Result 5행</td>
+<td>목표실행 환산/판정</td>
+<td>41.7 / 보통</td>
+<td>41.7 / 보통</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>엑셀 Result 5행</td>
+<td>코멘트 대상 영역</td>
+<td>자기인식</td>
+<td>자기인식</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>샘플 PDF(홍길동)</td>
+<td>자기인식 환산</td>
+<td>66.7</td>
+<td>66.7</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>샘플 PDF(홍길동)</td>
+<td>직업탐색 환산</td>
+<td>75</td>
+<td>75</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>샘플 PDF(홍길동)</td>
+<td>의사결정 환산</td>
+<td>66.7</td>
+<td>66.7</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>샘플 PDF(홍길동)</td>
+<td>커리어플랜 환산</td>
+<td>66.7</td>
+<td>66.7</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>샘플 PDF(홍길동)</td>
+<td>목표실행 환산</td>
+<td>66.7</td>
+<td>66.7</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>샘플 PDF(홍길동)</td>
+<td>동점 4개 영역 → 우선순위</td>
+<td>자기인식</td>
+<td>자기인식</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>경계 사례</td>
+<td>직업탐색·커리어플랜 동점</td>
+<td>직업탐색</td>
+<td>직업탐색</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가기준 C22:E34</td>
+<td>원점수 3 (0점)</td>
+<td>다소 낮음</td>
+<td>다소 낮음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가기준 C22:E34</td>
+<td>원점수 4 (8.3점)</td>
+<td>다소 낮음</td>
+<td>다소 낮음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가기준 C22:E34</td>
+<td>원점수 5 (16.7점)</td>
+<td>다소 낮음</td>
+<td>다소 낮음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가기준 C22:E34</td>
+<td>원점수 6 (25점)</td>
+<td>다소 낮음</td>
+<td>다소 낮음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가기준 C22:E34</td>
+<td>원점수 7 (33.3점)</td>
+<td>다소 낮음</td>
+<td>다소 낮음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가기준 C22:E34</td>
+<td>원점수 8 (41.7점)</td>
+<td>보통</td>
+<td>보통</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가기준 C22:E34</td>
+<td>원점수 9 (50점)</td>
+<td>보통</td>
+<td>보통</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가기준 C22:E34</td>
+<td>원점수 10 (58.3점)</td>
+<td>보통</td>
+<td>보통</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가기준 C22:E34</td>
+<td>원점수 11 (66.7점)</td>
+<td>다소 높음</td>
+<td>다소 높음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가기준 C22:E34</td>
+<td>원점수 12 (75점)</td>
+<td>다소 높음</td>
+<td>다소 높음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가기준 C22:E34</td>
+<td>원점수 13 (83.3점)</td>
+<td>다소 높음</td>
+<td>다소 높음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가기준 C22:E34</td>
+<td>원점수 14 (91.7점)</td>
+<td>매우 높음</td>
+<td>매우 높음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가기준 C22:E34</td>
+<td>원점수 15 (100점)</td>
+<td>매우 높음</td>
+<td>매우 높음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>인생키워드</td>
+<td>1966년생 · 2026 응답 → 연령대</td>
+<td>60대</td>
+<td>60대</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>인생키워드</td>
+<td>13번 1순위 창업 → 분류</td>
+<td>창업</td>
+<td>창업</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>결과코멘트</td>
+<td>최저 영역 자기인식 → 코드</td>
+<td>Code_A_01</td>
+<td>Code_A_01</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T01</td>
+<td>전부 1점 → 원점수/환산</td>
+<td>3,3,3,3,3 / 0,0,0,0,0</td>
+<td>3,3,3,3,3 / 0,0,0,0,0</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T02</td>
+<td>전부 5점 → 원점수/환산</td>
+<td>15,15,15,15,15 / 100,100,100,100,100</td>
+<td>15,15,15,15,15 / 100,100,100,100,100</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T03</td>
+<td>영역마다 3,4,4 → 원점수/환산</td>
+<td>11,11,11,11,11 / 66.7,66.7,66.7,66.7,66.7</td>
+<td>11,11,11,11,11 / 66.7,66.7,66.7,66.7,66.7</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T04</td>
+<td>A·C 동률 최저 → 코멘트 영역</td>
+<td>자기인식</td>
+<td>자기인식</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T05</td>
+<td>B·E 동률 최저 → 코멘트 영역</td>
+<td>직업탐색</td>
+<td>직업탐색</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T06</td>
+<td>5개 영역 동률 → 코멘트 영역</td>
+<td>자기인식</td>
+<td>자기인식</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>검증 기준선</td>
+<td>모든 필수 응답 완료</td>
+<td>없음</td>
+<td>없음</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T07</td>
+<td>B13 1·2순위 중복 → 제출 불가</td>
+<td>B13</td>
+<td>B13</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T08</td>
+<td>D33 2개만 선택 → 제출 불가</td>
+<td>D33</td>
+<td>D33</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T09</td>
+<td>D35 1개만 선택 → 제출 불가</td>
+<td>D35</td>
+<td>D35</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T10</td>
+<td>D36 3개 → 제출 불가 (화면에서는 3번째 선택 차단)</td>
+<td>D36</td>
+<td>D36</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T11</td>
+<td>연락처·이메일·C21 누락 → 제출 불가</td>
+<td>PH,EM,C21</td>
+<td>PH,EM,C21</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>웹 합의</td>
+<td>생년월일 실제 날짜 검증</td>
+<td>A5</td>
+<td>A5</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>웹 합의</td>
+<td>A1 미동의 → 진행 불가</td>
+<td>A1</td>
+<td>A1</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>웹 합의</td>
+<td>B15 0~100 범위</td>
+<td>B15</td>
+<td>B15</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T12</td>
+<td>제출 후 내담자 수정 시도 → 잠금 안내</td>
+<td>잠금</td>
+<td>잠금</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T13</td>
+<td>상담사 수정 → 재계산·변경 이력</td>
+<td>1건 · 변경 2문항 · 자기인식 원점수 5</td>
+<td>1건 · 변경 2문항 · 자기인식 원점수 5</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T14</td>
+<td>인쇄 쪽수(내담자/상담사) · 공통 1~3쪽</td>
+<td>3 / 5 · 동일</td>
+<td>3 / 5 · 동일</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T15</td>
+<td>같은 제출 결과 재조회 → 코멘트·키워드 고정</td>
+<td>동일</td>
+<td>동일</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>지시서 T16</td>
+<td>상담사 초대 맥락별 보고서 담당자</td>
+<td>가상상담사 B / 가상상담사 C</td>
+<td>가상상담사 B / 가상상담사 C</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>연동</td>
+<td>초대 맥락(상담사 링크) → 상담사 식별</td>
+<td>27</td>
+<td>27</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가 설정</td>
+<td>기본 비교군 = 1차(N6:N10)</td>
+<td>66.7,58.3,58.3,41.7,66.7</td>
+<td>66.7,58.3,58.3,41.7,66.7</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가 설정</td>
+<td>원점수 7(자기인식) → 버전별 판정 상이</td>
+<td>검증 필요 표시</td>
+<td>검증 필요 표시</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가 설정</td>
+<td>2차 의사결정 원점수 10 중복 표기</td>
+<td>검증 필요 표시</td>
+<td>검증 필요 표시</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>평가 설정</td>
+<td>원점수 8(전 영역) → 판정 일치</td>
+<td>보통 · 확정</td>
+<td>보통 · 확정</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>보고서 차트</td>
+<td>보기 수 = 차트 라벨 수 (32~36번)</td>
+<td>일치,일치,일치,일치,일치</td>
+<td>일치,일치,일치,일치,일치</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>보고서 차트</td>
+<td>33번 7번째 보기와 차트 라벨 동일</td>
+<td>인생의 공허함 / 인생의 공허함</td>
+<td>인생의 공허함 / 인생의 공허함</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+<tr>
+<td>보고서 차트</td>
+<td>34번 7번째 보기와 차트 라벨 동일</td>
+<td>일치</td>
+<td>일치</td>
+<td>
+<b style="color:var(--mint-deep)">일치</b>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>

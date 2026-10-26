@@ -1,0 +1,289 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="on">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="narrow" style="padding-top:20px">
+<div class="stepper">
+<div class="st  done">
+<i>✓</i>참여 동의</div>
+<div class="st  done">
+<i>✓</i>기본정보</div>
+<div class="st  done">
+<i>✓</i>경력목표</div>
+<div class="st  done">
+<i>✓</i>진단 15문항</div>
+<div class="st  done">
+<i>✓</i>서비스 기대</div>
+<div class="st on ">
+<i>6</i>검토·제출</div>
+</div>
+<div class="card">
+<div class="whead">
+<span class="hintline">6 / 6 단계 · 전체 18 / 38 응답</span>
+<h2>응답 검토</h2>
+<p class="sub">제출 전에 응답을 확인해 주세요. 제출한 뒤에는 직접 수정할 수 없습니다.</p>
+<div class="progressbar">
+<span style="width:47.368421052631575%">
+</span>
+</div>
+</div>
+<div class="misslist" role="alert">
+<b>아직 답하지 않았거나 확인이 필요한 항목 20개</b>
+<button type="button" onclick="goQ(3,'C17')">문항 17 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C18')">문항 18 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C19')">문항 19 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C20')">문항 20 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C21')">문항 21 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C22')">문항 22 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C23')">문항 23 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C24')">문항 24 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C25')">문항 25 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C26')">문항 26 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C27')">문항 27 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C28')">문항 28 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C29')">문항 29 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C30')">문항 30 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(3,'C31')">문항 31 · 응답을 선택해 주세요.</button>
+<button type="button" onclick="goQ(4,'D32')">문항 32 · 하나를 선택해 주세요.</button>
+<button type="button" onclick="goQ(4,'D33')">문항 33 · 서로 다른 3가지를 순서대로 선택해 주세요. (현재 0개)</button>
+<button type="button" onclick="goQ(4,'D34')">문항 34 · 하나를 선택해 주세요.</button>
+<button type="button" onclick="goQ(4,'D35')">문항 35 · 정확히 2가지를 선택해 주세요. (현재 0개)</button>
+<button type="button" onclick="goQ(4,'D36')">문항 36 · 1~2가지를 선택해 주세요.</button>
+</div>
+<div class="rv-h">
+<h3>1. 참여 동의</h3>
+<button class="btn ghost sm" onclick="goStep(0)">수정</button>
+</div>
+<dl class="rv">
+<div class="">
+<dt>1. 커리어플래닝 가이드 참여를 위한 개인정보 제공 및 활용에 동의하십니까?</dt>
+<dd>동의</dd>
+</div>
+<div class="">
+<dt>2. 상담코드를 입력해주세요.</dt>
+<dd>12</dd>
+</div>
+</dl>
+<div class="rv-h">
+<h3>2. 기본정보</h3>
+<button class="btn ghost sm" onclick="goStep(1)">수정</button>
+</div>
+<dl class="rv">
+<div class="">
+<dt>3. 귀하의 성함을 입력해주세요.</dt>
+<dd>박미래</dd>
+</div>
+<div class="">
+<dt>4. 귀하의 성별을 입력해주세요.</dt>
+<dd>남성</dd>
+</div>
+<div class="">
+<dt>5. 귀하의 연령대를 입력해주세요.</dt>
+<dd>1972-06-15</dd>
+</div>
+<div class="">
+<dt>휴대전화번호를 입력해주세요.</dt>
+<dd>010-3333-4444</dd>
+</div>
+<div class="">
+<dt>이메일 주소를 입력해주세요.</dt>
+<dd>demo2@example.com</dd>
+</div>
+<div class="">
+<dt>6. 현재 소속회사를 입력해주세요.(없다면 이전 소속회사)</dt>
+<dd>㈜한빛전자</dd>
+</div>
+<div class="">
+<dt>7. 현재 또는 최근까지의 직급/직책을 입력해주세요.</dt>
+<dd>부장</dd>
+</div>
+<div class="">
+<dt>8. 최근까지 어떤 업무를 하셨나요?(부서명)</dt>
+<dd>연구 개발</dd>
+</div>
+<div class="">
+<dt>9. 최종 근무처의 주요 업종은 무엇인가요?</dt>
+<dd>법률</dd>
+</div>
+<div class="">
+<dt>10. 퇴직 후 매월 어느 정도의 소득수준을 기대하시나요?</dt>
+<dd>기존 임금 60% 수준</dd>
+</div>
+</dl>
+<div class="rv-h">
+<h3>3. 경력목표</h3>
+<button class="btn ghost sm" onclick="goStep(2)">수정</button>
+</div>
+<dl class="rv">
+<div class="">
+<dt>11. 퇴직 후 어느 정도 기간 이후부터 직업준비(재취업, 창업, 귀농, 자격증 취득 등)를 시작할 예정인가요?</dt>
+<dd>퇴직 후 6개월 이내</dd>
+</div>
+<div class="">
+<dt>12. 퇴직 후 무엇을 하겠다는 구체적인 계획을 가지고 있으신가요?</dt>
+<dd>이미 결정되어 준비중에 있음</dd>
+</div>
+<div class="">
+<dt>13. 현재 가장 관심을 두고 있는 분야는 어떤 분야인가요?(2가지를 우선 순위로 선택해주세요)</dt>
+<dd>1순위 프리랜서(전문직종), 2순위 창업</dd>
+</div>
+<div class="">
+<dt>14. 귀하가 선택하는 경력목표는 귀하의 경력과 연관성이 있나요?</dt>
+<dd>취미와 연관성이 있음</dd>
+</div>
+<div class="">
+<dt>15. 본인이 기대하는 경력목표 달성 가능성은 어느정도 인가요?</dt>
+<dd>50%</dd>
+</div>
+<div class="">
+<dt>16. 경력목표 달성을 위한 예상 소요기간은 어느정도 인가요?</dt>
+<dd>4개월</dd>
+</div>
+</dl>
+<div class="rv-h">
+<h3>4. 진단 15문항</h3>
+<button class="btn ghost sm" onclick="goStep(3)">수정</button>
+</div>
+<dl class="rv">
+<div class="x">
+<dt>17. 나 자신의 성격, 재능, 흥미, 적성을 정확하게 이해하고 있다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>18. 능력과 상관없이 꼭 해보고 싶은 활동(직업 등)이 있다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>19. 지금 내 상황(재정, 역할, 능력, 신체건강 등)을 충분히 이해하고 있다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>20. 능력, 적성, 흥미, 신체능력 등을 고려하여 적합한 직업(분야)을 고려 중이다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>21. 웹사이트, 모바일 앱, 인적네트워크를 활용하여 해당 분야의 정보를 수집중이다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>22. 나에게 적합한 정보인지 자격증, 교육과정, 채용정보 등을 분석할 수 있다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>23. 하고 싶은 일, 잘 할 수 있는 일 등의 고심 끝에 2~3가지 이내로 의사결정 중이다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>24. 원하는 목표를 위한 기본자격, 교육, 조건, 임금, 제도 등을 파악하고 있다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>25. 현재 목표는 네트워크, 경험자 등의 충분한 조언(경험)을 얻었다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>26. 나의 계획은 목표에 맞는 현실가능한 계획이다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>27. 현재 목표는 달성 가능한 현실적인 목표다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>28. 경력목표에 따라 감수해야하는 리스크가 무엇인지 충분히 알고 있다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>29. 내가 선택한 경력목표와 계획에 확신이 차 있다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>30. 목표를 달성할 수 있을지 불확실하지만 계획을 수정하며 도전할 것이다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>31. 어려움은 있겠지만 내가 세운 목표와 계획을 실제로 실행할 것이다.</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+</dl>
+<div class="rv-h">
+<h3>5. 서비스 기대</h3>
+<button class="btn ghost sm" onclick="goStep(4)">수정</button>
+</div>
+<dl class="rv">
+<div class="x">
+<dt>32. 직업 전환(퇴직 포함)을 맞이하는 느낌은 어떠하십니까?</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>33. 퇴직 이후 고민이 되는 부분은 무엇인가요? (고민되는 부분 3가지를 순서대로 선택해주세요.)</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>34. 이번 컨설팅을 통해 어떤 기대를 하고 계시나요? (가장 고민인 한 가지만 선택해주십시오.)</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>35. 현재 새롭게 만들어 길 경력을 준비하는데 있어서 장애 요인은 무엇인가요? (가장 고민인 두가지만 선택해주십시오.)</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+<div class="x">
+<dt>36. 첫 회기 컨설팅은 어떤 형식으로 진행하기를 바라시나요?(최대 2가지 선택)</dt>
+<dd>
+<span class="none">미응답</span>
+</dd>
+</div>
+</dl>
+<div class="notice-s" style="margin-top:16px">제출한 응답과 결과는 담당 상담사에게 전달됩니다. 진단 결과는 상담에 참여하실 때 상담사가 직접 설명하고 지면으로 전달해 드립니다.</div>
+<div class="acts" style="justify-content:space-between;margin-top:14px">
+<button class="btn ghost" onclick="goStep(4)">이전</button>
+<button class="btn" onclick="submitPre()">최종 제출</button>
+</div>
+</div>
+</div>

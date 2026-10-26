@@ -1,0 +1,188 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')" class="on">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="wrap" style="padding-top:26px">
+<h2 style="font-size:24px">관리자 페이지</h2>
+<div class="hintline">기업별 세컨플래닝을 만들고 컨설턴트·내담자를 등록한 뒤, 진행 현황과 결과 리포트를 확인합니다.</div>
+<div class="perm">
+<b>관리자 권한</b> 기업·컨설턴트·고객사 담당자·내담자 등록/삭제 · 기업 로고와 결과보고서 설정 · 전체 기업의 현황과 보고서 조회</div>
+  <div class="tabs">
+<button class="" onclick="S.tab='p1';render();window.scrollTo(0,0)">PART 01 · 기업·계정 관리</button>
+<button class="" onclick="S.tab='p2';render();window.scrollTo(0,0)">PART 02 · 진단 현황</button>
+<button class="on" onclick="S.tab='rep';render();window.scrollTo(0,0)">사전사후 보고서</button>
+<button class="" onclick="S.tab='ver';render();window.scrollTo(0,0)">원본 대조 검증</button>
+</div>
+  <div class="toolbar" style="margin-top:0">
+<div class="filters">
+<select class="in" aria-label="기업" onchange="S.rep.company=this.value;render()">
+<option selected="">전체</option>
+<option>다이소</option>
+<option>㈜한빛전자</option>
+<option>대한제약</option>
+<option>㈜새봄물산</option>
+<option>가온정밀</option>
+<option>나래식품</option>
+<option>다온물류</option>
+<option>라온소프트</option>
+<option>마루건설</option>
+<option>바른제약</option>
+<option>새길산업</option>
+<option>아람전자</option>
+</select>
+</div>
+<div class="acts">
+<button class="btn mint sm" onclick="exportPptx(false)">PPT 다운받기</button>
+<button class="btn ghost sm" onclick="window.print()">현재 화면 PDF로 저장(인쇄)</button>
+</div>
+</div>
+  <div class="rnav noprint">
+<button class="rarrow" onclick="rmove(-1)" aria-label="이전 화면">‹</button>
+<div class="rtitle">
+<b>8 / 9</b>첫회기 컨설팅에 대한 기대</div>
+<button class="rarrow" onclick="rmove(1)" aria-label="다음 화면">›</button>
+</div>
+  <div class="rdots noprint">
+<button class="" onclick="rgo('r1')" aria-label="1번 화면">1</button>
+<button class="" onclick="rgo('r2')" aria-label="2번 화면">2</button>
+<button class="" onclick="rgo('r3')" aria-label="3번 화면">3</button>
+<button class="" onclick="rgo('r4')" aria-label="4번 화면">4</button>
+<button class="" onclick="rgo('r5')" aria-label="5번 화면">5</button>
+<button class="" onclick="rgo('r6')" aria-label="6번 화면">6</button>
+<button class="" onclick="rgo('r7')" aria-label="7번 화면">7</button>
+<button class="on" onclick="rgo('r8')" aria-label="8번 화면" aria-current="true">8</button>
+<button class="" onclick="rgo('r9')" aria-label="9번 화면">9</button>
+</div>
+  <div id="rslide" class="">
+<section class="sheet">
+<div class="sh-head">
+<span>일을통한행복한삶 (The better life, The Better Career)</span>
+<span>사전사후 참여결과 보고서</span>
+</div>
+<div class="rbase">[Base: 전체 기업 사전 응답자(n=47), 단위: 명]</div>
+<div class="sidechart" style="margin-top:0">
+<div>
+<div class="qbar">Q 7.0 첫 회기 컨설팅 기대, TOP3</div>
+<div style="padding-top:58px">
+<div>
+<div class="topitem t1">
+<b>01</b>
+<span>자신의 상황에 맞는 컨설팅 방향설정 (68.1%, 32건)</span>
+</div>
+<div class="topitem t2">
+<b>02</b>
+<span>재취업 분야 및 입사서류 작성 (57.4%, 27건)</span>
+</div>
+<div class="topitem t3">
+<b>03</b>
+<span>서비스 효과 및 내용, 성공사례 (31.9%, 15건)</span>
+</div>
+</div>
+</div>
+</div>
+  <div>
+<div class="qbar">Q 7.1 첫 회기 컨설팅은 어떤 형식으로 진행하기를 바라나요? (중복 : 최대 2개 선택)</div>
+<div class="legend" style="margin-top:10px">
+<span>
+<i class="sw" style="background:var(--pre)">
+</i>사전응답</span>
+</div>
+  <svg viewBox="0 0 720 350" role="img" aria-label="첫 회기 컨설팅 진행 형식 기대">
+<line x1="34" x2="710" y1="284" y2="284" class="grid">
+</line>
+<text x="28" y="288" class="axis" text-anchor="end">0</text>
+<line x1="34" x2="710" y1="250" y2="250" class="grid">
+</line>
+<text x="28" y="254" class="axis" text-anchor="end">5</text>
+<line x1="34" x2="710" y1="216" y2="216" class="grid">
+</line>
+<text x="28" y="220" class="axis" text-anchor="end">10</text>
+<line x1="34" x2="710" y1="182" y2="182" class="grid">
+</line>
+<text x="28" y="186" class="axis" text-anchor="end">15</text>
+<line x1="34" x2="710" y1="148" y2="148" class="grid">
+</line>
+<text x="28" y="152" class="axis" text-anchor="end">20</text>
+<line x1="34" x2="710" y1="114" y2="114" class="grid">
+</line>
+<text x="28" y="118" class="axis" text-anchor="end">25</text>
+<line x1="34" x2="710" y1="80" y2="80" class="grid">
+</line>
+<text x="28" y="84" class="axis" text-anchor="end">30</text>
+<line x1="34" x2="710" y1="46" y2="46" class="grid">
+</line>
+<text x="28" y="50" class="axis" text-anchor="end">35</text>
+<rect x="61.28571428571428" y="182" width="42" height="102" rx="4" class="rpre">
+</rect>
+<text x="82.28571428571428" y="177" class="val" text-anchor="middle">15</text>
+<text x="82.28571428571428" y="304" class="lab" text-anchor="middle">서비스 효과</text>
+<text x="82.28571428571428" y="319" class="lab" text-anchor="middle">및 내용</text>
+<text x="82.28571428571428" y="334" class="lab" text-anchor="middle">성공사례</text>
+<text x="82.28571428571428" y="38" class="rank" text-anchor="middle">TOP 3</text>
+<rect x="157.85714285714283" y="256.8" width="42" height="27.2" rx="4" class="rpre">
+</rect>
+<text x="178.85714285714283" y="251.8" class="val" text-anchor="middle">4</text>
+<text x="178.85714285714283" y="304" class="lab" text-anchor="middle">성격검사를 활용한</text>
+<text x="178.85714285714283" y="319" class="lab" text-anchor="middle">자기분석</text>
+<text x="178.85714285714283" y="334" class="lab" text-anchor="middle">시간</text>
+<rect x="254.42857142857144" y="66.4" width="42" height="217.6" rx="4" class="rpre">
+</rect>
+<text x="275.42857142857144" y="61.400000000000006" class="val" text-anchor="middle">32</text>
+<text x="275.42857142857144" y="304" class="lab" text-anchor="middle">자신의 상황에</text>
+<text x="275.42857142857144" y="319" class="lab" text-anchor="middle">맞는 컨설팅</text>
+<text x="275.42857142857144" y="334" class="lab" text-anchor="middle">방향설정</text>
+<text x="275.42857142857144" y="38" class="rank" text-anchor="middle">TOP 1</text>
+<rect x="351" y="100.4" width="42" height="183.6" rx="4" class="rpre">
+</rect>
+<text x="372" y="95.4" class="val" text-anchor="middle">27</text>
+<text x="372" y="304" class="lab" text-anchor="middle">재취업 분야</text>
+<text x="372" y="319" class="lab" text-anchor="middle">및 입사서류</text>
+<text x="372" y="334" class="lab" text-anchor="middle">작성</text>
+<text x="372" y="38" class="rank" text-anchor="middle">TOP 2</text>
+<rect x="447.57142857142856" y="284" width="42" height="0" rx="4" class="rpre">
+</rect>
+<text x="468.57142857142856" y="279" class="val" text-anchor="middle">0</text>
+<text x="468.57142857142856" y="304" class="lab" text-anchor="middle">창업·귀농·</text>
+<text x="468.57142857142856" y="319" class="lab" text-anchor="middle">귀촌·귀어</text>
+<text x="468.57142857142856" y="334" class="lab" text-anchor="middle">준비</text>
+<rect x="544.1428571428572" y="188.8" width="42" height="95.2" rx="4" class="rpre">
+</rect>
+<text x="565.1428571428572" y="183.8" class="val" text-anchor="middle">14</text>
+<text x="565.1428571428572" y="304" class="lab" text-anchor="middle">노후를 위한 준비</text>
+<text x="565.1428571428572" y="319" class="lab" text-anchor="middle">(인생설계</text>
+<text x="565.1428571428572" y="334" class="lab" text-anchor="middle">컨설팅)</text>
+<rect x="640.7142857142858" y="270.4" width="42" height="13.6" rx="4" class="rpre">
+</rect>
+<text x="661.7142857142858" y="265.4" class="val" text-anchor="middle">2</text>
+<text x="661.7142857142858" y="304" class="lab" text-anchor="middle">나에게 맞는</text>
+<text x="661.7142857142858" y="319" class="lab" text-anchor="middle">노후와</text>
+<text x="661.7142857142858" y="334" class="lab" text-anchor="middle">유사성공사례</text>
+</svg>
+</div>
+</div>
+  <p class="fnote">중복선택 문항입니다 (총 94건, 응답자 47명). 비율은 응답자 대비입니다.</p>
+<div class="sh-foot">
+<span class="ft-l">
+<span class="logo-hdc">
+<svg viewBox="0 0 28 22" width="26" height="20" aria-hidden="true">
+<path d="M2 4h24M2 11h24M2 18h24" stroke="#2F7C82" stroke-width="4" stroke-linecap="round">
+</path>
+<path d="M6 4h6M12 11h8M8 18h10" stroke="#9FC4C7" stroke-width="4" stroke-linecap="round">
+</path>
+</svg>The Human<br>Data Center</span>
+</span>
+<span>Copyright © 2026 JMCAREER All rights reserved. / www.humandc.co.kr</span>
+<span>8 / 9</span>
+</div>
+</section>
+</div>
+  <p class="hintline noprint" style="text-align:center">좌우 화살표, 키보드 ← → 또는 화면을 옆으로 밀어서 다음 화면을 볼 수 있어요.</p>
+</div>

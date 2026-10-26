@@ -1,0 +1,529 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')" class="on">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="wrap" style="padding-top:26px">
+<h2 style="font-size:24px">관리자 페이지</h2>
+<div class="hintline">기업별 세컨플래닝을 만들고 컨설턴트·내담자를 등록한 뒤, 진행 현황과 결과 리포트를 확인합니다.</div>
+<div class="perm">
+<b>관리자 권한</b> 기업·컨설턴트·고객사 담당자·내담자 등록/삭제 · 기업 로고와 결과보고서 설정 · 전체 기업의 현황과 보고서 조회</div>
+  <div class="tabs">
+<button class="on" onclick="S.tab='p1';render();window.scrollTo(0,0)">PART 01 · 기업·계정 관리</button>
+<button class="" onclick="S.tab='p2';render();window.scrollTo(0,0)">PART 02 · 진단 현황</button>
+<button class="" onclick="S.tab='rep';render();window.scrollTo(0,0)">사전사후 보고서</button>
+<button class="" onclick="S.tab='ver';render();window.scrollTo(0,0)">원본 대조 검증</button>
+</div>
+  <div class="part">
+<span class="pt">PART 01</span>
+<h2>기업별 세컨플래닝 운영</h2>
+</div>
+  <section class="card sec">
+<div class="filters" style="justify-content:space-between;margin-bottom:4px">
+<h2 style="margin:0">1. 기업별 진단 현황 · 완료 현황</h2>
+<button class="btn sm" onclick="goReg()">+ 기업 등록</button>
+</div>
+<p class="sub">기업을 선택하면 아래에서 컨설턴트·내담자 등록과 결과보고서 미리보기를 이어서 할 수 있습니다.</p>
+  <div class="scroll">
+<table class="t zebra">
+<tbody>
+<tr>
+<th>NO</th>
+<th>기업</th>
+<th>진행 기간</th>
+<th>PM</th>
+<th>대상자</th>
+<th>진단완료</th>
+<th>미완료</th>
+<th>사후완료</th>
+<th>완료율</th>
+<th>관리</th>
+</tr>
+  <tr>
+<td>
+<b>12</b>
+</td>
+<td style="white-space:nowrap">
+<span class="lthumb">아</span>
+<b>아람전자</b>
+</td>
+<td style="white-space:nowrap">2026-12-01 ~ 2027-05-31</td>
+<td>가상상담사 B</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td style="min-width:110px">
+<div class="progressbar">
+<span style="width:0%">
+</span>
+</div>
+<span class="hintline">0%</span>
+</td>
+<td>
+<div class="acts">
+<button class="btn ghost sm" onclick="selEnt('e12')">선택</button>
+<button class="btn ghost sm" onclick="S.delC='e12';render()">삭제</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>11</b>
+</td>
+<td style="white-space:nowrap">
+<span class="lthumb">새</span>
+<b>새길산업</b>
+</td>
+<td style="white-space:nowrap">2026-12-01 ~ 2027-05-31</td>
+<td>가상상담사 B</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td style="min-width:110px">
+<div class="progressbar">
+<span style="width:0%">
+</span>
+</div>
+<span class="hintline">0%</span>
+</td>
+<td>
+<div class="acts">
+<button class="btn ghost sm" onclick="selEnt('e11')">선택</button>
+<button class="btn ghost sm" onclick="S.delC='e11';render()">삭제</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>10</b>
+</td>
+<td style="white-space:nowrap">
+<span class="lthumb">바</span>
+<b>바른제약</b>
+</td>
+<td style="white-space:nowrap">2026-12-01 ~ 2027-05-31</td>
+<td>가상상담사 B</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td style="min-width:110px">
+<div class="progressbar">
+<span style="width:0%">
+</span>
+</div>
+<span class="hintline">0%</span>
+</td>
+<td>
+<div class="acts">
+<button class="btn ghost sm" onclick="selEnt('e10')">선택</button>
+<button class="btn ghost sm" onclick="S.delC='e10';render()">삭제</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>9</b>
+</td>
+<td style="white-space:nowrap">
+<span class="lthumb">마</span>
+<b>마루건설</b>
+</td>
+<td style="white-space:nowrap">2026-12-01 ~ 2027-05-31</td>
+<td>가상상담사 B</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td style="min-width:110px">
+<div class="progressbar">
+<span style="width:0%">
+</span>
+</div>
+<span class="hintline">0%</span>
+</td>
+<td>
+<div class="acts">
+<button class="btn ghost sm" onclick="selEnt('e9')">선택</button>
+<button class="btn ghost sm" onclick="S.delC='e9';render()">삭제</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>8</b>
+</td>
+<td style="white-space:nowrap">
+<span class="lthumb">라</span>
+<b>라온소프트</b>
+</td>
+<td style="white-space:nowrap">2026-12-01 ~ 2027-05-31</td>
+<td>가상상담사 B</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td style="min-width:110px">
+<div class="progressbar">
+<span style="width:0%">
+</span>
+</div>
+<span class="hintline">0%</span>
+</td>
+<td>
+<div class="acts">
+<button class="btn ghost sm" onclick="selEnt('e8')">선택</button>
+<button class="btn ghost sm" onclick="S.delC='e8';render()">삭제</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>7</b>
+</td>
+<td style="white-space:nowrap">
+<span class="lthumb">다</span>
+<b>다온물류</b>
+</td>
+<td style="white-space:nowrap">2026-12-01 ~ 2027-05-31</td>
+<td>가상상담사 B</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td style="min-width:110px">
+<div class="progressbar">
+<span style="width:0%">
+</span>
+</div>
+<span class="hintline">0%</span>
+</td>
+<td>
+<div class="acts">
+<button class="btn ghost sm" onclick="selEnt('e7')">선택</button>
+<button class="btn ghost sm" onclick="S.delC='e7';render()">삭제</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>6</b>
+</td>
+<td style="white-space:nowrap">
+<span class="lthumb">나</span>
+<b>나래식품</b>
+</td>
+<td style="white-space:nowrap">2026-12-01 ~ 2027-05-31</td>
+<td>가상상담사 B</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td style="min-width:110px">
+<div class="progressbar">
+<span style="width:0%">
+</span>
+</div>
+<span class="hintline">0%</span>
+</td>
+<td>
+<div class="acts">
+<button class="btn ghost sm" onclick="selEnt('e6')">선택</button>
+<button class="btn ghost sm" onclick="S.delC='e6';render()">삭제</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>5</b>
+</td>
+<td style="white-space:nowrap">
+<span class="lthumb">가</span>
+<b>가온정밀</b>
+</td>
+<td style="white-space:nowrap">2026-12-01 ~ 2027-05-31</td>
+<td>가상상담사 B</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td style="min-width:110px">
+<div class="progressbar">
+<span style="width:0%">
+</span>
+</div>
+<span class="hintline">0%</span>
+</td>
+<td>
+<div class="acts">
+<button class="btn ghost sm" onclick="selEnt('e5')">선택</button>
+<button class="btn ghost sm" onclick="S.delC='e5';render()">삭제</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>4</b>
+</td>
+<td style="white-space:nowrap">
+<span class="lthumb">새</span>
+<b>㈜새봄물산</b>
+</td>
+<td style="white-space:nowrap">2026-11-01 ~ 2027-02-28</td>
+<td>가상상담사 A</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td>0</td>
+<td style="min-width:110px">
+<div class="progressbar">
+<span style="width:0%">
+</span>
+</div>
+<span class="hintline">0%</span>
+</td>
+<td>
+<div class="acts">
+<button class="btn ghost sm" onclick="selEnt('e4')">선택</button>
+<button class="btn ghost sm" onclick="S.delC='e4';render()">삭제</button>
+</div>
+</td>
+</tr>
+<tr>
+<td>
+<b>3</b>
+</td>
+<td style="white-space:nowrap">
+<span class="lthumb">대</span>
+<b>대한제약</b>
+</td>
+<td style="white-space:nowrap">2026-10-01 ~ 2027-03-31</td>
+<td>가상상담사 C</td>
+<td>17</td>
+<td>11</td>
+<td>6</td>
+<td>4</td>
+<td style="min-width:110px">
+<div class="progressbar">
+<span style="width:65%">
+</span>
+</div>
+<span class="hintline">65%</span>
+</td>
+<td>
+<div class="acts">
+<button class="btn ghost sm" onclick="selEnt('e3')">선택</button>
+<button class="btn ghost sm" onclick="S.delC='e3';render()">삭제</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="hintline" style="text-align:center;margin-top:12px">1–10 / 총 12개 기업 (페이지당 10개 · 최신 등록순)</div>
+<div class="pager" role="navigation" aria-label="기업 페이지">
+<button disabled="" onclick="goEp(0)" aria-label="이전 페이지">‹</button>
+<button class="on" aria-current="page" onclick="goEp(1)">1</button>
+<button class="" onclick="goEp(2)">2</button>
+<button onclick="goEp(2)" aria-label="다음 페이지">›</button>
+</div>
+</section>
+
+  <section class="card sec" id="ent-reg">
+<h2>2. 세컨플래닝 기업 등록</h2>
+<p class="sub">기업명, 진행 기간, PM 기본정보를 입력하면 새 세컨플래닝이 만들어집니다.</p>
+  <div class="row3">
+<div class="field">
+<label for="en-name">기업명 <span class="req">*</span>
+</label>
+<input class="in" id="en-name" maxlength="30">
+</div>
+<div class="field">
+<label for="en-start">시작일 <span class="req">*</span>
+</label>
+<input class="in" id="en-start" type="date">
+</div>
+<div class="field">
+<label for="en-end">종료일 <span class="req">*</span>
+</label>
+<input class="in" id="en-end" type="date">
+</div>
+</div>
+  <div class="row3">
+<div class="field">
+<label for="en-pm">PM 이름 <span class="req">*</span>
+</label>
+<input class="in" id="en-pm" maxlength="20">
+</div>
+<div class="field">
+<label for="en-mail">PM 이메일 <span class="req">*</span>
+</label>
+<input class="in" id="en-mail" type="email">
+</div>
+<div class="field">
+<label for="en-tel">PM 연락처 <span class="req">*</span>
+</label>
+<input class="in" id="en-tel" inputmode="tel" placeholder="010-0000-0000">
+</div>
+</div>
+  <div class="err" id="en-err">
+</div>
+<button class="btn" onclick="addEnt()">기업 등록</button>
+</section>
+
+  <section class="card sec" id="ent-detail">
+<div class="filters" style="justify-content:space-between">
+<h2 style="margin:0">3. 등록된 세컨플래닝 · 다이소</h2>
+<select class="in" aria-label="기업 선택" onchange="selEnt(this.value)">
+<option value="e1" selected="">다이소</option>
+<option value="e2">㈜한빛전자</option>
+<option value="e3">대한제약</option>
+<option value="e4">㈜새봄물산</option>
+<option value="e5">가온정밀</option>
+<option value="e6">나래식품</option>
+<option value="e7">다온물류</option>
+<option value="e8">라온소프트</option>
+<option value="e9">마루건설</option>
+<option value="e10">바른제약</option>
+<option value="e11">새길산업</option>
+<option value="e12">아람전자</option>
+</select>
+</div>
+  <p class="sub">2026-09-01 ~ 2026-12-31 · PM 가상상담사 A (counselor-a@example.com, 010-0000-0102) · 대상자 33명</p>
+  <h3 style="font-size:16px;margin-bottom:10px">컨설턴트 등록</h3>
+  <div class="row3">
+<div class="field">
+<label for="cs-name">이름</label>
+<input class="in" id="cs-name">
+</div>
+<div class="field">
+<label for="cs-mail">이메일</label>
+<input class="in" id="cs-mail" type="email">
+</div>
+<div class="field">
+<label for="cs-tel">연락처</label>
+<input class="in" id="cs-tel" inputmode="tel">
+</div>
+</div>
+  <div class="err" id="cs-err">
+</div>
+<button class="btn mint sm" onclick="addCons()">컨설턴트 추가</button>
+  <div class="scroll acct">
+<table class="t zebra">
+<tbody>
+<tr>
+<th>코드</th>
+<th>이름</th>
+<th>이메일</th>
+<th>연락처</th>
+<th>담당 내담자</th>
+<th>
+</th>
+</tr>
+<tr>
+<td>102</td>
+<td>가상상담사 A</td>
+<td>counselor-a@example.com</td>
+<td>010-0000-0102</td>
+<td>33명</td>
+<td>
+<button class="btn ghost sm" onclick="delCons('102')">삭제</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+  <h3 style="font-size:16px;margin:26px 0 6px">내담자 등록 (엑셀 리스트)</h3>
+  <p class="hintline" style="margin-bottom:10px">엑셀에서 복사해 붙여넣거나 CSV 파일을 불러오세요. 열 순서: 닉네임, 연락처, 담당컨설턴트(코드 또는 이름, 비우면 자동 배정), 비밀번호(비우면 6자리 자동 부여). 아이디는 연락처 끝 8자리입니다.</p>
+  <div class="field">
+<textarea class="in" id="bulk" placeholder="길벗, 010-3456-7890, 가상상담사 A
+달님, 01045678901, , 482913">
+</textarea>
+</div>
+  <div class="acts">
+<button class="btn" onclick="addClients()">내담자 등록하고 계정 부여</button>
+<label class="btn ghost" style="cursor:pointer">CSV 불러오기<input type="file" accept=".csv,.txt" style="display:none" onchange="readCsv(this)">
+</label>
+</div>
+  <div class="err" style="margin-top:8px">
+</div>
+  </section>
+
+  <section class="card sec" id="mgr-reg">
+<h2>4. 고객사 담당자 등록 · 다이소</h2>
+<p class="sub">고객사 담당자는 자사 인원의 사전·사후 완료율 차트만 볼 수 있습니다. 등록하면 아이디와 비밀번호(6자리)가 자동으로 만들어집니다.</p>
+  <div class="row3">
+<div class="field">
+<label for="mg-name">담당자 이름</label>
+<input class="in" id="mg-name" maxlength="20">
+</div>
+<div class="field">
+<label for="mg-mail">이메일</label>
+<input class="in" id="mg-mail" type="email">
+</div>
+<div class="field">
+<label for="mg-tel">연락처</label>
+<input class="in" id="mg-tel" inputmode="tel">
+</div>
+</div>
+  <div class="err" id="mg-err">
+</div>
+<button class="btn mint sm" onclick="addMgr()">담당자 등록하고 계정 부여</button>
+  
+  <div class="scroll acct">
+<table class="t zebra">
+<tbody>
+<tr>
+<th>이름</th>
+<th>이메일</th>
+<th>연락처</th>
+<th>아이디</th>
+<th>등록일</th>
+<th>
+</th>
+</tr>
+<tr>
+<td>한지원</td>
+<td>jiwon@example.com</td>
+<td>010-5555-0101</td>
+<td>cm1001</td>
+<td>2026-09-01</td>
+<td>
+<div class="acts">
+<button class="btn ghost sm" onclick="reissueMgr('cm1001')">비밀번호 재발급</button>
+<button class="btn ghost sm" onclick="delMgr('cm1001')">삭제</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section class="card sec">
+<h2>5. 결과보고서 미리보기 · 기업 로고</h2>
+<p class="sub">다이소 로고를 올리면 내담자용·상담사용 결과보고서 표지에 표시됩니다. (이미지 300KB 이하)</p>
+  <div class="logo-box">
+<div class="lbox">
+<span class="hintline">로고 없음</span>
+</div>
+  <div class="acts">
+<label class="btn mint sm" style="cursor:pointer">로고 변경<input type="file" accept="image/*" style="display:none" onchange="setLogo(this)">
+</label>
+</div>
+</div>
+  <div class="acts">
+<button class="btn" onclick="previewReport('p')">내담자용 3p 미리보기</button>
+<button class="btn ghost" onclick="previewReport('c')">상담사용 5p 미리보기</button>
+</div>
+  <p class="hintline" style="margin-top:8px">이 기업에서 진단을 완료한 내담자의 결과로 보여드립니다.</p>
+</section>
+</div>

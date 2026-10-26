@@ -1,0 +1,221 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')" class="on">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="wrap" style="padding-top:26px">
+<h2 style="font-size:24px">관리자 페이지</h2>
+<div class="hintline">기업별 세컨플래닝을 만들고 컨설턴트·내담자를 등록한 뒤, 진행 현황과 결과 리포트를 확인합니다.</div>
+<div class="perm">
+<b>관리자 권한</b> 기업·컨설턴트·고객사 담당자·내담자 등록/삭제 · 기업 로고와 결과보고서 설정 · 전체 기업의 현황과 보고서 조회</div>
+  <div class="tabs">
+<button class="" onclick="S.tab='p1';render();window.scrollTo(0,0)">PART 01 · 기업·계정 관리</button>
+<button class="" onclick="S.tab='p2';render();window.scrollTo(0,0)">PART 02 · 진단 현황</button>
+<button class="on" onclick="S.tab='rep';render();window.scrollTo(0,0)">사전사후 보고서</button>
+<button class="" onclick="S.tab='ver';render();window.scrollTo(0,0)">원본 대조 검증</button>
+</div>
+  <div class="toolbar" style="margin-top:0">
+<div class="filters">
+<select class="in" aria-label="기업" onchange="S.rep.company=this.value;render()">
+<option selected="">전체</option>
+<option>다이소</option>
+<option>㈜한빛전자</option>
+<option>대한제약</option>
+<option>㈜새봄물산</option>
+<option>가온정밀</option>
+<option>나래식품</option>
+<option>다온물류</option>
+<option>라온소프트</option>
+<option>마루건설</option>
+<option>바른제약</option>
+<option>새길산업</option>
+<option>아람전자</option>
+</select>
+</div>
+<div class="acts">
+<button class="btn mint sm" onclick="exportPptx(false)">PPT 다운받기</button>
+<button class="btn ghost sm" onclick="window.print()">현재 화면 PDF로 저장(인쇄)</button>
+</div>
+</div>
+  <div class="rnav noprint">
+<button class="rarrow" onclick="rmove(-1)" aria-label="이전 화면">‹</button>
+<div class="rtitle">
+<b>3 / 9</b>만족도</div>
+<button class="rarrow" onclick="rmove(1)" aria-label="다음 화면">›</button>
+</div>
+  <div class="rdots noprint">
+<button class="" onclick="rgo('r1')" aria-label="1번 화면">1</button>
+<button class="" onclick="rgo('r2')" aria-label="2번 화면">2</button>
+<button class="on" onclick="rgo('r3')" aria-label="3번 화면" aria-current="true">3</button>
+<button class="" onclick="rgo('r4')" aria-label="4번 화면">4</button>
+<button class="" onclick="rgo('r5')" aria-label="5번 화면">5</button>
+<button class="" onclick="rgo('r6')" aria-label="6번 화면">6</button>
+<button class="" onclick="rgo('r7')" aria-label="7번 화면">7</button>
+<button class="" onclick="rgo('r8')" aria-label="8번 화면">8</button>
+<button class="" onclick="rgo('r9')" aria-label="9번 화면">9</button>
+</div>
+  <div id="rslide" class="">
+<section class="sheet">
+<div class="sh-head">
+<span>일을통한행복한삶 (The better life, The Better Career)</span>
+<span>사전사후 참여결과 보고서</span>
+</div>
+<div class="rbase">[Base: 전체 기업 사전·사후 참여자(n=13), 만족도 응답 n=13, 단위: 명]</div>
+<div class="sat2" style="margin-top:6px">
+<div>
+<div class="qbar">Q 1.0 서비스에 대한 전반적인 만족도</div>
+  <div class="pie">
+<svg viewBox="0 0 100 100" role="img" aria-label="종합평균 4.9점">
+<circle cx="50" cy="50" r="30" fill="none" style="stroke:var(--line);stroke-width:60">
+</circle>
+<circle cx="50" cy="50" r="30" fill="none" style="stroke:var(--coral);stroke-width:60" stroke-dasharray="184.72564803107983 188.49555921538757" transform="rotate(-90 50 50)">
+</circle>
+</svg>
+</div>
+<div class="pie-lab">종합평균 4.9점</div>
+  <div class="hbrow tot">
+<div class="hl">Total , 전체 긍정 만족도</div>
+<div class="hb">
+<span style="width:100%">
+</span>
+</div>
+<div class="hv">
+<b>100%</b>13명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q1. 매우 만족</div>
+<div class="hb">
+<span style="width:92.3%">
+</span>
+</div>
+<div class="hv">
+<b>92.3%</b>12명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q2. 만족</div>
+<div class="hb">
+<span style="width:7.7%">
+</span>
+</div>
+<div class="hv">
+<b>7.7%</b>1명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q3. 보통</div>
+<div class="hb">
+<span style="width:0%">
+</span>
+</div>
+<div class="hv">
+<b>0%</b>0명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q4. 불만족</div>
+<div class="hb">
+<span style="width:0%">
+</span>
+</div>
+<div class="hv">
+<b>0%</b>0명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q5. 매우 불만족</div>
+<div class="hb">
+<span style="width:0%">
+</span>
+</div>
+<div class="hv">
+<b>0%</b>0명</div>
+</div>
+</div>
+<div>
+<div class="qbar">Q 2.0 새로운 경력을 만들어가는데 유익했는지 여부</div>
+  <div class="pie">
+<svg viewBox="0 0 100 100" role="img" aria-label="종합평균 3.8점">
+<circle cx="50" cy="50" r="30" fill="none" style="stroke:var(--line);stroke-width:60">
+</circle>
+<circle cx="50" cy="50" r="30" fill="none" style="stroke:var(--coral);stroke-width:60" stroke-dasharray="143.25662500369455 188.49555921538757" transform="rotate(-90 50 50)">
+</circle>
+</svg>
+</div>
+<div class="pie-lab">종합평균 3.8점</div>
+  <div class="hbrow tot">
+<div class="hl">Total , 전체 긍정 만족도</div>
+<div class="hb">
+<span style="width:61.5%">
+</span>
+</div>
+<div class="hv">
+<b>61.5%</b>8명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q1. 매우 그렇다</div>
+<div class="hb">
+<span style="width:15.4%">
+</span>
+</div>
+<div class="hv">
+<b>15.4%</b>2명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q2. 그렇다</div>
+<div class="hb">
+<span style="width:46.2%">
+</span>
+</div>
+<div class="hv">
+<b>46.2%</b>6명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q3. 보통</div>
+<div class="hb">
+<span style="width:38.5%">
+</span>
+</div>
+<div class="hv">
+<b>38.5%</b>5명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q4. 아니다</div>
+<div class="hb">
+<span style="width:0%">
+</span>
+</div>
+<div class="hv">
+<b>0%</b>0명</div>
+</div>
+<div class="hbrow ">
+<div class="hl">Q5. 매우 아니다</div>
+<div class="hb">
+<span style="width:0%">
+</span>
+</div>
+<div class="hv">
+<b>0%</b>0명</div>
+</div>
+</div>
+</div>
+<div class="sh-foot">
+<span class="ft-l">
+<span class="logo-hdc">
+<svg viewBox="0 0 28 22" width="26" height="20" aria-hidden="true">
+<path d="M2 4h24M2 11h24M2 18h24" stroke="#2F7C82" stroke-width="4" stroke-linecap="round">
+</path>
+<path d="M6 4h6M12 11h8M8 18h10" stroke="#9FC4C7" stroke-width="4" stroke-linecap="round">
+</path>
+</svg>The Human<br>Data Center</span>
+</span>
+<span>Copyright © 2026 JMCAREER All rights reserved. / www.humandc.co.kr</span>
+<span>3 / 9</span>
+</div>
+</section>
+</div>
+  <p class="hintline noprint" style="text-align:center">좌우 화살표, 키보드 ← → 또는 화면을 옆으로 밀어서 다음 화면을 볼 수 있어요.</p>
+</div>

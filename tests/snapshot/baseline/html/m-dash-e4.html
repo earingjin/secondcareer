@@ -1,0 +1,28 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')">관리자</button>
+      <button id="m-m" onclick="setMode('client')" class="on">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="wrap">
+<div class="cl-head">
+<div class="who">
+<div>
+<h2 style="font-size:24px">㈜새봄물산 진단 현황</h2>
+<div class="hintline">2026-11-01 ~ 2027-02-28 · 빈 기업 담당자님</div>
+</div>
+</div>
+  <div class="acts noprint">
+<button class="btn ghost sm" onclick="window.print()">PDF로 저장(인쇄)</button>
+<button class="btn ghost sm" onclick="logoutMgr()">로그아웃</button>
+</div>
+</div>
+  <div class="card empty">아직 등록된 참여 인원이 없습니다. 운영팀에서 참여자를 등록하면 이곳에 완료율이 표시됩니다.</div>
+  <p class="hintline" style="margin:6px 0 0">개인별 응답과 결과는 공개되지 않으며, 인원 집계만 제공됩니다.</p>
+</div>

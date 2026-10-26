@@ -1,0 +1,57 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')" class="on">상담사</button>
+      <button id="m-a" onclick="setMode('admin')">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="wrap" style="padding-top:26px">
+<div class="filters" style="justify-content:space-between">
+<div>
+<h2 style="font-size:24px">상담사 페이지</h2>
+<div class="hintline">담당 내담자의 진행 현황과 결과 리포트를 확인합니다.</div>
+</div>
+  <label class="hintline" style="display:flex;gap:8px;align-items:center">상담사 선택(데모) <select class="in" onchange="S.cc=this.value;S.f.company='전체';S.f.page=1;S.cent=null;S.created=[];render()">
+<option value="12">가상상담사 B (12)</option>
+<option value="27">가상상담사 C (27)</option>
+<option value="102" selected="">가상상담사 A (102)</option>
+</select>
+</label>
+</div>
+  <div class="perm">
+<b>상담사 권한</b> 담당 내담자 조회 · 결과 리포트 열람 · 응답 수정(재계산·이력) · 내담자 등록(본인 담당으로 자동 배정) · 담당 내담자 사전사후 보고서<span class="no">기업·컨설턴트·고객사 담당자 등록/삭제, 로고 변경, 다른 상담사의 내담자 조회는 관리자 권한입니다.</span>
+</div>
+  <div class="tabs">
+<button class="" onclick="S.ctab='list';S.created=[];S.bulk='';S.berr='';render();window.scrollTo(0,0)">내 내담자 현황</button>
+<button class="on" onclick="S.ctab='reg';S.created=[];S.bulk='';S.berr='';render();window.scrollTo(0,0)">내담자 등록</button>
+<button class="" onclick="S.ctab='rep';S.created=[];S.bulk='';S.berr='';render();window.scrollTo(0,0)">사전사후 보고서</button>
+</div>
+  <section class="card">
+<div class="filters" style="justify-content:space-between">
+<h2 style="margin:0">내담자 등록 (엑셀 리스트)</h2>
+<label class="hintline" style="display:flex;gap:8px;align-items:center">기업 <select class="in" onchange="S.cent=this.value;render()">
+<option value="e1" selected="">다이소</option>
+<option value="e2">㈜한빛전자</option>
+</select>
+</label>
+</div>
+  <p class="sub">붙여넣은 내담자는 가상상담사 A 상담사 담당으로 배정되고, 연락처 끝 8자리가 아이디가 됩니다. 열 순서: 닉네임, 연락처, 비밀번호(비우면 6자리 자동 부여)</p>
+  <div class="field">
+<textarea class="in" id="bulk" placeholder="길벗, 010-3456-7890
+달님, 01045678901, 482913">
+</textarea>
+</div>
+  <div class="acts">
+<button class="btn" onclick="addClients({ent:ENT.find(x=&gt;x.id===S.cent),cc:S.cc})">내담자 등록하고 계정 부여</button>
+<label class="btn ghost" style="cursor:pointer">CSV 불러오기<input type="file" accept=".csv,.txt" style="display:none" onchange="readCsv(this)">
+</label>
+</div>
+  <div class="err" style="margin-top:8px">
+</div>
+  </section>
+</div>

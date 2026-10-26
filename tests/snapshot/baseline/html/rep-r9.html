@@ -1,0 +1,216 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')" class="on">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="wrap" style="padding-top:26px">
+<h2 style="font-size:24px">관리자 페이지</h2>
+<div class="hintline">기업별 세컨플래닝을 만들고 컨설턴트·내담자를 등록한 뒤, 진행 현황과 결과 리포트를 확인합니다.</div>
+<div class="perm">
+<b>관리자 권한</b> 기업·컨설턴트·고객사 담당자·내담자 등록/삭제 · 기업 로고와 결과보고서 설정 · 전체 기업의 현황과 보고서 조회</div>
+  <div class="tabs">
+<button class="" onclick="S.tab='p1';render();window.scrollTo(0,0)">PART 01 · 기업·계정 관리</button>
+<button class="" onclick="S.tab='p2';render();window.scrollTo(0,0)">PART 02 · 진단 현황</button>
+<button class="on" onclick="S.tab='rep';render();window.scrollTo(0,0)">사전사후 보고서</button>
+<button class="" onclick="S.tab='ver';render();window.scrollTo(0,0)">원본 대조 검증</button>
+</div>
+  <div class="toolbar" style="margin-top:0">
+<div class="filters">
+<select class="in" aria-label="기업" onchange="S.rep.company=this.value;render()">
+<option selected="">전체</option>
+<option>다이소</option>
+<option>㈜한빛전자</option>
+<option>대한제약</option>
+<option>㈜새봄물산</option>
+<option>가온정밀</option>
+<option>나래식품</option>
+<option>다온물류</option>
+<option>라온소프트</option>
+<option>마루건설</option>
+<option>바른제약</option>
+<option>새길산업</option>
+<option>아람전자</option>
+</select>
+</div>
+<div class="acts">
+<button class="btn mint sm" onclick="exportPptx(false)">PPT 다운받기</button>
+<button class="btn ghost sm" onclick="window.print()">현재 화면 PDF로 저장(인쇄)</button>
+</div>
+</div>
+  <div class="rnav noprint">
+<button class="rarrow" onclick="rmove(-1)" aria-label="이전 화면">‹</button>
+<div class="rtitle">
+<b>9 / 9</b>만족도_기타의견</div>
+<button class="rarrow" disabled="" onclick="rmove(1)" aria-label="다음 화면">›</button>
+</div>
+  <div class="rdots noprint">
+<button class="" onclick="rgo('r1')" aria-label="1번 화면">1</button>
+<button class="" onclick="rgo('r2')" aria-label="2번 화면">2</button>
+<button class="" onclick="rgo('r3')" aria-label="3번 화면">3</button>
+<button class="" onclick="rgo('r4')" aria-label="4번 화면">4</button>
+<button class="" onclick="rgo('r5')" aria-label="5번 화면">5</button>
+<button class="" onclick="rgo('r6')" aria-label="6번 화면">6</button>
+<button class="" onclick="rgo('r7')" aria-label="7번 화면">7</button>
+<button class="" onclick="rgo('r8')" aria-label="8번 화면">8</button>
+<button class="on" onclick="rgo('r9')" aria-label="9번 화면" aria-current="true">9</button>
+</div>
+  <div id="rslide" class="">
+<section class="sheet">
+<div class="sh-head">
+<span>일을통한행복한삶 (The better life, The Better Career)</span>
+<span>사전사후 참여결과 보고서</span>
+</div>
+<div class="rbase">[Base: 전체 기업 사전·사후 참여자(n=13), 만족도 응답 n=13, 단위: 명]</div>
+<div class="qbar">Q 8.0 더 나은 서비스를 위한 개인적인 의견, 담당 컨설턴트에게 보내는 메시지, 개선할 사항 등을 주시면 소중하게 경청하겠습니다.</div>
+  <div class="scroll" style="margin-top:12px">
+<table class="t ops">
+<tbody>
+<tr>
+<th>
+</th>
+<th>Code</th>
+<th>의견</th>
+</tr>
+<tr>
+<td>1</td>
+<td>Code_001</td>
+<td>온라인 교육이 조금 어색했지만 시간이 지나며 큰 도움이 되었습니다.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Code_002</td>
+<td>막연하고 심란했는데 상담으로 위안이 되었고 정보를 잘 활용할 수 있었습니다.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Code_003</td>
+<td>할 수 있다는 자신감을 심어 주는 프로그램이면 좋겠습니다.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Code_004</td>
+<td>막연하고 심란했는데 상담으로 위안이 되었고 정보를 잘 활용할 수 있었습니다.</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Code_005</td>
+<td>또 만나고 싶습니다. 감사합니다.</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Code_006</td>
+<td>먼 곳까지 와 주셔서 항상 감사했습니다.</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Code_007</td>
+<td>도움되었습니다. 감사합니다.</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Code_008</td>
+<td>미래를 위한 정보를 많이 얻어 갑니다. 감사합니다.</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Code_009</td>
+<td>컨설팅 횟수를 추가했으면 좋겠습니다.</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Code_010</td>
+<td>전반적으로 모든 시간이 감사했습니다. 고맙습니다.</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Code_011</td>
+<td>도움되었습니다. 감사합니다.</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Code_012</td>
+<td>막연하고 심란했는데 상담으로 위안이 되었고 정보를 잘 활용할 수 있었습니다.</td>
+</tr>
+</tbody>
+</table>
+</div>
+  <p class="fnote">총 12건 · 개인 식별 정보 없이 코드로만 표시됩니다.</p>
+  <h3 class="st">의견 키워드 (문구 포함 여부 기준 자동 집계)</h3>
+<div class="hbrow ">
+<div class="hl">감사 표현</div>
+<div class="hb">
+<span style="width:50%">
+</span>
+</div>
+<div class="hv">
+<b>50%</b>6건</div>
+</div>
+<div class="hbrow ">
+<div class="hl">도움이 되었다</div>
+<div class="hb">
+<span style="width:25%">
+</span>
+</div>
+<div class="hv">
+<b>25%</b>3건</div>
+</div>
+<div class="hbrow ">
+<div class="hl">정보 제공</div>
+<div class="hb">
+<span style="width:33.3%">
+</span>
+</div>
+<div class="hv">
+<b>33.3%</b>4건</div>
+</div>
+<div class="hbrow ">
+<div class="hl">자신감·용기</div>
+<div class="hb">
+<span style="width:8.3%">
+</span>
+</div>
+<div class="hv">
+<b>8.3%</b>1건</div>
+</div>
+<div class="hbrow ">
+<div class="hl">시간·진행 관련</div>
+<div class="hb">
+<span style="width:16.7%">
+</span>
+</div>
+<div class="hv">
+<b>16.7%</b>2건</div>
+</div>
+<div class="hbrow ">
+<div class="hl">추가 상담 요청</div>
+<div class="hb">
+<span style="width:8.3%">
+</span>
+</div>
+<div class="hv">
+<b>8.3%</b>1건</div>
+</div>
+<div class="sh-foot">
+<span class="ft-l">
+<span class="logo-hdc">
+<svg viewBox="0 0 28 22" width="26" height="20" aria-hidden="true">
+<path d="M2 4h24M2 11h24M2 18h24" stroke="#2F7C82" stroke-width="4" stroke-linecap="round">
+</path>
+<path d="M6 4h6M12 11h8M8 18h10" stroke="#9FC4C7" stroke-width="4" stroke-linecap="round">
+</path>
+</svg>The Human<br>Data Center</span>
+</span>
+<span>Copyright © 2026 JMCAREER All rights reserved. / www.humandc.co.kr</span>
+<span>9 / 9</span>
+</div>
+</section>
+</div>
+  <p class="hintline noprint" style="text-align:center">좌우 화살표, 키보드 ← → 또는 화면을 옆으로 밀어서 다음 화면을 볼 수 있어요.</p>
+</div>

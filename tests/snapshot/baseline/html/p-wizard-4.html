@@ -1,0 +1,454 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="on">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="narrow" style="padding-top:20px">
+<div class="stepper">
+<div class="st  done">
+<i>✓</i>참여 동의</div>
+<div class="st  done">
+<i>✓</i>기본정보</div>
+<div class="st  done">
+<i>✓</i>경력목표</div>
+<div class="st on ">
+<i>4</i>진단 15문항</div>
+<div class="st  ">
+<i>5</i>서비스 기대</div>
+<div class="st  ">
+<i>6</i>검토·제출</div>
+</div>
+<div class="card">
+<div class="whead">
+<span class="hintline">4 / 6 단계 · 전체 18 / 38 응답</span>
+<h2>커리어플래닝 진단</h2>
+<p class="sub">각 문장이 지금의 나와 얼마나 가까운지 선택해 주세요. 정답은 없습니다.</p>
+<div class="progressbar">
+<span style="width:47.368421052631575%">
+</span>
+</div>
+</div>
+<div class="hintline">0 / 15 문항 응답</div>
+<div class="area-head">
+<span class="badge">자기인식</span>
+<span class="hintline">self-awareness</span>
+</div>
+<div class="q " id="q-C17">
+<div class="qt">
+<small>문항 17 · 필수</small>나 자신의 성격, 재능, 흥미, 적성을 정확하게 이해하고 있다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 17">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(0,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(0,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(0,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(0,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(0,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="q " id="q-C18">
+<div class="qt">
+<small>문항 18 · 필수</small>능력과 상관없이 꼭 해보고 싶은 활동(직업 등)이 있다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 18">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(1,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(1,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(1,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(1,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(1,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="q " id="q-C19">
+<div class="qt">
+<small>문항 19 · 필수</small>지금 내 상황(재정, 역할, 능력, 신체건강 등)을 충분히 이해하고 있다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 19">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(2,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(2,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(2,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(2,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(2,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="area-head">
+<span class="badge">직업탐색</span>
+<span class="hintline">job search behavior</span>
+</div>
+<div class="q " id="q-C20">
+<div class="qt">
+<small>문항 20 · 필수</small>능력, 적성, 흥미, 신체능력 등을 고려하여 적합한 직업(분야)을 고려 중이다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 20">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(3,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(3,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(3,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(3,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(3,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="q " id="q-C21">
+<div class="qt">
+<small>문항 21 · 필수</small>웹사이트, 모바일 앱, 인적네트워크를 활용하여 해당 분야의 정보를 수집중이다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 21">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(4,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(4,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(4,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(4,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(4,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="q " id="q-C22">
+<div class="qt">
+<small>문항 22 · 필수</small>나에게 적합한 정보인지 자격증, 교육과정, 채용정보 등을 분석할 수 있다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 22">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(5,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(5,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(5,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(5,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(5,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="area-head">
+<span class="badge">의사결정</span>
+<span class="hintline">career decision making</span>
+</div>
+<div class="q " id="q-C23">
+<div class="qt">
+<small>문항 23 · 필수</small>하고 싶은 일, 잘 할 수 있는 일 등의 고심 끝에 2~3가지 이내로 의사결정 중이다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 23">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(6,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(6,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(6,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(6,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(6,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="q " id="q-C24">
+<div class="qt">
+<small>문항 24 · 필수</small>원하는 목표를 위한 기본자격, 교육, 조건, 임금, 제도 등을 파악하고 있다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 24">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(7,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(7,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(7,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(7,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(7,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="q " id="q-C25">
+<div class="qt">
+<small>문항 25 · 필수</small>현재 목표는 네트워크, 경험자 등의 충분한 조언(경험)을 얻었다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 25">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(8,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(8,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(8,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(8,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(8,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="area-head">
+<span class="badge">커리어플랜</span>
+<span class="hintline">career plan</span>
+</div>
+<div class="q " id="q-C26">
+<div class="qt">
+<small>문항 26 · 필수</small>나의 계획은 목표에 맞는 현실가능한 계획이다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 26">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(9,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(9,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(9,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(9,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(9,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="q " id="q-C27">
+<div class="qt">
+<small>문항 27 · 필수</small>현재 목표는 달성 가능한 현실적인 목표다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 27">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(10,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(10,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(10,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(10,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(10,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="q " id="q-C28">
+<div class="qt">
+<small>문항 28 · 필수</small>경력목표에 따라 감수해야하는 리스크가 무엇인지 충분히 알고 있다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 28">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(11,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(11,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(11,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(11,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(11,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="area-head">
+<span class="badge">목표실행</span>
+<span class="hintline">career goal activity</span>
+</div>
+<div class="q " id="q-C29">
+<div class="qt">
+<small>문항 29 · 필수</small>내가 선택한 경력목표와 계획에 확신이 차 있다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 29">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(12,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(12,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(12,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(12,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(12,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="q " id="q-C30">
+<div class="qt">
+<small>문항 30 · 필수</small>목표를 달성할 수 있을지 불확실하지만 계획을 수정하며 도전할 것이다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 30">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(13,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(13,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(13,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(13,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(13,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="q " id="q-C31">
+<div class="qt">
+<small>문항 31 · 필수</small>어려움은 있겠지만 내가 세운 목표와 계획을 실제로 실행할 것이다.</div>
+<div class="scale lk" role="radiogroup" aria-label="문항 31">
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(14,1)">
+<b>1</b>
+<span>전혀 아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(14,2)">
+<b>2</b>
+<span>아니다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(14,3)">
+<b>3</b>
+<span>보통</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(14,4)">
+<b>4</b>
+<span>그렇다</span>
+</button>
+<button type="button" role="radio" aria-checked="false" class="" onclick="answer(14,5)">
+<b>5</b>
+<span>매우 그렇다</span>
+</button>
+</div>
+</div>
+<div class="acts" style="justify-content:space-between;margin-top:14px">
+<button class="btn ghost" onclick="goStep(2)">이전</button>
+<button class="btn" onclick="nextFrom(3)">다음 · 서비스 기대</button>
+</div>
+</div>
+</div>

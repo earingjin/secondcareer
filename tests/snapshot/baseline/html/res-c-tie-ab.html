@@ -1,0 +1,1147 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')" class="on">상담사</button>
+      <button id="m-a" onclick="setMode('admin')">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="narrow">
+<div class="toolbar">
+    <button class="btn ghost sm" onclick="nav('cns')">← 내 내담자로</button>
+    <div class="acts">
+<button class="btn ghost sm" onclick="startEdit('90000006')">응답 수정 (상담사)</button>
+<button class="btn sm" onclick="window.print()">PDF로 저장(인쇄)</button>
+</div>
+</div>
+<div class="editpanel noprint">
+<h4>상담사 확인용 (인쇄되지 않음)</h4>
+  <div>상태: <b>제출 완료 · 내담자 수정 잠금</b> · 평가 버전 macro-chart-v1-unverified</div>
+  <div class="hintline" style="margin-top:6px">변경 이력이 없습니다.</div>
+  <details style="margin-top:8px">
+<summary>연동 데이터 (Assessment JSON)</summary>
+<div class="acts" style="margin:6px 0">
+<button class="btn ghost sm" onclick="copyText(JSON.stringify(toAssessment(byId('90000006')),null,2),'연동 데이터를 복사했습니다')">JSON 복사</button>
+</div>
+<pre style="white-space:pre-wrap;font-size:11px;max-height:260px;overflow:auto">{
+  "schemaVersion": "sp-assessment-1",
+  "id": "90000006",
+  "counselorId": "102",
+  "counselingCode": "102",
+  "company": "다이소",
+  "status": "submitted",
+  "submittedAt": "2026-10-07T01:00:00.000Z",
+  "dateOfAssessment": "2026-10-07",
+  "contactPhone": "010-9000-0006",
+  "contactEmail": "snap6@example.com",
+  "birthDate": "1978-06-15",
+  "answers": {
+    "A1": "동의",
+    "A2": "102",
+    "A3": "동점 A와 B",
+    "A4": "여성",
+    "A5": "1978-06-15",
+    "A6": "다이소",
+    "A7": "대리",
+    "A8": "생산 관리",
+    "A9": "금융",
+    "A10": "기존 임금 60% 수준",
+    "B11": "퇴직 후 3개월 이내",
+    "B12": "몇 가지 안을 고민 중",
+    "B13": [
+      "결정된 바 없음",
+      "동일 업종 재취업"
+    ],
+    "B14": "경력과 연관성이 있음",
+    "B15": 70,
+    "B16": 8,
+    "D32": "잘 될 것이라고 믿는다.",
+    "D33": [
+      "인생의 공허함",
+      "역할이나 활동영역의 축소",
+      "상대적으로 많아진 시간에 대한 활용"
+    ],
+    "D34": "심리진단 및 분석(강점, 적성 등)",
+    "D35": [
+      "목표에 대한 확신의 부족",
+      "하고자 하는 의지 부족"
+    ],
+    "D36": [
+      "자신의 상황에 맞는 컨설팅 방향설정",
+      "노후를 위한 준비(인생설계 컨설팅)"
+    ],
+    "C17": 3,
+    "C18": 3,
+    "C19": 2,
+    "C20": 3,
+    "C21": 3,
+    "C22": 2,
+    "C23": 4,
+    "C24": 4,
+    "C25": 4,
+    "C26": 4,
+    "C27": 4,
+    "C28": 4,
+    "C29": 4,
+    "C30": 4,
+    "C31": 4
+  },
+  "result": {
+    "areas": [
+      {
+        "code": "A",
+        "raw": 8,
+        "converted": 41.7,
+        "grade": "보통",
+        "gradeNeedsReview": false
+      },
+      {
+        "code": "B",
+        "raw": 8,
+        "converted": 41.7,
+        "grade": "보통",
+        "gradeNeedsReview": false
+      },
+      {
+        "code": "C",
+        "raw": 12,
+        "converted": 75,
+        "grade": "다소 높음",
+        "gradeNeedsReview": false
+      },
+      {
+        "code": "D",
+        "raw": 12,
+        "converted": 75,
+        "grade": "다소 높음",
+        "gradeNeedsReview": false
+      },
+      {
+        "code": "E",
+        "raw": 12,
+        "converted": 75,
+        "grade": "다소 높음",
+        "gradeNeedsReview": false
+      }
+    ],
+    "selectedFeedbackArea": "Code_A",
+    "feedbackCode": "Code_A_02",
+    "feedbackText": "자기인식(self-awareness) : 자신을 움직이게 하는 것이 무엇인지 자신을 이해하기\n\n직업을 선택하는 것은 쉽지만 선택한 직업을 달성하고 유지하는 것, 지속적으로 직업을 관리하는 것 역시 중요합니다. 자신의 특성중 어떠한 동기요인(Motivation)을 갖고 있는지, 성과(performance)와 연결지을 수 있는 요인은 무엇인지를 명확하게 아는 것은 커리어개발의 첫 단계입니다. 스스로 선택하고 결과 또한 스스로 책임을 져야하기 때문에 자기인식을 좀 더 높이길 권해드립니다.",
+    "keywords": [
+      "자신이 가장 자신있는 분야에서 시작해야한다",
+      "90살에 당신이 현재 당신에게 해주고 싶은 말",
+      "돈을 벌지 않아도 행복한 일이 진짜 행복"
+    ],
+    "keywordCodes": [
+      "A_40_02",
+      "A_70_03",
+      "C_10_04"
+    ],
+    "evaluationVersion": "macro-chart-v1-unverified",
+    "compareSet": "v1",
+    "gradeSet": "conv"
+  },
+  "reportSnapshot": {
+    "counselor": {
+      "code": "102",
+      "n": "가상상담사 A",
+      "mail": "counselor-a@example.com",
+      "tel": "010-0000-0102"
+    },
+    "selectedFeedback": "Code_A_02",
+    "selectedKeywords": [
+      "A_40_02",
+      "A_70_03",
+      "C_10_04"
+    ],
+    "generatedAt": "2026-10-26T03:00:00.000Z"
+  },
+  "history": []
+}</pre>
+</details>
+</div>
+<section class="sheet cvs">
+<div class="cv">
+    <div class="cv-top">
+<div class="cv-logos">
+<span class="logo-jm">
+<svg viewBox="0 0 30 34" width="22" height="26" aria-hidden="true">
+<path d="M3 3h6v20c0 4 2.5 6 6 6s6-2 6-6V3h6v21c0 8-5 11-12 11S3 32 3 24z" fill="#17488F">
+</path>
+<path d="M11 9h4v18h-4z" fill="#2F7C82">
+</path>
+</svg>제이엠커리어</span>
+</div>
+<span class="cv-guide">Second Planning Leading Guide</span>
+</div>
+    <div class="cv-diamond">
+</div>
+    <div class="cv-paper">
+<div class="cv-sub">The better life, The better career</div>
+<h2>세컨플래닝 리딩 가이드</h2>
+<div class="cv-en">Second Planning</div>
+</div>
+    <div class="cv-date">
+<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+<path d="M5 19C5 9 11 4 20 4c0 9-5 15-15 15z" fill="#7FB5A0">
+</path>
+<path d="M5 19L14 10" stroke="#fff" stroke-width="1.5" fill="none">
+</path>
+</svg>
+<span>Date</span>
+<span>2026-10-07</span>
+</div>
+    <div class="cv-name">Client Name : &nbsp;<b>동점 A와 B</b>
+</div>
+    <div class="cv-foot">
+<span class="logo-hdc">
+<svg viewBox="0 0 28 22" width="26" height="20" aria-hidden="true">
+<path d="M2 4h24M2 11h24M2 18h24" stroke="#2F7C82" stroke-width="4" stroke-linecap="round">
+</path>
+<path d="M6 4h6M12 11h8M8 18h10" stroke="#9FC4C7" stroke-width="4" stroke-linecap="round">
+</path>
+</svg>The Human<br>Data Center</span>
+<span style="text-align:right">The Human Data Center / : www.humandc.co.kr<br>Copyright © 2026. JMCAREER. All rights reserved.</span>
+</div>
+</div>
+</section>
+<section class="sheet rp">
+<div class="sh-head">
+<span>일을통한행복한삶 (The better life, The Better Career)</span>
+<span>Second Planning Leading Guide</span>
+</div>
+    <div class="p2top">
+<div class="need">
+<div class="ttl">
+<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+<path d="M5 19C5 9 11 4 20 4c0 9-5 15-15 15z" fill="#4A8A8E">
+</path>
+<path d="M5 19L14 10" stroke="#fff" stroke-width="1.5" fill="none">
+</path>
+</svg>세컨플래닝의 필요성</div>
+<p>세컨플래닝이란 원하는 경력목표 달성을 위해 준비해야하는 설계과정을 말합니다. 경력목표 달성을 위한 과정에서 필요한 5가지 요인을 확인하고 준비하면 커리어개발에 있어서 불확실성에 따른 리스크 감소, 성공적인 경력목표 달성에 도움을 받을 수 있습니다.</p>
+</div>
+    <div class="goal">
+<h4>동점 A와 B님이 작성한 경력목표</h4>
+<div class="gl">
+<span>경력목표 1순위</span>
+<b>결정된 바 없음</b>
+</div>
+<div class="gl">
+<span>경력목표 2순위</span>
+<b>동일 업종 재취업</b>
+</div>
+</div>
+</div>
+    <div class="tealpill">세컨플래닝 밸런스</div>
+    <div class="myres">
+<div class="lab">나의 종합결과</div>
+<div class="cells">
+<div>
+<div class="hd bg1">자기인식</div>
+<div class="lv">보통</div>
+</div>
+<div>
+<div class="hd bg2">직업환경 탐색</div>
+<div class="lv">보통</div>
+</div>
+<div>
+<div class="hd bg3">커리어 의사결정</div>
+<div class="lv">다소높음</div>
+</div>
+<div>
+<div class="hd bg4">커리어플랜</div>
+<div class="lv">다소높음</div>
+</div>
+<div>
+<div class="hd bg5">커리어목표실행</div>
+<div class="lv">다소높음</div>
+</div>
+</div>
+</div>
+    <div class="band">
+<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+<path d="M5 19C5 9 11 4 20 4c0 9-5 15-15 15z" fill="#4A8A8E">
+</path>
+<path d="M5 19L14 10" stroke="#fff" stroke-width="1.5" fill="none">
+</path>
+</svg>세컨플래닝을 통해 5가지 영역의 밸런스를 확인해보세요.</div>
+    <div class="bal-sub">
+<div>
+<span>Self-Assessment</span>
+<b>나는 어떤 사람인가?</b>
+</div>
+<div>
+<span>Looking-Outwards</span>
+<b>어디로 가야 하는가?</b>
+</div>
+<div>
+<span>Looking-Forwards</span>
+<b>무엇을 선택해야 하는가?</b>
+</div>
+<div>
+<span>Career Goal</span>
+<b>어떻게 달성할 것인가?</b>
+</div>
+<div>
+<span>Career Action</span>
+<b>실행 및 목표달성</b>
+</div>
+</div>
+    <div class="bal-legend">
+<span>
+<i style="background:var(--bar)">
+</i>나의 평균</span>
+<span>
+<i style="background:var(--avg)">
+</i>성인 평균</span>
+</div>
+    <div class="bal-wrap">
+<div class="bal-y">
+<span class="num" style="bottom:0%">0</span>
+<span class="num" style="bottom:20%">20</span>
+<span class="num" style="bottom:40%">40</span>
+<span class="num" style="bottom:60%">60</span>
+<span class="num" style="bottom:80%">80</span>
+<span class="num" style="bottom:100%">100</span>
+<span class="lvw" style="bottom:91%">높음</span>
+<span class="lvw" style="bottom:70%">다소<br>높음</span>
+<span class="lvw" style="bottom:45%">보통</span>
+<span class="lvw" style="bottom:17%">다소<br>낮음</span>
+</div>
+    <div class="bal-plot" role="img" aria-label="영역별 나의 평균과 성인 평균">
+<div class="bal-col">
+<div class="bb me" style="height:41.7%">
+<em>41.7</em>
+</div>
+<div class="bb avg" style="height:66.7%">
+<em>66.7</em>
+</div>
+</div>
+<div class="bal-col">
+<div class="bb me" style="height:41.7%">
+<em>41.7</em>
+</div>
+<div class="bb avg" style="height:58.3%">
+<em>58.3</em>
+</div>
+</div>
+<div class="bal-col">
+<div class="bb me" style="height:75%">
+<em>75</em>
+</div>
+<div class="bb avg" style="height:58.3%">
+<em>58.3</em>
+</div>
+</div>
+<div class="bal-col">
+<div class="bb me" style="height:75%">
+<em>75</em>
+</div>
+<div class="bb avg" style="height:41.7%">
+<em>41.7</em>
+</div>
+</div>
+<div class="bal-col">
+<div class="bb me" style="height:75%">
+<em>75</em>
+</div>
+<div class="bb avg" style="height:66.7%">
+<em>66.7</em>
+</div>
+</div>
+</div>
+</div>
+    <div class="bal-x">
+<div class="x0">자기인식</div>
+<div class="x1">직업탐색</div>
+<div class="x2">의사결정</div>
+<div class="x3">커리어플랜</div>
+<div class="x4">목표실행</div>
+</div>
+    <div class="bal-ul">
+<ul>
+<li>개인의 특성과 상황이해</li>
+<li>강점, 역량, 흥미 등</li>
+<li>직업적인 선호요인</li>
+</ul>
+<ul>
+<li>특성에 맞는 정보수집</li>
+<li>직업 정보수집 수준</li>
+<li>진출분야의 분석수준</li>
+</ul>
+<ul>
+<li>경력목표와 의사결정</li>
+<li>분석된 정보의 이해</li>
+<li>실현가능성과 피드백</li>
+</ul>
+<ul>
+<li>현실적인 경력목표</li>
+<li>목표에 맞는 커리어플랜</li>
+<li>경력목표와 리스크 평가</li>
+</ul>
+<ul>
+<li>경력목표와 계획의 확신</li>
+<li>불확실성과 도전의식</li>
+<li>위험감수와 실행능력</li>
+</ul>
+</div>
+    <div class="tealpill">결과표를 읽는 방법</div>
+    <div class="readtbl">
+<div class="rrow">
+<div class="rl bg1">자기인식<small>(self-awareness)</small>
+</div>
+<p>자신의 커리어를 계획할 때 자신이 무엇을 원하고 있는지 자신의 특성을 이해하는 것이 중요합니다. 점수가 높을수록 성격, 재능, 적성을 스스로 높이 이해하고 있다는 것을 나타냅니다.</p>
+</div>
+<div class="rrow">
+<div class="rl bg2">직업탐색<small>(job search behavior)</small>
+</div>
+<p>자신의 특성과 능력을 충분히 고려한 커리어선택인지, 선택한 분야에서 요구하는 정보(자격증, 교육과정 등)를 충분히 준비했는지를 나타냅니다. 점수가 높을수록 원하는 분야의 정보수집을 하고 있다는 뜻입니다.</p>
+</div>
+<div class="rrow">
+<div class="rl bg3">의사결정<small>(career decision making)</small>
+</div>
+<p>진출분야에 대해 어느 정도 의사결정을 하고 있는지를 나타냅니다. 점수가 높을수록 객관적인 정보수집이 잘 되어 있고 실현가능성을 검토 중임을 뜻합니다.</p>
+</div>
+<div class="rrow">
+<div class="rl bg4">커리어플랜<small>(career plan)</small>
+</div>
+<p>희망하는 분야와 경력목표에 따라 현실적인 계획과 감수해야 하는 리스크를 충분히 고려했는지를 나타냅니다. 점수가 높을수록 현실적인 계획이 세워져 있음을 뜻합니다.</p>
+</div>
+<div class="rrow">
+<div class="rl bg5">목표실행<small>(career goal activity)</small>
+</div>
+<p>진출분야에 대한 목표설정과 계획에 대한 자신감, 도전성, 실행력 수준을 나타냅니다. 점수가 높을수록 목표와 계획에 확신이 있고 실제로 행동으로 옮길 수 있음을 뜻합니다.</p>
+</div>
+</div>
+<div class="sh-foot">
+<span class="ft-l">
+<span class="logo-hdc">
+<svg viewBox="0 0 28 22" width="26" height="20" aria-hidden="true">
+<path d="M2 4h24M2 11h24M2 18h24" stroke="#2F7C82" stroke-width="4" stroke-linecap="round">
+</path>
+<path d="M6 4h6M12 11h8M8 18h10" stroke="#9FC4C7" stroke-width="4" stroke-linecap="round">
+</path>
+</svg>The Human<br>Data Center</span>
+</span>
+<span>Copyright © 2026 JMCAREER All rights reserved. / www.humandc.co.kr</span>
+<span>2 / 5</span>
+</div>
+</section>
+<section class="sheet rp">
+<div class="sh-head">
+<span>일을통한행복한삶 (The better life, The Better Career)</span>
+<span>Second Planning Leading Guide</span>
+</div>
+    <div class="t3title">커리어플랜 세부 응답항목</div>
+<div class="t3note">클라이언트가 응답한 문항 결과를 나타냅니다.</div>
+    <div class="t3head">
+<span>항목점수</span>
+<span>세부항목</span>
+<span class="sc">
+<i style="font-style:normal">매우 아니다</i>
+<i style="font-style:normal">보통</i>
+<i style="font-style:normal">매우 그렇다 <small>(5점 만점)</small>
+</i>
+</span>
+</div>
+    <div class="t3body">
+<div class="grp3">
+<div class="g-l">
+<b>보통</b>
+<span>41.7<small>점</small>
+</span>
+</div>
+<div class="g-a">자기인식</div>
+<div class="g-f">
+<div class="f3r">
+<div class="fn">특성인식</div>
+<div class="ftrack">
+<div class="fbar" style="width:60%">
+</div>
+<b style="left:calc(60% + 8px)">3</b>
+</div>
+</div>
+<div class="f3r">
+<div class="fn">가치인식</div>
+<div class="ftrack">
+<div class="fbar" style="width:60%">
+</div>
+<b style="left:calc(60% + 8px)">3</b>
+</div>
+</div>
+<div class="f3r">
+<div class="fn">상황인식</div>
+<div class="ftrack">
+<div class="fbar" style="width:40%">
+</div>
+<b style="left:calc(40% + 8px)">2</b>
+</div>
+</div>
+</div>
+</div>
+<div class="grp3">
+<div class="g-l">
+<b>보통</b>
+<span>41.7<small>점</small>
+</span>
+</div>
+<div class="g-a">직업탐색</div>
+<div class="g-f">
+<div class="f3r">
+<div class="fn">직업타당성</div>
+<div class="ftrack">
+<div class="fbar" style="width:60%">
+</div>
+<b style="left:calc(60% + 8px)">3</b>
+</div>
+</div>
+<div class="f3r">
+<div class="fn">정보수집</div>
+<div class="ftrack">
+<div class="fbar" style="width:60%">
+</div>
+<b style="left:calc(60% + 8px)">3</b>
+</div>
+</div>
+<div class="f3r">
+<div class="fn">정보분석</div>
+<div class="ftrack">
+<div class="fbar" style="width:40%">
+</div>
+<b style="left:calc(40% + 8px)">2</b>
+</div>
+</div>
+</div>
+</div>
+<div class="grp3">
+<div class="g-l">
+<b>다소높음</b>
+<span>75<small>점</small>
+</span>
+</div>
+<div class="g-a">의사결정</div>
+<div class="g-f">
+<div class="f3r">
+<div class="fn">결정수준</div>
+<div class="ftrack">
+<div class="fbar" style="width:80%">
+</div>
+<b style="left:calc(80% + 8px)">4</b>
+</div>
+</div>
+<div class="f3r">
+<div class="fn">객관성평가</div>
+<div class="ftrack">
+<div class="fbar" style="width:80%">
+</div>
+<b style="left:calc(80% + 8px)">4</b>
+</div>
+</div>
+<div class="f3r">
+<div class="fn">실현가능성</div>
+<div class="ftrack">
+<div class="fbar" style="width:80%">
+</div>
+<b style="left:calc(80% + 8px)">4</b>
+</div>
+</div>
+</div>
+</div>
+<div class="grp3">
+<div class="g-l">
+<b>다소높음</b>
+<span>75<small>점</small>
+</span>
+</div>
+<div class="g-a">커리어플랜</div>
+<div class="g-f">
+<div class="f3r">
+<div class="fn">커리어계획</div>
+<div class="ftrack">
+<div class="fbar" style="width:80%">
+</div>
+<b style="left:calc(80% + 8px)">4</b>
+</div>
+</div>
+<div class="f3r">
+<div class="fn">현실적목표</div>
+<div class="ftrack">
+<div class="fbar" style="width:80%">
+</div>
+<b style="left:calc(80% + 8px)">4</b>
+</div>
+</div>
+<div class="f3r">
+<div class="fn">리스크평가</div>
+<div class="ftrack">
+<div class="fbar" style="width:80%">
+</div>
+<b style="left:calc(80% + 8px)">4</b>
+</div>
+</div>
+</div>
+</div>
+<div class="grp3">
+<div class="g-l">
+<b>다소높음</b>
+<span>75<small>점</small>
+</span>
+</div>
+<div class="g-a">목표실행</div>
+<div class="g-f">
+<div class="f3r">
+<div class="fn">목표확신</div>
+<div class="ftrack">
+<div class="fbar" style="width:80%">
+</div>
+<b style="left:calc(80% + 8px)">4</b>
+</div>
+</div>
+<div class="f3r">
+<div class="fn">도전의식</div>
+<div class="ftrack">
+<div class="fbar" style="width:80%">
+</div>
+<b style="left:calc(80% + 8px)">4</b>
+</div>
+</div>
+<div class="f3r">
+<div class="fn">실행력</div>
+<div class="ftrack">
+<div class="fbar" style="width:80%">
+</div>
+<b style="left:calc(80% + 8px)">4</b>
+</div>
+</div>
+</div>
+</div>
+</div>
+    <div class="cmt">
+<div class="cmt-h">코멘트</div>
+<div class="cmt-b">
+<p style="font-weight:700;margin-bottom:8px">“자기인식(self-awareness) : 자신을 움직이게 하는 것이 무엇인지 자신을 이해하기”</p>
+<p>직업을 선택하는 것은 쉽지만 선택한 직업을 달성하고 유지하는 것, 지속적으로 직업을 관리하는 것 역시 중요합니다. 자신의 특성중 어떠한 동기요인(Motivation)을 갖고 있는지, 성과(performance)와 연결지을 수 있는 요인은 무엇인지를 명확하게 아는 것은 커리어개발의 첫 단계입니다. 스스로 선택하고 결과 또한 스스로 책임을 져야하기 때문에 자기인식을 좀 더 높이길 권해드립니다.</p>
+</div>
+</div>
+    <div class="memo-note">커리어컨설턴트와 함께 작성합니다.</div>
+<div class="memo">메모</div>
+    <div class="p3bot">
+<div class="kw">
+<h5>[ 귀하를 위한 인생키워드 ]</h5>
+<p># 자신이 가장 자신있는 분야에서 시작해야한다</p>
+<p># 90살에 당신이 현재 당신에게 해주고 싶은 말</p>
+<p># 돈을 벌지 않아도 행복한 일이 진짜 행복</p>
+</div>
+    <div class="ccard">
+<div class="cc-top">
+<span class="logo-jm">
+<svg viewBox="0 0 30 34" width="22" height="26" aria-hidden="true">
+<path d="M3 3h6v20c0 4 2.5 6 6 6s6-2 6-6V3h6v21c0 8-5 11-12 11S3 32 3 24z" fill="#17488F">
+</path>
+<path d="M11 9h4v18h-4z" fill="#2F7C82">
+</path>
+</svg>제이엠커리어</span>
+</div>
+<div>✓ 커리어컨설팅 문의 안내</div>
+<div>
+<div class="ci">
+<i>
+<svg viewBox="0 0 24 24" width="16" height="16">
+<circle cx="12" cy="8" r="4" fill="#fff">
+</circle>
+<path d="M4 21c0-5 4-8 8-8s8 3 8 8z" fill="#fff">
+</path>
+</svg>
+</i>가상상담사 A PM</div>
+<div class="ci">
+<i>
+<svg viewBox="0 0 24 24" width="16" height="16">
+<rect x="3" y="5" width="18" height="14" rx="2" fill="#fff">
+</rect>
+<path d="M3 7l9 6 9-6" stroke="#9FC4C7" stroke-width="2" fill="none">
+</path>
+</svg>
+</i>counselor-a@example.com</div>
+<div class="ci">
+<i>
+<svg viewBox="0 0 24 24" width="16" height="16">
+<path d="M6 3h4l2 5-3 2c1 3 3 5 6 6l2-3 5 2v4c0 1-1 2-2 2C10 21 3 14 3 5c0-1 1-2 3-2z" fill="#fff">
+</path>
+</svg>
+</i>010-0000-0102</div>
+</div>
+<div class="cc-priv">✓ 개인정보처리에 대한 안내 &nbsp;<small>제이엠커리어는 고객의 개인정보를 소중하게 보호합니다.</small>
+</div>
+</div>
+</div>
+<div class="sh-foot">
+<span class="ft-l">
+<span class="logo-hdc">
+<svg viewBox="0 0 28 22" width="26" height="20" aria-hidden="true">
+<path d="M2 4h24M2 11h24M2 18h24" stroke="#2F7C82" stroke-width="4" stroke-linecap="round">
+</path>
+<path d="M6 4h6M12 11h8M8 18h10" stroke="#9FC4C7" stroke-width="4" stroke-linecap="round">
+</path>
+</svg>The Human<br>Data Center</span>
+</span>
+<span>Copyright © 2026 JMCAREER All rights reserved. / www.humandc.co.kr</span>
+<span>3 / 5</span>
+</div>
+</section>
+<section class="sheet">
+<div class="sh-head">
+<span>일을통한행복한삶 (The better life, The Better Career)</span>
+<span>상담사용 프로파일</span>
+</div>
+<div class="ribbon">★ 응답자에게 공개하지 않음 ★</div>
+    <h3 class="st">01. 응답자 기본 정보</h3>
+<div class="scroll">
+<table class="t">
+<tbody>
+<tr>
+<th>응답자 이름</th>
+<td>동점 A와 B</td>
+<th>상담코드</th>
+<td>102</td>
+</tr>
+<tr>
+<th>성별</th>
+<td>여성</td>
+<th>출생년도</th>
+<td>1978 <span class="hintline">(생년월일 1978-06-15)</span>
+</td>
+</tr>
+<tr>
+<th>휴대폰</th>
+<td>010-9000-0006</td>
+<th>이메일</th>
+<td>snap6@example.com</td>
+</tr>
+<tr>
+<th>소속회사</th>
+<td>다이소</td>
+<th>최근 직급/직책</th>
+<td>대리</td>
+</tr>
+<tr>
+<th>업무/부서</th>
+<td>생산 관리</td>
+<th>해당업종</th>
+<td>금융</td>
+</tr>
+<tr>
+<th>기대소득수준</th>
+<td>기존 임금 60% 수준</td>
+<th>개인정보 동의</th>
+<td>동의</td>
+</tr>
+</tbody>
+</table>
+</div>
+    <h3 class="st">02. 경력목표별 응답</h3>
+<div class="scroll">
+<table class="t">
+<tbody>
+<tr>
+<th>1 · 직업준비 시작 시기</th>
+<td>퇴직 후 3개월 이내</td>
+</tr>
+<tr>
+<th>2 · 퇴직 후 계획수준</th>
+<td>몇 가지 안을 고민 중</td>
+</tr>
+<tr>
+<th>3 · 가장 관심을 두는 분야</th>
+<td>결정된 바 없음, 동일 업종 재취업</td>
+</tr>
+<tr>
+<th>4 · 경력목표 선택이유</th>
+<td>경력과 연관성이 있음</td>
+</tr>
+<tr>
+<th>5 · 달성가능성(%)</th>
+<td>70</td>
+</tr>
+<tr>
+<th>6 · 예상 소요기간(개월)</th>
+<td>8</td>
+</tr>
+</tbody>
+</table>
+</div>
+    <h3 class="st">03. 커리어 컨설팅 서비스 기대 (사전/사후 효과성 문항)</h3>
+<div class="scroll">
+<table class="t">
+<tbody>
+<tr>
+<th>현재 마음상태</th>
+<td>잘 될 것이라고 믿는다.</td>
+</tr>
+<tr>
+<th>컨설팅 호소문제 (우선순위)</th>
+<td>1순위 인생의 공허함<br>2순위 역할이나 활동영역의 축소<br>3순위 상대적으로 많아진 시간에 대한 활용</td>
+</tr>
+<tr>
+<th>컨설팅 목표 (이번 컨설팅을 통한 기대)</th>
+<td>심리진단 및 분석(강점, 적성 등)</td>
+</tr>
+<tr>
+<th>경력의 장애요소 2가지</th>
+<td>목표에 대한 확신의 부족, 하고자 하는 의지 부족</td>
+</tr>
+<tr>
+<th>첫 회기 진행방식</th>
+<td>1번 자신의 상황에 맞는 컨설팅 방향설정<br>2번 노후를 위한 준비(인생설계 컨설팅)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sh-foot">
+<span class="ft-l">
+<span class="logo-hdc">
+<svg viewBox="0 0 28 22" width="26" height="20" aria-hidden="true">
+<path d="M2 4h24M2 11h24M2 18h24" stroke="#2F7C82" stroke-width="4" stroke-linecap="round">
+</path>
+<path d="M6 4h6M12 11h8M8 18h10" stroke="#9FC4C7" stroke-width="4" stroke-linecap="round">
+</path>
+</svg>The Human<br>Data Center</span>
+</span>
+<span>Copyright © 2026 JMCAREER All rights reserved. / www.humandc.co.kr</span>
+<span>4 / 5</span>
+</div>
+</section>
+<section class="sheet">
+<div class="sh-head">
+<span>일을통한행복한삶 (The better life, The Better Career)</span>
+<span>상담사용 프로파일</span>
+</div>
+<h3 class="st">04. 응답자 종합결과</h3>
+    <div class="scroll">
+<table class="t c">
+<tbody>
+<tr>
+<th>자기인식</th>
+<th>직업탐색</th>
+<th>의사결정</th>
+<th>커리어플랜</th>
+<th>목표실행</th>
+</tr>
+<tr>
+<td>
+<b>41.7</b>
+</td>
+<td>
+<b>41.7</b>
+</td>
+<td>
+<b>75</b>
+</td>
+<td>
+<b>75</b>
+</td>
+<td>
+<b>75</b>
+</td>
+</tr>
+<tr>
+<td>보통</td>
+<td>보통</td>
+<td>다소높음</td>
+<td>다소높음</td>
+<td>다소높음</td>
+</tr>
+</tbody>
+</table>
+</div>
+    <h3 class="st">응답문항 <span class="hintline" style="font-weight:600">1 전혀 아니다 · 2 아니다 · 3 보통 · 4 그렇다 · 5 매우 그렇다</span>
+</h3>
+    <div class="scroll">
+<table class="t zebra">
+<tbody>
+<tr>
+<th>#</th>
+<th>영역</th>
+<th>요인</th>
+<th>문항</th>
+<th>응답</th>
+</tr>
+<tr>
+<td>1</td>
+<td>자기인식</td>
+<td>특성인식</td>
+<td>나 자신의 성격, 재능, 흥미, 적성을 정확하게 이해하고 있다.</td>
+<td style="text-align:center">
+<b>3</b>
+</td>
+</tr>
+<tr>
+<td>2</td>
+<td>
+</td>
+<td>가치인식</td>
+<td>능력과 상관없이 꼭 해보고 싶은 활동(직업 등)이 있다.</td>
+<td style="text-align:center">
+<b>3</b>
+</td>
+</tr>
+<tr>
+<td>3</td>
+<td>
+</td>
+<td>상황인식</td>
+<td>지금 내 상황(재정, 역할, 능력, 신체건강 등)을 충분히 이해하고 있다.</td>
+<td style="text-align:center">
+<b>2</b>
+</td>
+</tr>
+<tr>
+<td>4</td>
+<td>직업탐색</td>
+<td>직업타당성</td>
+<td>능력, 적성, 흥미, 신체능력 등을 고려하여 적합한 직업(분야)을 고려 중이다.</td>
+<td style="text-align:center">
+<b>3</b>
+</td>
+</tr>
+<tr>
+<td>5</td>
+<td>
+</td>
+<td>정보수집</td>
+<td>웹사이트, 모바일 앱, 인적네트워크를 활용하여 해당 분야의 정보를 수집 중이다.</td>
+<td style="text-align:center">
+<b>3</b>
+</td>
+</tr>
+<tr>
+<td>6</td>
+<td>
+</td>
+<td>정보분석</td>
+<td>나에게 적합한 정보인지 자격증, 교육과정, 채용정보 등을 분석할 수 있다.</td>
+<td style="text-align:center">
+<b>2</b>
+</td>
+</tr>
+<tr>
+<td>7</td>
+<td>의사결정</td>
+<td>결정수준</td>
+<td>하고 싶은 일, 잘 할 수 있는 일 등의 고심 끝에 2~3가지 이내로 의사결정 중이다.</td>
+<td style="text-align:center">
+<b>4</b>
+</td>
+</tr>
+<tr>
+<td>8</td>
+<td>
+</td>
+<td>객관성평가</td>
+<td>원하는 목표를 위한 기본자격, 교육, 조건, 임금, 제도 등을 파악하고 있다.</td>
+<td style="text-align:center">
+<b>4</b>
+</td>
+</tr>
+<tr>
+<td>9</td>
+<td>
+</td>
+<td>실현가능성</td>
+<td>현재 목표는 네트워크, 경험자 등의 충분한 조언(경험)을 얻었다.</td>
+<td style="text-align:center">
+<b>4</b>
+</td>
+</tr>
+<tr>
+<td>10</td>
+<td>커리어플랜</td>
+<td>커리어계획</td>
+<td>나의 계획은 목표에 맞는 현실가능한 계획이다.</td>
+<td style="text-align:center">
+<b>4</b>
+</td>
+</tr>
+<tr>
+<td>11</td>
+<td>
+</td>
+<td>현실적목표</td>
+<td>현재 목표는 달성 가능한 현실적인 목표다.</td>
+<td style="text-align:center">
+<b>4</b>
+</td>
+</tr>
+<tr>
+<td>12</td>
+<td>
+</td>
+<td>리스크평가</td>
+<td>경력목표에 따라 감수해야 하는 리스크가 무엇인지 충분히 알고 있다.</td>
+<td style="text-align:center">
+<b>4</b>
+</td>
+</tr>
+<tr>
+<td>13</td>
+<td>목표실행</td>
+<td>목표확신</td>
+<td>내가 선택한 경력목표와 계획에 확신이 차 있다.</td>
+<td style="text-align:center">
+<b>4</b>
+</td>
+</tr>
+<tr>
+<td>14</td>
+<td>
+</td>
+<td>도전의식</td>
+<td>목표를 달성할 수 있을지 불확실하지만 계획을 수정하며 도전할 것이다.</td>
+<td style="text-align:center">
+<b>4</b>
+</td>
+</tr>
+<tr>
+<td>15</td>
+<td>
+</td>
+<td>실행력</td>
+<td>어려움은 있겠지만 내가 세운 목표와 계획을 실제로 실행할 것이다.</td>
+<td style="text-align:center">
+<b>4</b>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+    <h3 class="st">평가기준표 (100점 만점) <span class="hintline" style="font-weight:600">비교군: 1차 비교군 · 평가기준!N6:N10 · 판정: 평가기준!C22:E34 (VBA fun1 참조표) · 검증 필요</span>
+</h3>
+<div class="scroll">
+<table class="t c">
+<tbody>
+<tr>
+<th>영역</th>
+<th>점수</th>
+<th>점수평균</th>
+<th>다소 낮음</th>
+<th>보통</th>
+<th>다소 높음</th>
+<th>매우 높음</th>
+</tr>
+<tr>
+<td>자기인식</td>
+<td>
+<b>41.7</b>
+</td>
+<td>66.7</td>
+<td>0.0~33.3<br>
+<span class="hintline">원점수 3~7</span>
+</td>
+<td>41.7~58.3<br>
+<span class="hintline">원점수 8~10</span>
+</td>
+<td>66.7~83.3<br>
+<span class="hintline">원점수 11~13</span>
+</td>
+<td>91.7~100.0<br>
+<span class="hintline">원점수 14~15</span>
+</td>
+</tr>
+<tr>
+<td>직업탐색</td>
+<td>
+<b>41.7</b>
+</td>
+<td>58.3</td>
+<td>0.0~33.3<br>
+<span class="hintline">원점수 3~7</span>
+</td>
+<td>41.7~58.3<br>
+<span class="hintline">원점수 8~10</span>
+</td>
+<td>66.7~83.3<br>
+<span class="hintline">원점수 11~13</span>
+</td>
+<td>91.7~100.0<br>
+<span class="hintline">원점수 14~15</span>
+</td>
+</tr>
+<tr>
+<td>의사결정</td>
+<td>
+<b>75</b>
+</td>
+<td>58.3</td>
+<td>0.0~33.3<br>
+<span class="hintline">원점수 3~7</span>
+</td>
+<td>41.7~58.3<br>
+<span class="hintline">원점수 8~10</span>
+</td>
+<td>66.7~83.3<br>
+<span class="hintline">원점수 11~13</span>
+</td>
+<td>91.7~100.0<br>
+<span class="hintline">원점수 14~15</span>
+</td>
+</tr>
+<tr>
+<td>커리어플랜</td>
+<td>
+<b>75</b>
+</td>
+<td>41.7</td>
+<td>0.0~33.3<br>
+<span class="hintline">원점수 3~7</span>
+</td>
+<td>41.7~58.3<br>
+<span class="hintline">원점수 8~10</span>
+</td>
+<td>66.7~83.3<br>
+<span class="hintline">원점수 11~13</span>
+</td>
+<td>91.7~100.0<br>
+<span class="hintline">원점수 14~15</span>
+</td>
+</tr>
+<tr>
+<td>목표실행</td>
+<td>
+<b>75</b>
+</td>
+<td>66.7</td>
+<td>0.0~33.3<br>
+<span class="hintline">원점수 3~7</span>
+</td>
+<td>41.7~58.3<br>
+<span class="hintline">원점수 8~10</span>
+</td>
+<td>66.7~83.3<br>
+<span class="hintline">원점수 11~13</span>
+</td>
+<td>91.7~100.0<br>
+<span class="hintline">원점수 14~15</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="sh-foot">
+<span class="ft-l">
+<span class="logo-hdc">
+<svg viewBox="0 0 28 22" width="26" height="20" aria-hidden="true">
+<path d="M2 4h24M2 11h24M2 18h24" stroke="#2F7C82" stroke-width="4" stroke-linecap="round">
+</path>
+<path d="M6 4h6M12 11h8M8 18h10" stroke="#9FC4C7" stroke-width="4" stroke-linecap="round">
+</path>
+</svg>The Human<br>Data Center</span>
+</span>
+<span>Copyright © 2026 JMCAREER All rights reserved. / www.humandc.co.kr</span>
+<span>5 / 5</span>
+</div>
+</section>
+</div>

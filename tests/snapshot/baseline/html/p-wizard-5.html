@@ -1,0 +1,106 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="on">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="narrow" style="padding-top:20px">
+<div class="stepper">
+<div class="st  done">
+<i>✓</i>참여 동의</div>
+<div class="st  done">
+<i>✓</i>기본정보</div>
+<div class="st  done">
+<i>✓</i>경력목표</div>
+<div class="st  done">
+<i>✓</i>진단 15문항</div>
+<div class="st on ">
+<i>5</i>서비스 기대</div>
+<div class="st  ">
+<i>6</i>검토·제출</div>
+</div>
+<div class="card">
+<div class="whead">
+<span class="hintline">5 / 6 단계 · 전체 18 / 38 응답</span>
+<h2>서비스 기대</h2>
+<p class="sub">이번 컨설팅에서 기대하는 점을 알려 주세요.</p>
+<div class="progressbar">
+<span style="width:47.368421052631575%">
+</span>
+</div>
+</div>
+<div class="q " id="q-D32">
+<div class="qt">
+<small>문항 32 · 필수</small>직업 전환(퇴직 포함)을 맞이하는 느낌은 어떠하십니까?</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d32',0)">잘 될 것이라고 믿는다.</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d32',1)">구체적으로 준비하고 있어 안심이다.</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d32',2)">체감되지 않아 잘 모르겠다.</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d32',3)">이제부터 진로를 생각할 예정이다.</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d32',4)">막연한 걱정이 앞선다.</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d32',5)">기운이 없고 잠을 설친다.</button>
+</div>
+</div>
+<div class="q " id="q-D33">
+<div class="qt">
+<small>문항 33 · 필수</small>퇴직 이후 고민이 되는 부분은 무엇인가요? (고민되는 부분 3가지를 순서대로 선택해주세요.)</div>
+<div class="hintline" style="margin:-6px 0 10px">1순위부터 차례로 누르세요.</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d33',0)">수입감소 등 경제적 상황</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d33',1)">역할이나 활동영역의 축소</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d33',2)">사회적 관계의 축소</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d33',3)">상대적으로 많아진 시간에 대한 활용</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d33',4)">가족과의 관계 문제</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d33',5)">건강 유지 또는 관리</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d33',6)">인생의 공허함</button>
+</div>
+</div>
+<div class="q " id="q-D34">
+<div class="qt">
+<small>문항 34 · 필수</small>이번 컨설팅을 통해 어떤 기대를 하고 계시나요? (가장 고민인 한 가지만 선택해주십시오.)</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d34',0)">심리진단 및 분석(강점, 적성 등)</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d34',1)">커리어목표 및 방향설정과 플랜</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d34',2)">막연함 개선(심리안정/자신감 증진)</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d34',3)">재취업(채용전략부터 입사까지) 지원</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d34',4)">창업컨설팅(아이템, 전략 등)</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d34',5)">자산관리(재태크, 부동산 등) 가이드</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d34',6)">새로운 경력설계와 자기개발 방법</button>
+</div>
+</div>
+<div class="q " id="q-D35">
+<div class="qt">
+<small>문항 35 · 필수</small>현재 새롭게 만들어 길 경력을 준비하는데 있어서 장애 요인은 무엇인가요? (가장 고민인 두가지만 선택해주십시오.)</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d35',0)">진로에 대한 불확실성</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d35',1)">목표에 대한 확신의 부족</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d35',2)">하고자 하는 의지 부족</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d35',3)">필요한 정보의 부족</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d35',4)">전문 네트워크 부족(인맥/기관) 부족</button>
+</div>
+</div>
+<div class="q " id="q-D36">
+<div class="qt">
+<small>문항 36 · 필수</small>첫 회기 컨설팅은 어떤 형식으로 진행하기를 바라시나요?(최대 2가지 선택)</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d36',0)">서비스 효과 및 내용, 성공사례</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d36',1)">성격검사를 활용한 자기분석의 시간</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d36',2)">자신의 상황에 맞는 컨설팅 방향설정</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d36',3)">재취업 분야 및 입사서류 작성</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d36',4)">창업/귀농·귀촌·귀어에 대한 준비</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d36',5)">노후를 위한 준비(인생설계 컨설팅)</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('expect.d36',6)">나에게 맞는 노후와 유사 성공사례</button>
+</div>
+</div>
+<div class="acts" style="justify-content:space-between;margin-top:14px">
+<button class="btn ghost" onclick="goStep(3)">이전</button>
+<button class="btn" onclick="nextFrom(4)">다음 · 응답 검토</button>
+</div>
+</div>
+</div>

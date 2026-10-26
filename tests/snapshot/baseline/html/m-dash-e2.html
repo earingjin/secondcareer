@@ -1,0 +1,144 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')">관리자</button>
+      <button id="m-m" onclick="setMode('client')" class="on">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="wrap">
+<div class="cl-head">
+<div class="who">
+<div>
+<h2 style="font-size:24px">㈜한빛전자 진단 현황</h2>
+<div class="hintline">2026-09-15 ~ 2027-01-31 · 오세훈 담당자님</div>
+</div>
+</div>
+  <div class="acts noprint">
+<button class="btn ghost sm" onclick="window.print()">PDF로 저장(인쇄)</button>
+<button class="btn ghost sm" onclick="logoutMgr()">로그아웃</button>
+</div>
+</div>
+  <div class="tiles">
+<div class="tile">
+<span>전체 인원</span>
+<b>19</b>
+</div>
+<div class="tile c2">
+<span>사전 완료</span>
+<b>11</b>
+</div>
+<div class="tile c1">
+<span>사후 완료</span>
+<b>4</b>
+</div>
+<div class="tile c3">
+<span>사전 미완료</span>
+<b>8</b>
+</div>
+</div>
+  <section class="card sec">
+<h2>전체 인원 대비 완료율</h2>
+<p class="sub">전체 19명 기준입니다.</p>
+<div class="row2" style="align-items:center">
+<div class="donut">
+<svg viewBox="0 0 140 140" role="img" aria-label="사전 진단 완료율 58%, 19명 중 11명">
+<circle class="dn-bg" cx="70" cy="70" r="54">
+</circle>
+<circle class="dn-fg dpre" cx="70" cy="70" r="54" stroke-dasharray="196.78936382086465 142.502642766833" transform="rotate(-90 70 70)">
+</circle>
+<text x="70" y="70" text-anchor="middle" class="dn-pct">58%</text>
+<text x="70" y="92" text-anchor="middle" class="dn-sub">11 / 19명</text>
+</svg>
+<div class="dn-lab">사전 진단 완료율</div>
+</div>
+<div class="donut">
+<svg viewBox="0 0 140 140" role="img" aria-label="사후 진단 완료율 21%, 19명 중 4명">
+<circle class="dn-bg" cx="70" cy="70" r="54">
+</circle>
+<circle class="dn-fg dpost" cx="70" cy="70" r="54" stroke-dasharray="71.25132138341651 268.04068520428115" transform="rotate(-90 70 70)">
+</circle>
+<text x="70" y="70" text-anchor="middle" class="dn-pct">21%</text>
+<text x="70" y="92" text-anchor="middle" class="dn-sub">4 / 19명</text>
+</svg>
+<div class="dn-lab">사후 진단 완료율</div>
+</div>
+</div>
+  <p class="hintline" style="text-align:center;margin-top:12px">사전 진단을 마친 11명 중 36%가 사후 진단까지 완료했습니다.</p>
+</section>
+  <section class="card sec">
+<h2>진행 단계별 인원</h2>
+<div class="stk" role="img" aria-label="진행 단계별 인원 비율">
+<span style="width:21%;background:var(--line)" title="미시작 4명">
+</span>
+<span style="width:21%;background:var(--gold)" title="진행 중 4명">
+</span>
+<span style="width:37%;background:var(--pre)" title="사전 완료 7명">
+</span>
+<span style="width:21%;background:var(--post)" title="사후 완료 4명">
+</span>
+</div>
+  <div class="legend">
+<span>
+<i class="sw" style="background:var(--line)">
+</i>미시작 4명 (21%)</span>
+<span>
+<i class="sw" style="background:var(--gold)">
+</i>진행 중 4명 (21%)</span>
+<span>
+<i class="sw" style="background:var(--pre)">
+</i>사전 완료 7명 (37%)</span>
+<span>
+<i class="sw" style="background:var(--post)">
+</i>사후 완료 4명 (21%)</span>
+</div>
+</section>
+  <section class="card sec">
+<h2>담당 컨설턴트별 완료율</h2>
+<p class="sub">각 컨설턴트가 맡은 인원 대비 비율입니다.</p>
+<div class="legend">
+<span>
+<i class="sw" style="background:var(--pre)">
+</i>사전 완료율</span>
+<span>
+<i class="sw" style="background:var(--post)">
+</i>사후 완료율</span>
+</div>
+<svg viewBox="0 0 640 270" role="img" aria-label="컨설턴트별 사전 사후 완료율">
+<line x1="34" x2="630" y1="226" y2="226" class="grid ">
+</line>
+<text x="28" y="230" class="axis" text-anchor="end">0</text>
+<line x1="34" x2="630" y1="156.736" y2="156.736" class="grid dash">
+</line>
+<text x="28" y="160.736" class="axis" text-anchor="end">33</text>
+<line x1="34" x2="630" y1="104.736" y2="104.736" class="grid dash">
+</line>
+<text x="28" y="108.736" class="axis" text-anchor="end">58</text>
+<line x1="34" x2="630" y1="52.73600000000002" y2="52.73600000000002" class="grid dash">
+</line>
+<text x="28" y="56.73600000000002" class="axis" text-anchor="end">83</text>
+<line x1="34" x2="630" y1="18" y2="18" class="grid ">
+</line>
+<text x="28" y="22" class="axis" text-anchor="end">100</text>
+<rect x="146" y="122" width="34" height="104" rx="6" class="rpre">
+</rect>
+<text x="163" y="117" class="val" text-anchor="middle">50</text>
+<rect x="186" y="184.4" width="34" height="41.6" rx="6" class="rpost">
+</rect>
+<text x="203" y="179.4" class="val" text-anchor="middle">20</text>
+<text x="183" y="252" class="lab" text-anchor="middle">가상상담사 B (10명)</text>
+<rect x="444" y="86.63999999999999" width="34" height="139.36" rx="6" class="rpre">
+</rect>
+<text x="461" y="81.63999999999999" class="val" text-anchor="middle">67</text>
+<rect x="484" y="180.24" width="34" height="45.76" rx="6" class="rpost">
+</rect>
+<text x="501" y="175.24" class="val" text-anchor="middle">22</text>
+<text x="481" y="252" class="lab" text-anchor="middle">가상상담사 A (9명)</text>
+</svg>
+</section>
+  <p class="hintline" style="margin:6px 0 0">개인별 응답과 결과는 공개되지 않으며, 인원 집계만 제공됩니다.</p>
+</div>

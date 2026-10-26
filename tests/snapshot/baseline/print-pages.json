@@ -1,0 +1,172 @@
+{
+ "res-p-hong": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-hong": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-area-a": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-area-a": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-area-b": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-area-b": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-area-c": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-area-c": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-area-d": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-area-d": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-area-e": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-area-e": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-tie-ab": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-tie-ab": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-tie-ce": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-tie-ce": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-star": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-star": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-min": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-min": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-etc": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-etc": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-post": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-post": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-history": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-history": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-alltie": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-alltie": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-max": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-max": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-hanbit": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-hanbit": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ },
+ "res-p-seed-bada": {
+  "pages": 3,
+  "pageObjects": 3,
+  "fitSheetsApplied": 3
+ },
+ "res-c-seed-bada": {
+  "pages": 5,
+  "pageObjects": 5,
+  "fitSheetsApplied": 5
+ }
+}

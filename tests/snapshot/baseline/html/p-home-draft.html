@@ -1,0 +1,39 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="on">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="narrow" style="padding-top:34px">
+<div class="card">
+    <span class="badge-s s-prog">작성 중</span>
+    <h2 style="margin-top:10px">미래님, 안녕하세요</h2>
+    <p class="sub">㈜한빛전자 · 아이디 33334444</p>
+    <div class="stepper">
+<div class="st  done">
+<i>✓</i>참여 동의</div>
+<div class="st  done">
+<i>✓</i>기본정보</div>
+<div class="st  done">
+<i>✓</i>경력목표</div>
+<div class="st on ">
+<i>4</i>진단 15문항</div>
+<div class="st  ">
+<i>5</i>서비스 기대</div>
+<div class="st  ">
+<i>6</i>검토·제출</div>
+</div>
+    <div class="acts" style="gap:10px;margin-top:16px">
+      <button class="btn" onclick="S.step=nextStep(S.user);S.mode2='pre';nav('wizard')">이어서 진행하기</button>
+      
+      <button class="btn ghost" onclick="logout()">나가기</button>
+    </div>
+    
+  </div>
+</div>

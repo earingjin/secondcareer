@@ -1,0 +1,109 @@
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand" onclick="goHome()">
+<span class="mark">🌿</span>세컨플래닝</div>
+    <div class="seg" role="tablist" aria-label="화면 선택">
+      <button id="m-p" onclick="setMode('participant')" class="on">참여자</button>
+      <button id="m-c" onclick="setMode('counselor')">상담사</button>
+      <button id="m-a" onclick="setMode('admin')">관리자</button>
+      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
+    </div>
+  </div>
+</header>
+<div class="narrow" style="padding-top:20px">
+<div class="stepper">
+<div class="st  done">
+<i>✓</i>참여 동의</div>
+<div class="st  done">
+<i>✓</i>기본정보</div>
+<div class="st on ">
+<i>3</i>경력목표</div>
+<div class="st  ">
+<i>4</i>진단 15문항</div>
+<div class="st  ">
+<i>5</i>서비스 기대</div>
+<div class="st  ">
+<i>6</i>검토·제출</div>
+</div>
+<div class="card">
+<div class="whead">
+<span class="hintline">3 / 6 단계 · 전체 18 / 38 응답</span>
+<h2>경력목표</h2>
+<p class="sub">퇴직 이후의 계획과 기대를 알려 주세요.</p>
+<div class="progressbar">
+<span style="width:47.368421052631575%">
+</span>
+</div>
+</div>
+<div class="q " id="q-B11">
+<div class="qt">
+<small>문항 11 · 필수</small>퇴직 후 어느 정도 기간 이후부터 직업준비(재취업, 창업, 귀농, 자격증 취득 등)를 시작할 예정인가요?</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b11',0)">퇴직 후 곧바로</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b11',1)">퇴직 후 3개월 이내</button>
+<button type="button" class="chip on" aria-pressed="true" onclick="toggleChip('goal.b11',2)">퇴직 후 6개월 이내</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b11',3)">퇴직 후 1년 이내</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b11',4)">퇴직 후 1년 이후</button>
+</div>
+</div>
+<div class="q " id="q-B12">
+<div class="qt">
+<small>문항 12 · 필수</small>퇴직 후 무엇을 하겠다는 구체적인 계획을 가지고 있으신가요?</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b12',0)">전혀 고민해본적 없음</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b12',1)">간헐적인 고민수준</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b12',2)">몇가지 안을 고민중</button>
+<button type="button" class="chip on" aria-pressed="true" onclick="toggleChip('goal.b12',3)">이미 결정되어 준비중에 있음</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b12',4)">이미 결정되었고 목표달성 예정</button>
+</div>
+</div>
+<div class="q " id="q-B13">
+<div class="qt">
+<small>문항 13 · 필수</small>현재 가장 관심을 두고 있는 분야는 어떤 분야인가요?(2가지를 우선 순위로 선택해주세요)</div>
+<div class="hintline" style="margin:-6px 0 10px">1순위부터 차례로 누르세요. 다시 누르면 선택이 취소됩니다.</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b13',0)">동일업종 재취업</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b13',1)">다른 업종 재취업</button>
+<button type="button" class="chip on" aria-pressed="true" onclick="toggleChip('goal.b13',2)">
+<b>1</b>프리랜서(전문직종)</button>
+<button type="button" class="chip on" aria-pressed="true" onclick="toggleChip('goal.b13',3)">
+<b>2</b>창업</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b13',4)">귀농/귀촌/귀어</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b13',5)">재능기부 및 사회적 기여</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b13',6)">결정된 바 없음</button>
+</div>
+</div>
+<div class="q " id="q-B14">
+<div class="qt">
+<small>문항 14 · 필수</small>귀하가 선택하는 경력목표는 귀하의 경력과 연관성이 있나요?</div>
+<div class="chips">
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b14',0)">경력과 연관성이 있음</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b14',1)">관련 교육(학업/자격증) 이수</button>
+<button type="button" class="chip on" aria-pressed="true" onclick="toggleChip('goal.b14',2)">취미와 연관성이 있음</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b14',3)">지인과 연관성있음</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b14',4)">관련 일을 간헐적으로 경험하였음</button>
+<button type="button" class="chip " aria-pressed="false" onclick="toggleChip('goal.b14',5)">관련성이 전혀없음</button>
+</div>
+</div>
+<div class="q " id="q-B15">
+<div class="qt">
+<small>문항 15 · 필수</small>본인이 기대하는 경력목표 달성 가능성은 어느정도 인가요?</div>
+<div class="unit">
+<input class="in" inputmode="numeric" maxlength="3" placeholder="0~100" value="50" oninput="this.value=this.value.replace(/\D/g,'');setF('goal.b15',this.value)" aria-label="%">
+<span>%</span>
+</div>
+</div>
+<div class="q " id="q-B16">
+<div class="qt">
+<small>문항 16 · 필수</small>경력목표 달성을 위한 예상 소요기간은 어느정도 인가요?</div>
+<div class="unit">
+<input class="in" inputmode="numeric" maxlength="3" placeholder="예: 6" value="4" oninput="this.value=this.value.replace(/\D/g,'');setF('goal.b16',this.value)" aria-label="개월">
+<span>개월</span>
+</div>
+</div>
+<div class="acts" style="justify-content:space-between;margin-top:14px">
+<button class="btn ghost" onclick="goStep(1)">이전</button>
+<button class="btn" onclick="nextFrom(2)">다음 · 진단 15문항</button>
+</div>
+</div>
+</div>
