@@ -71,6 +71,7 @@ Windows PowerShell 기준. Node 24, Playwright 1.64, Chromium headless shell. `n
 | `npm run test:e2e` | 역할별 흐름(관리자→내담자→상담사→고객사→사후→보고서) | 약 20초 |
 | `npm run test:src` | `npm test` 와 같은 전체를 `src/index.html` 대상으로 실행(단계 1 이후 작업본 검증) | 약 50초 |
 | `npx playwright test tests/split` | 분할 파일 이어 붙임 === legacy 증명(1a). `npm test` 에 포함 | 1초 미만 |
+| `npx playwright test tests/contract` | 단계 2a 계약 정답표(문항 정의·`missing`·`ansText`·`toAssessment`·시드·문구). `npm test` 에 포함 | 약 2초 |
 | `npm run test:visual` | 캡처 비교(너비 375·768·1100 × 라이트·다크, 252장). 기본 테스트에서 제외 | 약 1분 30초 |
 
 - 대조 대상은 기본이 `legacy/index.original.html` 이다. 다른 파일은 `$env:TARGET_HTML='src/index.html'` 로 지정한다. 일부 화면만: `$env:SCENE='^res-p-'`.

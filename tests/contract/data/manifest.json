@@ -1,0 +1,47 @@
+{
+ "legacySha256": "62fc9dd4c0c0515e204c1697085dec655d59fbac8e495d78676f982d401ad310",
+ "files": {
+  "question-defs.json": {
+   "storedBytes": 25155,
+   "contentBytes": 25155,
+   "contentSha256": "de8c7f6b1b9ee1acfa1998ce9ef1f2dbb23793f45131452c00714843882f60c9"
+  },
+  "missing.json": {
+   "storedBytes": 45096,
+   "contentBytes": 45096,
+   "contentSha256": "7d1317902d4c2077ca3d5e7f1320b72f4f105c3ed72026755d423f55e0c18a71"
+  },
+  "anstext.json.gz": {
+   "storedBytes": 5703,
+   "contentBytes": 83691,
+   "contentSha256": "6e138708bb946024368fc28400049f9eebfb39ac5c9b1690ee3bf3e3df3bc3a1"
+  },
+  "assessments.json.gz": {
+   "storedBytes": 18161,
+   "contentBytes": 212524,
+   "contentSha256": "ed96f9ec38175a5463c57ea6987e93501804587383fc116dfb188f98162e666b"
+  },
+  "seed.json.gz": {
+   "storedBytes": 6493,
+   "contentBytes": 60983,
+   "contentSha256": "65a404a0eb5dfc45c7be4753be84d288f027ef67d43c18a9de9196966f4aa46a"
+  },
+  "messages.json": {
+   "storedBytes": 2952,
+   "contentBytes": 2952,
+   "contentSha256": "19ca8e258039d7bbc2d8dd098e7d23ca224c09f175e509a6919b2855a4a38aae"
+  }
+ },
+ "counts": {
+  "questions": 38,
+  "numberedQuestions": 36,
+  "missingCases": 178,
+  "ansTextCodes": 38,
+  "ansTextValues": 637,
+  "repAssessments": 21,
+  "fixtureAssessments": 69,
+  "fixtureResultGenerated": 0,
+  "seedPersons": 54,
+  "seedEnterprises": 12
+ }
+}
