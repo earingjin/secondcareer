@@ -50,7 +50,7 @@ const lineOf = (k, off) => T[k].slice(0, off).split('\n').length;
 function hit(entries, k, off) {
   const rel = k === 'html' ? off - inlineStart : off;
   for (const e of entries) {
-    const isHtml = /src\/index\.html$/.test(e.url), isThis = k === 'html' ? isHtml : e.url.endsWith(FILES[k].replace('src/', ''));
+    const isHtml = /\/(?:index\.html)?$/.test(e.url), isThis = k === 'html' ? isHtml : e.url.endsWith(FILES[k].replace('src/', ''));
     if (!isThis) continue;
     let best = null;
     for (const [s, en, c] of e.ranges) if (s <= rel && rel < en && (!best || en - s <= best[1] - best[0])) best = [s, en, c];

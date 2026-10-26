@@ -18,7 +18,8 @@
     "fixture:make": "node tests/snapshot/fixture.mjs",
     "test:visual": "node tests/snapshot/visual.mjs",
     "visual:update": "node tests/snapshot/update.mjs --visual",
-    "test:src": "node tests/run-src.mjs"
+    "test:src": "node tests/run-src.mjs",
+    "test:url": "node tests/run-url.mjs"
   },
   "keywords": [],
   "author": "",
@@ -26,6 +27,7 @@
   "type": "commonjs",
   "private": true,
   "devDependencies": {
-    "@playwright/test": "^1.64.1"
+    "@playwright/test": "^1.64.1",
+    "vite": "5.4.21"
   }
 }

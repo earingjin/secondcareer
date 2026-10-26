@@ -6,5 +6,5 @@ const visual = process.argv.includes('--visual');
 const ti = process.argv.indexOf('--target');
 const target = ti >= 0 ? process.argv[ti + 1] : '';
 if (ti >= 0 && (!target || !process.env.GEN_APPROVED)) { console.error('--target 은 대상 HTML 과 승인 사유(GEN_APPROVED)가 필요하다.'); process.exit(1); }
-const r = spawnSync('npx', ['playwright', 'test', 'tests/snapshot', '--update-snapshots'], { stdio: 'inherit', shell: true, env: { ...process.env, UPDATE: '1', TARGET_HTML: target, VISUAL: visual ? '1' : '' } });
+const r = spawnSync('npx', ['playwright', 'test', 'tests/snapshot', '--update-snapshots'], { stdio: 'inherit', shell: true, env: { ...process.env, UPDATE: '1', TARGET_HTML: /^https?:/i.test(target) ? '' : target, TARGET_URL: /^https?:/i.test(target) ? target : '', VISUAL: visual ? '1' : '' } });
 process.exit(r.status ?? 1);

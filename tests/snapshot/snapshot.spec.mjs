@@ -1,20 +1,21 @@
 // 화면 기준선 대조. 기본(npm test): HTML(전 화면) · 집계 JSON · 인쇄 쪽수 · CSS 지문.
 // 캡처(너비 3 × 테마 2)는 VISUAL=1 일 때만 비교한다(npm run test:visual). 캡처 이미지는 저장소에 두지 않는다.
 // 기준 갱신: node tests/snapshot/update.mjs [--visual]  (기준은 legacy 에서만 갱신한다)
+// 대상: TARGET_URL(http/file URL) 또는 TARGET_HTML(파일 경로).
 import { test, expect, chromium } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SCENES } from './scenes.mjs';
 import { COMBOS, openContext, runScene, printPages, cssFingerprint } from './capture.mjs';
-import { LEGACY_HTML } from '../golden/collect.mjs';
+import { resolveTarget } from '../lib/target.mjs';
 import { covStart, covTake } from '../coverage/cov.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const BASE = path.join(here, 'baseline');
 const UPDATE = process.env.UPDATE === '1';
 const VISUAL = process.env.VISUAL === '1';
-const target = process.env.TARGET_HTML ? path.resolve(process.env.TARGET_HTML) : LEGACY_HTML;
+const target = resolveTarget();
 const only = process.env.SCENE ? new RegExp(process.env.SCENE) : null;
 const scenes = SCENES.filter(s => !only || only.test(s.id));
 const j = o => JSON.stringify(o, null, 1) + '\n';

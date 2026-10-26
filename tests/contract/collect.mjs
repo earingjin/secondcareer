@@ -2,7 +2,7 @@
 // 대상 HTML 을 헤드리스 브라우저로 열어 전역 함수·상수를 직접 호출한다. 고정 입력은 tests/snapshot/fixture.json.
 // 코드 안에서 문항 수 등 숫자는 일부러 리터럴로 쓴다(legacy 와 이후 단계 양쪽에서 같은 수집기를 쓰기 위해).
 import { chromium } from '@playwright/test';
-import { pathToFileURL } from 'node:url';
+import { toUrl } from '../lib/target.mjs';
 import { openContext } from '../snapshot/capture.mjs';
 import { LEGACY_HTML } from '../golden/collect.mjs';
 import { covStart, covTake } from '../coverage/cov.mjs';
@@ -215,7 +215,7 @@ export async function collectContract(htmlPath = LEGACY_HTML) {
     const errors = [];
     page.on('pageerror', e => errors.push(String(e)));
     await covStart(page);
-    await page.goto(pathToFileURL(htmlPath).href);
+    await page.goto(toUrl(htmlPath));
     await page.waitForFunction(() => typeof missing === 'function' && typeof toAssessment === 'function');
     const data = await page.evaluate(inBrowser);
     await covTake(page, 'contract:collect');

@@ -1,13 +1,14 @@
 // 골든 대조: 대상 HTML(기본 legacy)에서 같은 입력으로 다시 수집해 저장된 정답표와 한 건도 다르지 않아야 통과.
-// 이후 단계에서는 TARGET_HTML=경로 로 새 코드를 지정한다(전역 함수 이름이 같아야 한다).
+// 대상 지정: TARGET_URL(http/file URL) 또는 TARGET_HTML(파일 경로). 전역 함수 이름이 같아야 한다.
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { collect, LEGACY_HTML } from './collect.mjs';
+import { collect } from './collect.mjs';
+import { resolveTarget } from '../lib/target.mjs';
 import { toFiles, legacyHashOk, contentOf, contentSha, DATA } from './generate.mjs';
 
-const target = process.env.TARGET_HTML ? path.resolve(process.env.TARGET_HTML) : LEGACY_HTML;
+const target = resolveTarget();
 const read = n => fs.readFileSync(path.join(DATA, n));
 const unz = b => JSON.parse(zlib.gunzipSync(b).toString());
 

@@ -1,13 +1,13 @@
 // 단계 2a 대조: 문항 정의 · missing · ansText · toAssessment(연동 계약) · 시드/문구.
-// 대상 HTML(기본 legacy, TARGET_HTML 로 변경)에서 다시 수집해 저장된 정답표와 한 건도 다르지 않아야 통과.
+// 대상(기본 legacy, TARGET_URL·TARGET_HTML 로 변경)에서 다시 수집해 저장된 정답표와 한 건도 다르지 않아야 통과.
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import { collectContract } from './collect.mjs';
 import { toFiles, legacyHashOk, contentOf, contentSha, DATA } from './generate.mjs';
-import { LEGACY_HTML } from '../golden/collect.mjs';
+import { resolveTarget } from '../lib/target.mjs';
 
-const target = process.env.TARGET_HTML ? path.resolve(process.env.TARGET_HTML) : LEGACY_HTML;
+const target = resolveTarget();
 const read = n => fs.readFileSync(path.join(DATA, n));
 const want = n => JSON.parse(contentOf(n, read(n)).toString());
 const got = n => JSON.parse(contentOf(n, files[n]).toString());

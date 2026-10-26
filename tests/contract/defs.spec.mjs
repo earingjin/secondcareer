@@ -5,15 +5,16 @@
 import { test, expect, chromium } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL, fileURLToPath } from 'node:url';
-import { newPage, LEGACY_HTML } from '../golden/collect.mjs';
+import { fileURLToPath } from 'node:url';
+import { newPage } from '../golden/collect.mjs';
+import { resolveTarget, toUrl } from '../lib/target.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const target = process.env.TARGET_HTML ? path.resolve(process.env.TARGET_HTML) : LEGACY_HTML;
+const target = resolveTarget();
 let browser, page, has;
 test.beforeAll(async () => {
   browser = await chromium.launch(); page = await newPage(browser);
-  await page.goto(pathToFileURL(target).href);
+  await page.goto(toUrl(target));
   has = await page.evaluate(() => typeof QUESTION_DEFS !== 'undefined');
 });
 test.afterAll(async () => { await browser.close(); });

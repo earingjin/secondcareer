@@ -1,7 +1,8 @@
 // 골든 정답표 수집기. 대상 HTML 을 헤드리스 브라우저로 열어 전역 함수·상수를 직접 호출한다.
 // 반복문은 모두 브라우저 안에서 돌리고 결과만 한 번에 받는다.
 import { chromium } from '@playwright/test';
-import { pathToFileURL } from 'node:url';
+import { toUrl } from '../lib/target.mjs';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { covStart, covTake } from '../coverage/cov.mjs';
@@ -216,6 +217,8 @@ export async function newPage(browser, { now = FIXED_NOW, viewport } = {}) {
   const ctx = await browser.newContext({ timezoneId: 'Asia/Seoul', locale: 'ko-KR', viewport: viewport || { width: 1100, height: 900 } });
   await ctx.addInitScript(DETERMINISTIC_INIT);
   const page = await ctx.newPage();
+  // 환경 변수 PAGEERROR_LOG(파일 경로)가 있을 때만: 페이지 스크립트 오류를 스택과 함께 JSONL 로 남긴다(strict 모드 프로브 등).
+  if (process.env.PAGEERROR_LOG) page.on('pageerror', e => fs.appendFileSync(process.env.PAGEERROR_LOG, JSON.stringify({ url: page.url(), message: e.message, stack: e.stack }) + '\n'));
   await page.clock.setFixedTime(new Date(now)); // Date 만 고정, 타이머는 그대로 동작
   return page;
 }
@@ -227,7 +230,7 @@ export async function collect(htmlPath = LEGACY_HTML, { now = FIXED_NOW } = {}) 
     const errors = [];
     page.on('pageerror', e => errors.push(String(e)));
     await covStart(page);
-    await page.goto(pathToFileURL(htmlPath).href);
+    await page.goto(toUrl(htmlPath));
     await page.waitForFunction(() => typeof computeResult === 'function' && typeof selfTests === 'function');
     const data = await page.evaluate(inBrowser);
     await covTake(page, 'golden:collect');

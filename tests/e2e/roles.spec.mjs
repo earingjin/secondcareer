@@ -2,13 +2,12 @@
 // 관리자 등록 → 내담자 제출(36문항) → 결과 비공개·수정 잠금 → 상담사(자기 내담자만·수정 이력)
 // → 고객사 담당자(집계만) → 사후 진단·만족도 → 사전사후 보고서. PPT 내보내기는 제외(알려진 제한).
 import { test, expect, chromium } from '@playwright/test';
-import { pathToFileURL } from 'node:url';
-import path from 'node:path';
-import { newPage, LEGACY_HTML } from '../golden/collect.mjs';
+import { newPage } from '../golden/collect.mjs';
+import { resolveTarget, toUrl } from '../lib/target.mjs';
 import { covStart, covTake } from '../coverage/cov.mjs';
 
-const target = process.env.TARGET_HTML ? path.resolve(process.env.TARGET_HTML) : LEGACY_HTML;
-const URL0 = pathToFileURL(target).href;
+const target = resolveTarget();
+const URL0 = toUrl(target);
 
 const CO = '엔투엔물산', NICK_A = '길벗', NICK_B = '달님';
 const st = {}; // 단계 사이에 넘기는 값(자동 부여된 코드·비밀번호)

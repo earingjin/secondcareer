@@ -14,7 +14,7 @@ export async function covStart(page) {
 export async function covTake(page, label) {
   if (!COV_OUT) return;
   const entries = await page.coverage.stopJSCoverage();
-  const keep = entries.filter(e => /\/src\/index\.html$|\/src\/js\/|\/legacy\/index\.original\.html$/.test(e.url))
+  const keep = entries.filter(e => /\/(?:index\.html)?$|\/index\.original\.html$|\/js\/\d\d-[\w-]+\.js$|\/data\/feedback-[\w-]+\.js$/.test(e.url))
     .map(e => ({ url: e.url, len: e.source.length, ranges: e.functions.flatMap(f => f.ranges.map(r => [r.startOffset, r.endOffset, r.count])) }));
   fs.appendFileSync(COV_OUT, JSON.stringify({ label, entries: keep }) + '\n');
   await page.coverage.startJSCoverage(opt);

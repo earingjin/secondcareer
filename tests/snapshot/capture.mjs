@@ -1,6 +1,6 @@
 // 한 화면을 렌더하고 HTML·집계 JSON·(선택) 인쇄 쪽수·캡처를 얻는다.
 import fs from 'node:fs';
-import { pathToFileURL } from 'node:url';
+import { toUrl } from '../lib/target.mjs';
 import { newPage, LEGACY_HTML } from '../golden/collect.mjs';
 import { FIXTURE_FILE } from './fixture.mjs';
 
@@ -49,7 +49,7 @@ function extractNumbers() {
 const settle = page => page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
 
 export async function runScene(page, scene, htmlPath = LEGACY_HTML) {
-  await page.goto(pathToFileURL(htmlPath).href);
+  await page.goto(toUrl(htmlPath));
   await page.waitForFunction(() => typeof render === 'function' && !!document.querySelector('#app').innerHTML);
   await page.evaluate(scene.run, scene.arg);
   await settle(page);
@@ -78,7 +78,7 @@ export async function printPages(page) {
 
 // CSS 규칙 지문: 적용된 모든 규칙의 cssText 를 순서대로 이어 해시한다. CSS 를 파일로 옮겨도 규칙이 같으면 같다.
 export async function cssFingerprint(page, htmlPath = LEGACY_HTML) {
-  await page.goto(pathToFileURL(htmlPath).href);
+  await page.goto(toUrl(htmlPath));
   return page.evaluate(async () => {
     const rules = [];
     for (const sh of document.styleSheets) { try { for (const r of sh.cssRules) rules.push(r.cssText); } catch (e) { rules.push('BLOCKED'); } }
