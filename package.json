@@ -15,7 +15,9 @@
     "test:e2e": "playwright test tests/e2e",
     "golden:clockdiff": "node tests/golden/clockdiff.mjs",
     "snapshot:update": "node tests/snapshot/update.mjs",
-    "fixture:make": "node tests/snapshot/fixture.mjs"
+    "fixture:make": "node tests/snapshot/fixture.mjs",
+    "test:visual": "node tests/snapshot/visual.mjs",
+    "visual:update": "node tests/snapshot/update.mjs --visual"
   },
   "keywords": [],
   "author": "",
