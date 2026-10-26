@@ -3,3 +3,4 @@ tests/golden/data/** -text
 tests/snapshot/baseline/** -text
 tests/snapshot/fixture.json -text
 src/** -text
+tests/contract/data/** -text
