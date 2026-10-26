@@ -26,7 +26,6 @@ test.beforeAll(async () => { browser = await chromium.launch(); });
 test.afterAll(async () => { await browser.close(); });
 
 const printFile = path.join(BASE, 'print-pages.json');
-const printNow = {};
 
 for (const combo of (VISUAL ? COMBOS : COMBOS.filter(c => c.w === 1100 && c.theme === 'light'))) {
   const main = combo.w === 1100 && combo.theme === 'light';
@@ -46,7 +45,6 @@ for (const combo of (VISUAL ? COMBOS : COMBOS.filter(c => c.w === 1100 && c.them
             expect(html === rd(hf), 'HTML 이 기준과 다름').toBe(true);
             expect(j(json) === rd(jf), '집계 JSON 이 기준과 다름').toBe(true);
           }
-          if (s.print) printNow[s.id] = await printPages(page);
           await covTake(page, 'snapshot:' + s.id);
         }
         if (VISUAL && s.png) {
@@ -60,6 +58,11 @@ for (const combo of (VISUAL ? COMBOS : COMBOS.filter(c => c.w === 1100 && c.them
 
 test('인쇄 쪽수(내담자용 3쪽·상담사용 5쪽, fitSheets 적용 상태)', async () => {
   test.skip(!!only || VISUAL, '일부 화면만 실행 중이거나 캡처 모드');
+  // 다른 화면 테스트의 실패(워커 재시작)와 무관하도록 이 테스트가 직접 화면을 돌려 측정한다.
+  const page = await openContext(browser, { w: 1100, theme: 'light' });
+  const printNow = {};
+  for (const s of SCENES.filter(x => x.print)) { await runScene(page, s, target); printNow[s.id] = await printPages(page); }
+  await page.context().close();
   if (UPDATE) { wr(printFile, j(printNow)); return; }
   const want = JSON.parse(rd(printFile) || '{}');
   expect(printNow).toEqual(want);

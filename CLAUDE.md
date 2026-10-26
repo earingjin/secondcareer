@@ -41,6 +41,7 @@
 | 8 | 배포 후 확인 | 불변 | 불변 |
 
 - 단계 1~2는 전역 이름을 유지하는 일반 스크립트 파일로 나눈다. 모듈화는 단계 3에서 수집기 어댑터와 함께 한다.
+- 코멘트·키워드 문구는 `src/data/feedback-*.js`(일반 스크립트, 가장 먼저 로드)에 있다. 문구를 바꿀 때는 `docs/문구-변경-절차.md`를 따른다(정답표 갱신은 승인 후).
 
 ## 코드 지도 (legacy 기준 대략의 줄 번호, 작업본에서는 달라진다)
 | 줄 | 내용 |
@@ -75,7 +76,7 @@ Windows PowerShell 기준. Node 24, Playwright 1.64, Chromium headless shell. `n
 | `npm run test:visual` | 캡처 비교(너비 375·768·1100 × 라이트·다크, 252장). 기본 테스트에서 제외 | 약 1분 30초 |
 
 - 대조 대상은 기본이 `legacy/index.original.html` 이다. 다른 파일은 `$env:TARGET_HTML='src/index.html'` 로 지정한다. 일부 화면만: `$env:SCENE='^res-p-'`.
-- 기준 갱신은 legacy 에서만 한다: `npm run golden:generate`, `npm run snapshot:update`(HTML·JSON·인쇄·CSS), `npm run visual:update`(캡처). 단계 작업 중에는 기준을 갱신하지 않는다. 기준이 바뀌어야 하면 이유를 보고하고 승인받는다.
+- 기준 갱신은 legacy 에서만 한다: `npm run golden:generate`, `npm run snapshot:update`(HTML·JSON·인쇄·CSS), `npm run visual:update`(캡처). 단계 작업 중에는 기준을 갱신하지 않는다. 기준이 바뀌어야 하면 이유를 보고하고 승인받는다. 승인된 문구 변경에 한해 `GEN_APPROVED`(사유)와 `GEN_TARGET`/`--target`으로 작업본 기준 갱신을 허용한다(절차 문서).
 - 시계는 2026-10-26T03:00:00Z, 난수는 고정 시드로 고정한다(`tests/golden/collect.mjs`). 화면 입력 데이터는 `tests/snapshot/fixture.json`. 시계를 바꿔 달라지는 항목 확인: `npm run golden:clockdiff`.
 - 캡처 이미지(`tests/snapshot/baseline/img/`)는 저장소에 두지 않는다(.gitignore). 새 PC에서는 `npm run visual:update` 로 legacy 에서 먼저 만든 뒤 `test:visual` 로 비교한다. 캡처(JPEG 품질 80)는 이 PC의 글꼴(Pretendard 미포함, 시스템 대체 글꼴)에 묶여 있다. 다른 PC·OS에서는 캡처만 어긋날 수 있다(HTML·JSON·계산 정답표는 글꼴과 무관). 글꼴은 단계 4에서 고정한다.
 - 전역 함수 이름(`computeResult`, `S`, `render` 등)을 쓰므로 단계 1~2 산출물에서 그대로 동작한다. 모듈화(단계 3)에서는 수집기 어댑터를 새로 만든다.
