@@ -75,8 +75,11 @@ Windows PowerShell 기준. Node 24, Playwright 1.64, Chromium headless shell. `n
 | `npm run test:src` | `npm test` 와 같은 전체를 `src/index.html` 대상으로 실행(단계 1 이후 작업본 검증) | 약 50초 |
 | `npx playwright test tests/split` | 분할 파일 이어 붙임 === legacy 증명(1a). `npm test` 에 포함 | 1초 미만 |
 | `npx playwright test tests/contract` | 단계 2a 계약 정답표(문항 정의·`missing`·`ansText`·`toAssessment`·시드·문구). `npm test` 에 포함 | 약 2초 |
+| `npm run test:dist` | 빌드(`vite build`) → `dist`와 `src` 바이트 비교 → `vite preview` 기동 → `TARGET_URL`로 전체 테스트 → 서버 종료. `-- --visual`이면 캡처 비교 | 약 1분(캡처 1분 30초) |
+| `npm run test:minmut` | 최소 변조 시험 6건(도구·정답표 생성 방식이 바뀔 때만. `docs/변조-시험-최소-실행기.md`) | 약 35초 |
 | `npm run test:visual` | 캡처 비교(너비 375·768·1100 × 라이트·다크, 252장). 기본 테스트에서 제외 | 약 1분 30초 |
 
+- Vite: `npm run dev`(개발 서버), `npm run build`(`dist/`), `npm run preview`. `vite.config.js`의 복사 플러그인이 일반 스크립트(`src/js`, `src/data`)를 `dist`로 복사한다(단계 3a, 파일 이동 없음). `dist`는 `.gitignore` 대상이다.
 - 대조 대상은 기본이 `legacy/index.original.html` 이다. 다른 파일은 `$env:TARGET_HTML='src/index.html'` 로, HTTP 대상은 `$env:TARGET_URL='http://localhost:PORT/'` 로 지정한다(우선순위: TARGET_URL → TARGET_HTML → legacy). `npm run test:url -- --root src`(또는 `--root legacy --page index.original.html`)는 정적 서버를 띄워 HTTP 대상으로 실행한다. 일부 화면만: `$env:SCENE='^res-p-'`.
 - 기준 갱신은 legacy 에서만 한다: `npm run golden:generate`, `npm run snapshot:update`(HTML·JSON·인쇄·CSS), `npm run visual:update`(캡처). 단계 작업 중에는 기준을 갱신하지 않는다. 기준이 바뀌어야 하면 이유를 보고하고 승인받는다. 승인된 문구 변경에 한해 `GEN_APPROVED`(사유)와 `GEN_TARGET`/`--target`으로 작업본 기준 갱신을 허용한다(절차 문서).
 - 시계는 2026-10-26T03:00:00Z, 난수는 고정 시드로 고정한다(`tests/golden/collect.mjs`). 화면 입력 데이터는 `tests/snapshot/fixture.json`. 시계를 바꿔 달라지는 항목 확인: `npm run golden:clockdiff`.

@@ -19,7 +19,12 @@
     "test:visual": "node tests/snapshot/visual.mjs",
     "visual:update": "node tests/snapshot/update.mjs --visual",
     "test:src": "node tests/run-src.mjs",
-    "test:url": "node tests/run-url.mjs"
+    "test:url": "node tests/run-url.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:dist": "node tests/run-dist.mjs",
+    "test:minmut": "node tests/tools/min-mut.mjs"
   },
   "keywords": [],
   "author": "",
