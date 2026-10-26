@@ -1,1 +1,2 @@
 legacy/** -text
+tests/golden/data/** -text
