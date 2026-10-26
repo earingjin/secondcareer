@@ -521,6 +521,30 @@
    "age": "A_60_01"
   },
   {
+   "birth": "1997",
+   "preDate": null,
+   "band": "20대",
+   "age": "A_20_01"
+  },
+  {
+   "birth": "1987",
+   "preDate": null,
+   "band": "30대",
+   "age": "A_30_01"
+  },
+  {
+   "birth": "1977",
+   "preDate": null,
+   "band": "40대",
+   "age": "A_40_01"
+  },
+  {
+   "birth": "1967",
+   "preDate": null,
+   "band": "50대",
+   "age": "A_50_01"
+  },
+  {
    "birth": "",
    "preDate": "2026-06-15",
    "band": null,

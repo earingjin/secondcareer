@@ -1,0 +1,226 @@
+[
+ {
+  "edit": "변경 없음",
+  "returned": 0,
+  "historyLen": 0,
+  "changes": null,
+  "resultChanged": null,
+  "by": null,
+  "result": "Code_A_01|A_50_01|B_30_01|C_10_01|0|11,11,11,11,11|344344344344344|1968|창업|2026",
+  "snapshotCounselor": null,
+  "hasUpdatedAt": false
+ },
+ {
+  "edit": "같은 영역 안에서 값만 교환(원점수 동일)",
+  "returned": 2,
+  "historyLen": 1,
+  "changes": [
+   {
+    "code": "C17",
+    "before": "3 · 보통",
+    "after": "4 · 그렇다"
+   },
+   {
+    "code": "C18",
+    "before": "4 · 그렇다",
+    "after": "3 · 보통"
+   }
+  ],
+  "resultChanged": false,
+  "by": "테스트",
+  "result": "Code_A_01|A_50_01|B_30_01|C_10_01|0|11,11,11,11,11|434344344344344|1968|창업|2026",
+  "snapshotCounselor": "102",
+  "evaluationVersion": "macro-chart-v1-unverified",
+  "hasUpdatedAt": true
+ },
+ {
+  "edit": "원점수만 변경, 코멘트 영역 동일",
+  "returned": 3,
+  "historyLen": 1,
+  "changes": [
+   {
+    "code": "C17",
+    "before": "3 · 보통",
+    "after": "2 · 아니다"
+   },
+   {
+    "code": "C20",
+    "before": "3 · 보통",
+    "after": "4 · 그렇다"
+   },
+   {
+    "code": "C22",
+    "before": "4 · 그렇다",
+    "after": "5 · 매우 그렇다"
+   }
+  ],
+  "resultChanged": true,
+  "by": "테스트",
+  "result": "Code_A_01|A_50_01|B_30_01|C_10_01|0|10,13,11,11,11|244445344344344|1968|창업|2026",
+  "snapshotCounselor": "102",
+  "evaluationVersion": "macro-chart-v1-unverified",
+  "hasUpdatedAt": true
+ },
+ {
+  "edit": "코멘트 영역이 바뀜(A→B)",
+  "returned": 1,
+  "historyLen": 1,
+  "changes": [
+   {
+    "code": "C20",
+    "before": "3 · 보통",
+    "after": "2 · 아니다"
+   }
+  ],
+  "resultChanged": true,
+  "by": "테스트",
+  "result": "Code_B_03|A_50_01|B_30_01|C_10_01|1|11,10,11,11,11|344244344344344|1968|창업|2026",
+  "snapshotCounselor": "102",
+  "evaluationVersion": "macro-chart-v1-unverified",
+  "hasUpdatedAt": true
+ },
+ {
+  "edit": "A 상승으로 영역 이동",
+  "returned": 1,
+  "historyLen": 1,
+  "changes": [
+   {
+    "code": "C17",
+    "before": "3 · 보통",
+    "after": "5 · 매우 그렇다"
+   }
+  ],
+  "resultChanged": true,
+  "by": "테스트",
+  "result": "Code_B_03|A_50_01|B_30_01|C_10_01|1|13,11,11,11,11|544344344344344|1968|창업|2026",
+  "snapshotCounselor": "102",
+  "evaluationVersion": "macro-chart-v1-unverified",
+  "hasUpdatedAt": true
+ },
+ {
+  "edit": "13번 1순위 분류 변경(창업→재취업)",
+  "returned": 1,
+  "historyLen": 1,
+  "changes": [
+   {
+    "code": "B13",
+    "before": "1순위 창업, 2순위 다른 업종 재취업",
+    "after": "1순위 동일업종 재취업, 2순위 다른 업종 재취업"
+   }
+  ],
+  "resultChanged": false,
+  "by": "테스트",
+  "result": "Code_A_01|A_50_01|B_20_03|C_10_01|0|11,11,11,11,11|344344344344344|1968|동일 업종 재취업|2026",
+  "snapshotCounselor": "102",
+  "evaluationVersion": "macro-chart-v1-unverified",
+  "hasUpdatedAt": true
+ },
+ {
+  "edit": "13번 1순위 같은 분류 안 변경(동일→다른 업종 재취업)",
+  "returned": 1,
+  "historyLen": 1,
+  "changes": [
+   {
+    "code": "B13",
+    "before": "1순위 창업, 2순위 다른 업종 재취업",
+    "after": "1순위 다른 업종 재취업, 2순위 다른 업종 재취업"
+   }
+  ],
+  "resultChanged": false,
+  "by": "테스트",
+  "result": "Code_A_01|A_50_01|B_20_01|C_10_01|0|11,11,11,11,11|344344344344344|1968|다른 업종 재취업|2026",
+  "snapshotCounselor": "102",
+  "evaluationVersion": "macro-chart-v1-unverified",
+  "hasUpdatedAt": true
+ },
+ {
+  "edit": "생년월일만 변경(출생연도 필드 그대로)",
+  "returned": 1,
+  "historyLen": 1,
+  "changes": [
+   {
+    "code": "A5",
+    "before": "1968-03-15",
+    "after": "1998-03-15"
+   }
+  ],
+  "resultChanged": false,
+  "by": "테스트",
+  "result": "Code_A_01|A_50_01|B_30_01|C_10_01|0|11,11,11,11,11|344344344344344|1968|창업|2026",
+  "snapshotCounselor": "102",
+  "evaluationVersion": "macro-chart-v1-unverified",
+  "hasUpdatedAt": true
+ },
+ {
+  "edit": "생년월일과 출생연도 둘 다 변경",
+  "returned": 1,
+  "historyLen": 1,
+  "changes": [
+   {
+    "code": "A5",
+    "before": "1968-03-15",
+    "after": "1998-03-15"
+   }
+  ],
+  "resultChanged": false,
+  "by": "테스트",
+  "result": "Code_A_01|A_20_03|B_30_01|C_10_01|0|11,11,11,11,11|344344344344344|1998|창업|2026",
+  "snapshotCounselor": "102",
+  "evaluationVersion": "macro-chart-v1-unverified",
+  "hasUpdatedAt": true
+ },
+ {
+  "edit": "업종 변경(계산 무관)",
+  "returned": 1,
+  "historyLen": 1,
+  "changes": [
+   {
+    "code": "A9",
+    "before": "금융",
+    "after": "교육"
+   }
+  ],
+  "resultChanged": false,
+  "by": "테스트",
+  "result": "Code_A_01|A_50_01|B_30_01|C_10_01|0|11,11,11,11,11|344344344344344|1968|창업|2026",
+  "snapshotCounselor": "102",
+  "evaluationVersion": "macro-chart-v1-unverified",
+  "hasUpdatedAt": true
+ },
+ {
+  "edit": "기대소득 기타 입력 변경",
+  "returned": 1,
+  "historyLen": 1,
+  "changes": [
+   {
+    "code": "A10",
+    "before": "기타 (협의)",
+    "after": "기타 (변경)"
+   }
+  ],
+  "resultChanged": false,
+  "by": "테스트",
+  "result": "Code_A_01|A_50_01|B_30_01|C_10_01|0|11,11,11,11,11|344344344344344|1968|창업|2026",
+  "snapshotCounselor": "102",
+  "evaluationVersion": "macro-chart-v1-unverified",
+  "hasUpdatedAt": true
+ },
+ {
+  "edit": "기존 결과 없음 + 변경",
+  "returned": 1,
+  "historyLen": 1,
+  "changes": [
+   {
+    "code": "C20",
+    "before": "3 · 보통",
+    "after": "2 · 아니다"
+   }
+  ],
+  "resultChanged": true,
+  "by": "테스트",
+  "result": "Code_B_03|A_50_03|B_30_03|C_10_09|1|11,10,11,11,11|344244344344344|1968|창업|2026",
+  "snapshotCounselor": "102",
+  "evaluationVersion": "macro-chart-v1-unverified",
+  "hasUpdatedAt": true
+ }
+]

@@ -2,24 +2,44 @@
  "legacySha256": "62fc9dd4c0c0515e204c1697085dec655d59fbac8e495d78676f982d401ad310",
  "files": {
   "conversion.json": {
-   "bytes": 20873,
-   "sha256": "80f580a61d214d1254072586dcb3151372e990008f9ec7f82e1ad46c87f4a335"
+   "storedBytes": 20873,
+   "contentBytes": 20873,
+   "contentSha256": "80f580a61d214d1254072586dcb3151372e990008f9ec7f82e1ad46c87f4a335"
   },
   "comment-area.json.gz": {
-   "bytes": 2601,
-   "sha256": "2b3d2a7e6891bef3a695536fc7a5279e2575817b8957824a2971c21139380699"
+   "storedBytes": 2601,
+   "contentBytes": 371412,
+   "contentSha256": "3f993f0b56613f064b1de917113149a7fbe0af8c184883bfd408d0c65aa3afd6"
   },
   "compute-result.json.gz": {
-   "bytes": 213884,
-   "sha256": "9f3f02e0bd8f6efa75e8e0b2eb4223b1b0e080a9af693b44bc353c4560b1ddb4"
+   "storedBytes": 213884,
+   "contentBytes": 22852540,
+   "contentSha256": "dafa3e4e83758a2d616ce3ea0a11ad2670faaee73a497849c37d7c8ccf2b29c9"
   },
   "boundaries.json": {
-   "bytes": 6760,
-   "sha256": "3c723ad6a02b8aae239765508be3d7a4cf1fe04c271ff7811e06b648d96680e7"
+   "storedBytes": 7116,
+   "contentBytes": 7116,
+   "contentSha256": "97f1a39fbc8324e6ac66a5a6b6375eda9b8af8045c21f22f4c7c43fbd04113bf"
+  },
+  "recompute.json.gz": {
+   "storedBytes": 413882,
+   "contentBytes": 8355920,
+   "contentSha256": "548a7ffc714c1cec063bf969ab531b8511696daa8af4bc61ad71b20efd9756a9"
+  },
+  "counselor-edit.json": {
+   "storedBytes": 5788,
+   "contentBytes": 5788,
+   "contentSha256": "b06fb0867e4a9322be831735c0b44abb08e8dd1126beef79ab40baa6f4840db6"
+  },
+  "result-of.json": {
+   "storedBytes": 8292,
+   "contentBytes": 8292,
+   "contentSha256": "8fa33544461639c0fb30bedfc683ce09d173a5b7d95f2df732b29c6626210936"
   },
   "self-tests.json": {
-   "bytes": 8684,
-   "sha256": "3ad2b399684f38bffdfb3a57e798a77bd768a866cc0ab3f02fa4e34637bd921f"
+   "storedBytes": 8684,
+   "contentBytes": 8684,
+   "contentSha256": "3ad2b399684f38bffdfb3a57e798a77bd768a866cc0ab3f02fa4e34637bd921f"
   }
  },
  "counts": {
@@ -27,9 +47,12 @@
   "commentAreaCombos": 371293,
   "commentAreaIndependentMismatch": 0,
   "computeResultCases": 47520,
+  "recomputeRows": 57848,
+  "counselorEditCases": 12,
+  "resultOfCases": 17,
   "computeResultContexts": 240,
   "ageBandRows": 116,
-  "byBirthRows": 16,
+  "byBirthRows": 20,
   "goalClassRows": 20,
   "selfTests": 57,
   "selfTestsOk": 57

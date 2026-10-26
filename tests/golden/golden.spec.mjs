@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { collect, LEGACY_HTML } from './collect.mjs';
-import { toFiles, legacyHashOk, DATA } from './generate.mjs';
+import { toFiles, legacyHashOk, contentOf, contentSha, DATA } from './generate.mjs';
 
 const target = process.env.TARGET_HTML ? path.resolve(process.env.TARGET_HTML) : LEGACY_HTML;
 const read = n => fs.readFileSync(path.join(DATA, n));
@@ -63,8 +63,24 @@ test('자체 검증 탭 항목별 결과 전체(57건)', () => {
   expect(want.ok).toBe(want.total);
 });
 
-test('정답표 파일이 모두 바이트 단위로 같다', () => {
+test('상담사 수정 재계산(recomputeResult·applyCounselorEdit)', () => {
+  expect(JSON.parse(files['counselor-edit.json'])).toEqual(JSON.parse(read('counselor-edit.json')));
+  const want = unz(read('recompute.json.gz')), got = fresh.recompute;
+  expect(got.evaluationVersion).toBe(want.evaluationVersion);
+  expect(got.rows.length).toBe(want.rows.length);
+  const bad = got.rows.filter((r, i) => r !== want.rows[i]).slice(0, 5);
+  expect(bad, '어긋난 행(앞 5건)').toEqual([]);
+});
+
+test('resultOf 재생성 조건(resKey)', () => {
+  expect(JSON.parse(files['result-of.json'])).toEqual(JSON.parse(read('result-of.json')));
+});
+
+test('정답표 파일이 모두 내용 단위로 같다(압축 해제 기준)', () => {
   const m = JSON.parse(read('manifest.json'));
-  for (const n of Object.keys(files)) expect(files[n].equals(read(n)), n).toBe(true);
+  for (const n of Object.keys(files)) {
+    expect(contentOf(n, files[n]).equals(contentOf(n, read(n))), n).toBe(true);
+    expect(contentSha(n, files[n]), n + ' manifest').toBe(m.files[n].contentSha256);
+  }
   expect(Object.keys(files).sort()).toEqual(Object.keys(m.files).sort());
 });
