@@ -1,0 +1,37 @@
+{
+ "legacySha256": "62fc9dd4c0c0515e204c1697085dec655d59fbac8e495d78676f982d401ad310",
+ "files": {
+  "conversion.json": {
+   "bytes": 20873,
+   "sha256": "80f580a61d214d1254072586dcb3151372e990008f9ec7f82e1ad46c87f4a335"
+  },
+  "comment-area.json.gz": {
+   "bytes": 2601,
+   "sha256": "2b3d2a7e6891bef3a695536fc7a5279e2575817b8957824a2971c21139380699"
+  },
+  "compute-result.json.gz": {
+   "bytes": 213884,
+   "sha256": "9f3f02e0bd8f6efa75e8e0b2eb4223b1b0e080a9af693b44bc353c4560b1ddb4"
+  },
+  "boundaries.json": {
+   "bytes": 6760,
+   "sha256": "3c723ad6a02b8aae239765508be3d7a4cf1fe04c271ff7811e06b648d96680e7"
+  },
+  "self-tests.json": {
+   "bytes": 8684,
+   "sha256": "3ad2b399684f38bffdfb3a57e798a77bd768a866cc0ab3f02fa4e34637bd921f"
+  }
+ },
+ "counts": {
+  "conversionRows": 65,
+  "commentAreaCombos": 371293,
+  "commentAreaIndependentMismatch": 0,
+  "computeResultCases": 47520,
+  "computeResultContexts": 240,
+  "ageBandRows": 116,
+  "byBirthRows": 16,
+  "goalClassRows": 20,
+  "selfTests": 57,
+  "selfTestsOk": 57
+ }
+}

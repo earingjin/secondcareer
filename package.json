@@ -1,0 +1,23 @@
+{
+  "name": "sp-refactor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:golden": "playwright test tests/golden",
+    "golden:generate": "node tests/golden/generate.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "private": "true",
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
+  }
+}

@@ -1,0 +1,1133 @@
+{
+ "settings": {
+  "ACTIVE_GRADE": "conv",
+  "ACTIVE_COMPARE": "v1",
+  "REF_AVG": [
+   66.7,
+   58.3,
+   58.3,
+   41.7,
+   66.7
+  ],
+  "GRADE_NAMES": [
+   "다소 낮음",
+   "보통",
+   "다소 높음",
+   "매우 높음"
+  ],
+  "GOAL_TO_KW": [
+   "재취업",
+   "재취업",
+   "프리랜서",
+   "창업",
+   "귀농귀촌귀어",
+   "재능기부 및 사회기여",
+   "결정된 바 없음"
+  ],
+  "b13": [
+   "동일 업종 재취업",
+   "다른 업종 재취업",
+   "프리랜서(전문직종)",
+   "창업",
+   "귀농/귀촌/귀어",
+   "재능기부 및 사회적 기여",
+   "결정된 바 없음"
+  ],
+  "gradeSets": {
+   "conv": {
+    "label": "평가기준!C22:E34 (VBA fun1 참조표)",
+    "cut": [
+     [
+      7,
+      10,
+      13
+     ],
+     [
+      7,
+      10,
+      13
+     ],
+     [
+      7,
+      10,
+      13
+     ],
+     [
+      7,
+      10,
+      13
+     ],
+     [
+      7,
+      10,
+      13
+     ]
+    ]
+   },
+   "v1": {
+    "label": "1차 원점수 평가기준!F6:I10",
+    "cut": [
+     [
+      6,
+      10,
+      13
+     ],
+     [
+      6,
+      10,
+      13
+     ],
+     [
+      6,
+      10,
+      13
+     ],
+     [
+      6,
+      10,
+      13
+     ],
+     [
+      7,
+      10,
+      13
+     ]
+    ]
+   },
+   "v2": {
+    "label": "2차 원점수 평가기준!F14:I18",
+    "cut": [
+     [
+      7,
+      10,
+      13
+     ],
+     [
+      7,
+      10,
+      13
+     ],
+     [
+      7,
+      10,
+      13
+     ],
+     [
+      7,
+      10,
+      13
+     ],
+     [
+      7,
+      10,
+      13
+     ]
+    ],
+    "ambiguous": {
+     "2": [
+      10
+     ]
+    }
+   }
+  },
+  "compareSets": {
+   "v1": {
+    "label": "1차 비교군 · 평가기준!N6:N10",
+    "vals": [
+     66.7,
+     58.3,
+     58.3,
+     41.7,
+     66.7
+    ]
+   },
+   "v2": {
+    "label": "2차 비교군(2022.12.12, 69명) · 평가기준!N14:N18",
+    "vals": [
+     49.2,
+     50,
+     47.5,
+     52.5,
+     52.5
+    ]
+   }
+  }
+ },
+ "rows": [
+  {
+   "area": 0,
+   "raw": 3,
+   "score": 0,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 0,
+   "raw": 4,
+   "score": 8.3,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 0,
+   "raw": 5,
+   "score": 16.7,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 0,
+   "raw": 6,
+   "score": 25,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 0,
+   "raw": 7,
+   "score": 33.3,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": true,
+   "gradeTxt": "다소낮음*",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "보통",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 0,
+   "raw": 8,
+   "score": 41.7,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 0,
+   "raw": 9,
+   "score": 50,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 0,
+   "raw": 10,
+   "score": 58.3,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 0,
+   "raw": 11,
+   "score": 66.7,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 0,
+   "raw": 12,
+   "score": 75,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 0,
+   "raw": 13,
+   "score": 83.3,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 0,
+   "raw": 14,
+   "score": 91.7,
+   "level": "매우 높음",
+   "labelRaw": "매우 높음",
+   "gradeOf": "매우 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "매우높음",
+   "bySet": {
+    "conv": "매우 높음",
+    "v1": "매우 높음",
+    "v2": "매우 높음"
+   }
+  },
+  {
+   "area": 0,
+   "raw": 15,
+   "score": 100,
+   "level": "매우 높음",
+   "labelRaw": "매우 높음",
+   "gradeOf": "매우 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "매우높음",
+   "bySet": {
+    "conv": "매우 높음",
+    "v1": "매우 높음",
+    "v2": "매우 높음"
+   }
+  },
+  {
+   "area": 1,
+   "raw": 3,
+   "score": 0,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 1,
+   "raw": 4,
+   "score": 8.3,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 1,
+   "raw": 5,
+   "score": 16.7,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 1,
+   "raw": 6,
+   "score": 25,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 1,
+   "raw": 7,
+   "score": 33.3,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": true,
+   "gradeTxt": "다소낮음*",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "보통",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 1,
+   "raw": 8,
+   "score": 41.7,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 1,
+   "raw": 9,
+   "score": 50,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 1,
+   "raw": 10,
+   "score": 58.3,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 1,
+   "raw": 11,
+   "score": 66.7,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 1,
+   "raw": 12,
+   "score": 75,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 1,
+   "raw": 13,
+   "score": 83.3,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 1,
+   "raw": 14,
+   "score": 91.7,
+   "level": "매우 높음",
+   "labelRaw": "매우 높음",
+   "gradeOf": "매우 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "매우높음",
+   "bySet": {
+    "conv": "매우 높음",
+    "v1": "매우 높음",
+    "v2": "매우 높음"
+   }
+  },
+  {
+   "area": 1,
+   "raw": 15,
+   "score": 100,
+   "level": "매우 높음",
+   "labelRaw": "매우 높음",
+   "gradeOf": "매우 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "매우높음",
+   "bySet": {
+    "conv": "매우 높음",
+    "v1": "매우 높음",
+    "v2": "매우 높음"
+   }
+  },
+  {
+   "area": 2,
+   "raw": 3,
+   "score": 0,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 2,
+   "raw": 4,
+   "score": 8.3,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 2,
+   "raw": 5,
+   "score": 16.7,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 2,
+   "raw": 6,
+   "score": 25,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 2,
+   "raw": 7,
+   "score": 33.3,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": true,
+   "gradeTxt": "다소낮음*",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "보통",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 2,
+   "raw": 8,
+   "score": 41.7,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 2,
+   "raw": 9,
+   "score": 50,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 2,
+   "raw": 10,
+   "score": 58.3,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": true,
+   "gradeTxt": "보통*",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": null
+   }
+  },
+  {
+   "area": 2,
+   "raw": 11,
+   "score": 66.7,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 2,
+   "raw": 12,
+   "score": 75,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 2,
+   "raw": 13,
+   "score": 83.3,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 2,
+   "raw": 14,
+   "score": 91.7,
+   "level": "매우 높음",
+   "labelRaw": "매우 높음",
+   "gradeOf": "매우 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "매우높음",
+   "bySet": {
+    "conv": "매우 높음",
+    "v1": "매우 높음",
+    "v2": "매우 높음"
+   }
+  },
+  {
+   "area": 2,
+   "raw": 15,
+   "score": 100,
+   "level": "매우 높음",
+   "labelRaw": "매우 높음",
+   "gradeOf": "매우 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "매우높음",
+   "bySet": {
+    "conv": "매우 높음",
+    "v1": "매우 높음",
+    "v2": "매우 높음"
+   }
+  },
+  {
+   "area": 3,
+   "raw": 3,
+   "score": 0,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 3,
+   "raw": 4,
+   "score": 8.3,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 3,
+   "raw": 5,
+   "score": 16.7,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 3,
+   "raw": 6,
+   "score": 25,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 3,
+   "raw": 7,
+   "score": 33.3,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": true,
+   "gradeTxt": "다소낮음*",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "보통",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 3,
+   "raw": 8,
+   "score": 41.7,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 3,
+   "raw": 9,
+   "score": 50,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 3,
+   "raw": 10,
+   "score": 58.3,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 3,
+   "raw": 11,
+   "score": 66.7,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 3,
+   "raw": 12,
+   "score": 75,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 3,
+   "raw": 13,
+   "score": 83.3,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 3,
+   "raw": 14,
+   "score": 91.7,
+   "level": "매우 높음",
+   "labelRaw": "매우 높음",
+   "gradeOf": "매우 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "매우높음",
+   "bySet": {
+    "conv": "매우 높음",
+    "v1": "매우 높음",
+    "v2": "매우 높음"
+   }
+  },
+  {
+   "area": 3,
+   "raw": 15,
+   "score": 100,
+   "level": "매우 높음",
+   "labelRaw": "매우 높음",
+   "gradeOf": "매우 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "매우높음",
+   "bySet": {
+    "conv": "매우 높음",
+    "v1": "매우 높음",
+    "v2": "매우 높음"
+   }
+  },
+  {
+   "area": 4,
+   "raw": 3,
+   "score": 0,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 4,
+   "raw": 4,
+   "score": 8.3,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 4,
+   "raw": 5,
+   "score": 16.7,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 4,
+   "raw": 6,
+   "score": 25,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 4,
+   "raw": 7,
+   "score": 33.3,
+   "level": "다소 낮음",
+   "labelRaw": "다소 낮음",
+   "gradeOf": "다소 낮음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소낮음",
+   "bySet": {
+    "conv": "다소 낮음",
+    "v1": "다소 낮음",
+    "v2": "다소 낮음"
+   }
+  },
+  {
+   "area": 4,
+   "raw": 8,
+   "score": 41.7,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 4,
+   "raw": 9,
+   "score": 50,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 4,
+   "raw": 10,
+   "score": 58.3,
+   "level": "보통",
+   "labelRaw": "보통",
+   "gradeOf": "보통",
+   "gradeUnsure": false,
+   "gradeTxt": "보통",
+   "bySet": {
+    "conv": "보통",
+    "v1": "보통",
+    "v2": "보통"
+   }
+  },
+  {
+   "area": 4,
+   "raw": 11,
+   "score": 66.7,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 4,
+   "raw": 12,
+   "score": 75,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 4,
+   "raw": 13,
+   "score": 83.3,
+   "level": "다소 높음",
+   "labelRaw": "다소 높음",
+   "gradeOf": "다소 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "다소높음",
+   "bySet": {
+    "conv": "다소 높음",
+    "v1": "다소 높음",
+    "v2": "다소 높음"
+   }
+  },
+  {
+   "area": 4,
+   "raw": 14,
+   "score": 91.7,
+   "level": "매우 높음",
+   "labelRaw": "매우 높음",
+   "gradeOf": "매우 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "매우높음",
+   "bySet": {
+    "conv": "매우 높음",
+    "v1": "매우 높음",
+    "v2": "매우 높음"
+   }
+  },
+  {
+   "area": 4,
+   "raw": 15,
+   "score": 100,
+   "level": "매우 높음",
+   "labelRaw": "매우 높음",
+   "gradeOf": "매우 높음",
+   "gradeUnsure": false,
+   "gradeTxt": "매우높음",
+   "bySet": {
+    "conv": "매우 높음",
+    "v1": "매우 높음",
+    "v2": "매우 높음"
+   }
+  }
+ ]
+}
