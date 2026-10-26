@@ -1,21 +1,21 @@
 // src/js/03-options.js — legacy/index.original.html 510–539행을 그대로 옮김(보기(OPT)·선택 한도·데모 데이터 함수). 이 줄만 추가됨.
 let COUNSELORS={};
 const OPT={
- 'goal.b11':['퇴직 후 곧바로','퇴직 후 3개월 이내','퇴직 후 6개월 이내','퇴직 후 1년 이내','퇴직 후 1년 이후'],
- 'goal.b12':['전혀 고민해본 적 없음','간헐적인 고민 수준','몇 가지 안을 고민 중','이미 결정되어 진행 중에 있음','이미 결정되었고 목표달성 예정'],
- 'goal.b13':['동일 업종 재취업','다른 업종 재취업','프리랜서(전문직종)','창업','귀농/귀촌/귀어','재능기부 및 사회적 기여','결정된 바 없음'],
- 'goal.b14':['경력과 연관성이 있음','관련 교육(학업/자격증) 이수','취미와 연관성이 있음','지인과 연관성이 있음','관련 일을 간헐적으로 경험하였음','관련성이 전혀 없음'],
- 'expect.d32':['잘 될 것이라고 믿는다.','구체적으로 준비하고 있어 안심이다.','체감되지 않아 잘 모르겠다.','이제부터 진로를 생각할 예정이다.','사람을 만나는 것에 위축된다.','진로 고민으로 잠을 설친다.'],
- 'expect.d33':['수입감소 등 경제적 상황','역할이나 활동영역의 축소','사회적 관계의 축소','상대적으로 많아진 시간에 대한 활용','가족과의 관계 문제','건강 유지 또는 관리','인생의 공허함'],
- 'expect.d34':['심리진단 및 분석(강점, 적성 등)','커리어목표 및 방향설정과 플랜설계','막연함 개선(심리안정/자신감 증진)','재취업(채용전략부터 입사까지) 지원','창업컨설팅(아이템, 전략 등)','자산관리(재테크, 부동산 등) 가이드','새로운 경력설계와 자기개발 방법'],
- 'expect.d35':['진로에 대한 불확실성','목표에 대한 확신의 부족','하고자 하는 의지 부족','필요한 정보의 부족','전문 네트워크(인맥/기관) 부족'],
- 'expect.d36':['서비스 효과 및 내용, 성공사례','성격검사를 활용한 자기분석의 시간','자신의 상황에 맞는 컨설팅 방향설정','재취업 분야 및 입사서류 작성','창업/귀농·귀촌·귀어에 대한 준비','노후를 위한 준비(인생설계 컨설팅)','나에게 맞는 노후와 유사 성공사례'],
+ 'goal.b11':qdOptions('goal.b11','report'),
+ 'goal.b12':qdOptions('goal.b12','report'),
+ 'goal.b13':qdOptions('goal.b13','report'),
+ 'goal.b14':qdOptions('goal.b14','report'),
+ 'expect.d32':qdOptions('expect.d32','report'),
+ 'expect.d33':qdOptions('expect.d33','report'),
+ 'expect.d34':qdOptions('expect.d34','report'),
+ 'expect.d35':qdOptions('expect.d35','report'),
+ 'expect.d36':qdOptions('expect.d36','report'),
  'reg.goal1':['동일 업종 동일 직무','동일 업종 다른 직무','다른 업종 동일 직무','다른 업종 다른 직무'],
  'reg.wage':['최저임금','3천만 원대','4천만 원대','5천만 원 이상'],
- 'reg.industry':['일반 사무','생산/제조','운수/물류','건설','전기/가스/수도','법률','금융','홍보/기획','연구/기술(R&D)','교육','복지/서비스','기타'],
- 'reg.income':['기존 임금 이상','기존 임금 80% 수준','기존 임금 60% 수준','기존 임금 40% 수준','기타']
+ 'reg.industry':qdOptions('reg.industry','report'),
+ 'reg.income':qdOptions('reg.income','report')
 };
-const LIM={'goal.b11':1,'goal.b12':1,'goal.b13':2,'goal.b14':1,'expect.d32':1,'expect.d33':3,'expect.d34':1,'expect.d35':2,'expect.d36':2};
+const LIM={'goal.b11':qdMax('goal.b11'),'goal.b12':qdMax('goal.b12'),'goal.b13':qdMax('goal.b13'),'goal.b14':qdMax('goal.b14'),'expect.d32':qdMax('expect.d32'),'expect.d33':qdMax('expect.d33'),'expect.d34':qdMax('expect.d34'),'expect.d35':qdMax('expect.d35'),'expect.d36':qdMax('expect.d36')};
 OPT['sat.d32']=OPT['expect.d32'];OPT['sat.d33']=OPT['expect.d33'];OPT['sat.d34']=OPT['expect.d34'];OPT['sat.d35']=OPT['expect.d35'];
 OPT['sat.q7']=['상담 시간·회기 수','진단 문항 수·소요시간','결과 리포트 내용','상담 후 사후 지원·정보 제공','온라인 시스템 사용성','상담 일정 조율','특별히 없음'];
 Object.assign(LIM,{'sat.d32':1,'sat.d33':3,'sat.d34':1,'sat.d35':2,'sat.q7':2});
