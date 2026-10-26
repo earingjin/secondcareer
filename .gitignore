@@ -4,3 +4,8 @@ test-results/
 playwright-report/
 .DS_Store
 tests/snapshot/baseline/img/
+
+# 도구 설정·비밀 값(저장소에 올리지 않는다)
+.claude/
+.env
+.env.*
