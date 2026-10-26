@@ -38,6 +38,10 @@ test('시드 데이터(54명·기업 12개)와 문구', () => {
   expect(firstDiff(want('seed.json.gz'), got('seed.json.gz'))).toBeNull();
   expect(firstDiff(want('messages.json'), got('messages.json'))).toBeNull();
 });
+test('코멘트 전문(CMT)과 cmtParts 출력(제목/본문 분리)', () => {
+  expect(want('comments.json').count).toBe(15);
+  expect(firstDiff(want('comments.json'), got('comments.json'))).toBeNull();
+});
 test('정답표 파일이 모두 내용 단위로 같다(압축 해제 기준)', () => {
   const m = JSON.parse(read('manifest.json').toString());
   for (const n of Object.keys(files)) { expect(contentOf(n, files[n]).equals(contentOf(n, read(n))), n).toBe(true); expect(contentSha(n, files[n]), n + ' manifest').toBe(m.files[n].contentSha256); }

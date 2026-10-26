@@ -53,6 +53,10 @@
 2. 상담사 수정으로 생년월일(`birthDate`)만 바뀌고 출생연도(`birth`) 필드가 그대로면 연령대 키워드는 다시 계산되지 않는다(`computeResult`는 `birth`만 읽는다). 화면(`setBirth`)은 두 값을 함께 바꾸지만, 계산 함수 쪽은 단계 0에서 그 연결을 확인하지 않았다. 정답표: `counselor-edit.json`.
 3. 결과(`result`)는 `resKey`(원점수 15개 · 출생연도 · 13번 1순위 · 응답연도)가 달라질 때만 다시 뽑는다. 13번 2순위, 같은 해의 응답일, 이름, 상담사, 사후 응답은 키에 없다. 정답표: `result-of.json`.
 4. 응답일(`preDate`)이 없는 응답은 연령 계산에 실행 시점의 연도(`today()`)를 쓴다. 같은 응답이라도 연도가 바뀌면 연령대 키워드가 달라질 수 있다. 정답표 생성은 시계를 고정해 이를 피한다(`npm run golden:clockdiff`로 영향 항목 확인).
+5. 화면용 보기 문구(`QLABEL`)와 보고서용 보기 문구(`OPT`)가 8개 문항 14개 보기에서 다르다(상세는 위 "원본(엑셀)과 맞춰 확인할 사항"). 문구를 하나로 맞출지는 별도 판단이다. 단계 2b에서도 두 문구는 합치지 않고 문항마다 두 필드로 유지한다. 정답표: `question-defs.json`의 `options.screen`·`options.report`.
+6. 진단 응답 값 검사(`missing`, `full`)가 `v>=1&&v<=5`라서 문자열 '3'도 완료로 인정한다(2a 정답표 `missing.json`). 문자열이 섞였을 때 합계(`sum`)가 어떻게 되는지는 확인하지 않았다.
+7. 업종·기대소득에서 '기타'를 고른 뒤 내용을 비우면 `ansText`가 `기타 ()`를 돌려준다(`anstext.json.gz`). 제출 검증(`missing`)은 이 상태를 막지만 작성 중 데이터와 상담사 수정 경로에서는 나올 수 있다.
+8. `toAssessment`에서 B15(달성 가능성)가 빈 값이면 0이 된다(`+''`). 빈 값과 실제 0을 구분할 수 없다. B16이 숫자가 아니면 `NaN`이 JSON에서 `null`이 된다(`assessments.json.gz`의 "달성가능성 빈 값·소요 abc"). 제출 검증이 막는 값이라 작성 중 데이터에서만 나온다.
 
 ## 단계 1b 이후 남은 중복 (다음 단계에서 정리하거나 판단)
 1b에서 `src/js/02-eval-config.js`에 문항·영역 구조(`AREA_COUNT`, `ITEMS_PER_AREA`, `SCALE_MIN/MAX`, `ITEM_COUNT`, `RAW_MIN/MAX`), 환산 함수 `toScore`, 차트 눈금(`GRADE_TICKS`, `BAL_Y_TICKS`, `BAL_Y_LEVELS`)을 두었다. 환산식은 `toScore` 하나이고 `level()`·`labelRaw()`는 제거했다. 아래는 일부러 남긴 것이다.

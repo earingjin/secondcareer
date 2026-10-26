@@ -179,6 +179,15 @@ function inBrowser() {
     fmt: { phone: ['01012345678', '0101234', '010', '010-12345678', '+82 10 1234 5678', 'abcd'].map(v => [v, fmtPhone(v)]), date: ['19680315', '1968', '196803', '1968-03-15', 'abcd'].map(v => [v, fmtDate(v)]) },
     status: [okP(), emptyP({}), emptyP({ done: { reg: true, goal: true, expect: true }, pre: Array(15).fill(3) })].map(p => [steps(p), status(p).k, status(p).t]),
   };
+  // ---------- F. 코멘트 전문(CMT)과 cmtParts ----------
+  // 오탈자·공백까지 그대로 기록한다(정리하지 않는다). meta 는 눈으로 확인하기 위한 참고 정보다.
+  out.comments = {
+    count: Object.keys(CMT).length,
+    items: Object.keys(CMT).map(k => ({ code: k, text: CMT[k], parts: cmtParts(k),
+      meta: { length: CMT[k].length, newlines: CMT[k].split('\n').length - 1, leadingSpace: /^\s/.test(CMT[k]), trailingSpace: /\s$/.test(CMT[k]), doubleSpaces: CMT[k].split('  ').length - 1 } })),
+    // 예외는 종류만 기록한다(메시지에는 변수명이 들어가 단계마다 달라질 수 있다). 'toString' 등은 CMT[code] 가 프로토타입 메서드를 돌려줘 예외가 난다(현재 동작).
+    edge: [['Code_Z_99'], [''], ['code_a_01'], ['toString'], ['constructor'], [undefined]].map(([c]) => { let r; try { r = cmtParts(c); } catch (e) { r = 'ERR ' + e.constructor.name; } return [c === undefined ? '(undefined)' : c, r]; }),
+  };
   return out;
 }
 

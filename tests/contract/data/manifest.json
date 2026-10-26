@@ -30,6 +30,11 @@
    "storedBytes": 2952,
    "contentBytes": 2952,
    "contentSha256": "19ca8e258039d7bbc2d8dd098e7d23ca224c09f175e509a6919b2855a4a38aae"
+  },
+  "comments.json": {
+   "storedBytes": 21519,
+   "contentBytes": 21519,
+   "contentSha256": "70394e6a172eeb58906363f7a32a679a1b0ef15625005b41fa0baccd80d2a14d"
   }
  },
  "counts": {
@@ -41,6 +46,7 @@
   "repAssessments": 21,
   "fixtureAssessments": 69,
   "fixtureResultGenerated": 0,
+  "commentCount": 15,
   "seedPersons": 54,
   "seedEnterprises": 12
  }
