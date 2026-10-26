@@ -1,6 +1,8 @@
 // 단계 1a 증명: src/js 의 분할 파일을 로드 순서대로 원래 자리에 되돌리면 legacy 와 한 글자도 다르지 않다.
 // 제외 방식: 각 분할 파일의 첫 줄(`// src/js/…` 헤더 주석) 한 줄만 제거한다. 그 외 내용은 모두 비교 대상이다.
 // 비교는 문서 전체(src/index.html 에서 외부 스크립트 태그를 본문으로 되돌린 결과 === legacy 전체)로 한다.
+// 주의: 1b 부터 src 는 승인된 변경(config 상수화 등)으로 legacy 와 의도적으로 달라진다. 내용 동일성 검사 2건은
+// 1a 시점(커밋 63e805c) 증명이므로 SPLIT_STRICT=1 일 때만 실행한다. 구조 검사 2건은 항상 실행한다.
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -32,7 +34,9 @@ test('분할 파일: 헤더 주석은 정확히 첫 줄 하나, 모듈 문법 �
   expect(src).not.toMatch(/type="module"/);
 });
 
+const strict = process.env.SPLIT_STRICT === '1';
 test('이어 붙인 텍스트가 legacy 의 해당 구간과 한 글자도 다르지 않다(문서 전체 복원 === legacy)', () => {
+  test.skip(!strict, '1b 이후 src 는 legacy 와 의도적으로 다름(1a 시점 증명: 커밋 63e805c)');
   const rebuilt = src.replace(RE, (_, tags) => '<script>\n' + [...tags.matchAll(/src="(js\/[^"]+)"/g)].map(m => body(m[1]).text).join(''));
   if (rebuilt !== legacy) {
     let i = 0; while (i < rebuilt.length && rebuilt[i] === legacy[i]) i++;
@@ -43,6 +47,7 @@ test('이어 붙인 텍스트가 legacy 의 해당 구간과 한 글자도 다�
 });
 
 test('옮긴 구간은 legacy 의 연속된 줄 범위이고 헤더가 가리키는 범위와 일치한다', () => {
+  test.skip(!strict, '1b 이후 src 는 legacy 와 의도적으로 다름(1a 시점 증명: 커밋 63e805c)');
   const lines = legacy.split('\n');
   let next = null;
   for (const f of files) {

@@ -1,5 +1,16 @@
-// src/js/02-eval-config.js — legacy/index.original.html 486–509행을 그대로 옮김(평가 설정(비교군·판정 구간·판정 함수)). 이 줄만 추가됨.
+// src/js/02-eval-config.js — legacy/index.original.html 486–509행을 그대로 옮김(평가 설정(비교군·판정 구간·판정 함수)). 1b 에서 환산·구조 상수화 등 일부 수정(docs/decisions.md 참조).
 /* ---------- 평가 설정 (지시서 §6-3) : 바꾸기 쉬운 위치 ---------- */
+// 문항·영역 구조와 환산. 문항 수·영역 수·영역당 문항 수·환산식은 여기서만 정의하고 다른 곳은 이 이름을 쓴다.
+const AREA_COUNT=5,ITEMS_PER_AREA=3,SCALE_MIN=1,SCALE_MAX=5,SCORE_MAX=100;
+const ITEM_COUNT=AREA_COUNT*ITEMS_PER_AREA;                          // 진단 문항 수
+const RAW_MIN=ITEMS_PER_AREA*SCALE_MIN,RAW_MAX=ITEMS_PER_AREA*SCALE_MAX; // 영역 원점수 범위
+const AREA_IDX=Array.from({length:AREA_COUNT},(_,i)=>i);
+// 영역 원점수 → 100점 환산(소수 첫째 자리 반올림). 환산식은 이 함수 하나만 쓴다.
+const toScore=raw=>Math.round(((raw/ITEMS_PER_AREA-SCALE_MIN)/(SCALE_MAX-SCALE_MIN)*SCORE_MAX)*10)/10;
+// 차트 눈금·위치(표시용 고정값). 판정 구간에서 계산해 만들지 않는다.
+const GRADE_TICKS=[0,33.3,58.3,83.3,100];
+const BAL_Y_TICKS=[0,20,40,60,80,100];
+const BAL_Y_LEVELS=[['높음',91],['다소<br>높음',70],['보통',45],['다소<br>낮음',17]];
 // 비교군 평균. 원본 차트 XML이 참조하는 1차(평가기준!N6:N10)를 기본값으로 쓴다. 2차는 사용자가 명시적으로 바꾸기 전 적용하지 않는다.
 const COMPARE_SETS={
  v1:{label:'1차 비교군 · 평가기준!N6:N10',vals:[66.7,58.3,58.3,41.7,66.7]},

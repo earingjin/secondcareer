@@ -455,7 +455,7 @@ img.logo{max-height:56px;max-width:200px;object-fit:contain;margin:0 auto 16px;d
 <script>
 /* ---------- 데이터 ---------- */
 const KEY='sp-demo-v5';
-function emptyP(o){return Object.assign({id:'',pw:'',nick:'',company:'',counselor:null,reg:{careers:[{},{},{}],consent:false},goal:{},pre:Array(15).fill(null),post:null,expect:{},done:{reg:false,goal:false,expect:false},preDate:null,postDate:null,created:today()},o||{})}
+function emptyP(o){return Object.assign({id:'',pw:'',nick:'',company:'',counselor:null,reg:{careers:[{},{},{}],consent:false},goal:{},pre:Array(ITEM_COUNT).fill(null),post:null,expect:{},done:{reg:false,goal:false,expect:false},preDate:null,postDate:null,created:today()},o||{})}
 function seed(){
   const L=[];
   const ex=(i)=>({d32:[OPT['expect.d32'][i%6]],d33:[OPT['expect.d33'][i%7],OPT['expect.d33'][(i+2)%7],OPT['expect.d33'][(i+4)%7]],d34:[OPT['expect.d34'][i%6]],d35:[OPT['expect.d35'][i%5],OPT['expect.d35'][(i+1)%5]],d36:demoD36(i)});
@@ -494,7 +494,7 @@ function seed(){
     const co=cnm[i%3],cs=cosList[co],cc=cs[i%cs.length],id=String(30000000+i*7771),k=i%5;
     const p=emptyP({id,pw:String(100000+i*7919).slice(0,6),nick:wd[i%10]+(i+1),company:co,counselor:cc});
     if(k>0){const name=sn[i%10]+gn[(i*5)%12];p.reg=rg(name,i%2?'남':'여',String(1965+i%15),co);p.reg.phone='010-'+id.slice(0,4)+'-'+id.slice(4);p.done.reg=true;p.goal=gl(i);p.done.goal=true}
-    if(k>=2){p.pre=Array.from({length:15},(_,j)=>((i*7+j*3)%4)+2);p.expect=ex(i);p.done.expect=true;p.preDate='2026-10-'+String(1+i%19).padStart(2,'0')}
+    if(k>=2){p.pre=Array.from({length:ITEM_COUNT},(_,j)=>((i*7+j*3)%4)+2);p.expect=ex(i);p.done.expect=true;p.preDate='2026-10-'+String(1+i%19).padStart(2,'0')}
     if(k===3){p.post=p.pre.map(v=>Math.min(5,v+((i+v)%2)));p.postDate='2026-10-20';p.sat=demoSat(i+7)}
     L.push(p);
   }
@@ -560,7 +560,7 @@ function chips(path){
   const sel=getPath(S.user,path)||[];const max=LIM[path]||1;
   return '<div class="chips">'+OPT[path].map((o,i)=>{const k=sel.indexOf(o);return `<button type="button" class="chip ${k>=0?'on':''}" aria-pressed="${k>=0}" onclick="toggleChip('${path}',${i})">${max>1&&k>=0?'<b>'+(k+1)+'</b>':''}${esc(qLabel(path,i,o))}</button>`}).join('')+'</div>';
 }
-function answer(i,v){const p=S.user;const t=S.mode2==='post'?'post':'pre';if(t==='post'&&!p.post)p.post=Array(15).fill(null);p[t][i]=v;save();render()}
+function answer(i,v){const p=S.user;const t=S.mode2==='post'?'post':'pre';if(t==='post'&&!p.post)p.post=Array(ITEM_COUNT).fill(null);p[t][i]=v;save();render()}
 
 /* ---------- 참여자: 로그인 ---------- */
 function vLogin(){
@@ -654,7 +654,7 @@ const qLabel=(path,i,o)=>(QLABEL[path]&&QLABEL[path][i])||o;
 // 문항별 필수 여부 — 현재 버전은 전 문항 + 연락처·이메일 필수 (사용자 합의). 추후 false로 바꾸면 검증에서 제외
 const REQUIRED=Object.fromEntries(Object.keys(QT).map(k=>[k,true]));
 const QNO=c=>c==='PH'||c==='EM'?'':String(+c.slice(1));
-const C_CODES=Array.from({length:15},(_,i)=>'C'+(17+i));
+const C_CODES=Array.from({length:ITEM_COUNT},(_,i)=>'C'+(17+i));
 const WSTEPS=[
  {t:'참여 동의',codes:['A1','A2']},
  {t:'기본정보',codes:['A3','A4','A5','PH','EM','A6','A7','A8','A9','A10']},
@@ -796,7 +796,7 @@ function wGoal(){
 }
 function wDiagPre(){
   const p=S.user,arr=p.pre,n=arr.filter(v=>v).length,L=['전혀 아니다','아니다','보통','그렇다','매우 그렇다'];
-  let h=wHead(3,'커리어플래닝 진단','각 문장이 지금의 나와 얼마나 가까운지 선택해 주세요. 정답은 없습니다.')+`<div class="hintline">${n} / 15 문항 응답</div>`;
+  let h=wHead(3,'커리어플래닝 진단','각 문장이 지금의 나와 얼마나 가까운지 선택해 주세요. 정답은 없습니다.')+`<div class="hintline">${n} / ${ITEM_COUNT} 문항 응답</div>`;
   AREAS.forEach((a,ai)=>{
     h+=`<div class="area-head"><span class="badge">${a.k}</span><span class="hintline">${a.en}</span></div>`;
     [0,1,2].forEach(j=>{const i=ai*3+j,code=C_CODES[i];
@@ -855,9 +855,9 @@ function submitPre(){
 
 // 사후 진단 화면 (본부장님 원본 유지)
 function wDiag(post){
-  const p=S.user;const arr=post?(p.post||Array(15).fill(null)):p.pre;const n=arr.filter(v=>v).length;
+  const p=S.user;const arr=post?(p.post||Array(ITEM_COUNT).fill(null)):p.pre;const n=arr.filter(v=>v).length;
   const head=post?`<h2>사후 진단</h2><p class="sub">상담을 마친 지금의 생각으로 같은 15문항에 다시 답해 주세요. 사전 결과와 비교됩니다.</p>`:`<h2>3. 퇴직준비도 진단</h2><p class="sub">지금의 나에게 가장 가까운 정도를 골라 주세요. (1 전혀 아니다 ~ 5 매우 그렇다)</p>`;
-  let h=head+`<div class="stick"><div class="progressbar"><span style="width:${n/15*100}%"></span></div><div class="hintline">${n} / 15 문항 응답</div></div>`;
+  let h=head+`<div class="stick"><div class="progressbar"><span style="width:${n/ITEM_COUNT*100}%"></span></div><div class="hintline">${n} / ${ITEM_COUNT} 문항 응답</div></div>`;
   AREAS.forEach((a,ai)=>{
     h+=`<div class="area-head"><span class="badge">${a.k}</span><span class="hintline">${a.en}</span></div>`;
     [0,1,2].forEach(j=>{const i=ai*3+j;h+=`<div class="q"><div class="qt"><small>${i+1} · ${FACTORS[i][0]}</small>${esc(FACTORS[i][1])}</div><div class="scale" role="radiogroup" aria-label="문항 ${i+1}">${[1,2,3,4,5].map(v=>`<button type="button" role="radio" aria-checked="${arr[i]===v}" class="${arr[i]===v?'on':''}" onclick="answer(${i},${v})">${v}</button>`).join('')}</div><div class="scale-legend"><span>${SCALE[0]}</span><span>${SCALE[2]}</span><span>${SCALE[4]}</span></div></div>`});
@@ -868,7 +868,7 @@ function wDiag(post){
   return h+'</div>';
 }
 function wDiag_pre_unused(){}
-function toSat(){const p=S.user;if(!full(p.post)){S.err='아직 답하지 않은 문항이 '+(p.post?p.post.filter(v=>!v).length:15)+'개 있습니다.';render();return}S.err='';S.pstep=2;render();window.scrollTo(0,0)}
+function toSat(){const p=S.user;if(!full(p.post)){S.err='아직 답하지 않은 문항이 '+(p.post?p.post.filter(v=>!v).length:ITEM_COUNT)+'개 있습니다.';render();return}S.err='';S.pstep=2;render();window.scrollTo(0,0)}
 function satOK(p){const t=p.sat||{};return ['q1','q2','q3a','q3b','q3c','q5fit'].every(k=>t[k]>=1)&&(t.d32||[]).length===1&&(t.d33||[]).length===3&&(t.d34||[]).length===1&&(t.d35||[]).length>=1&&(t.q7||[]).length>=1}
 function setSat(k,v){const p=S.user;p.sat=p.sat||{};p.sat[k]=v;save();render()}
 function scl(key,low,high){const v=(S.user.sat||{})[key];return `<div class="scale" role="radiogroup">${[1,2,3,4,5].map(n=>`<button type="button" role="radio" aria-checked="${v===n}" class="${v===n?'on':''}" onclick="setSat('${key}',${n})">${n}</button>`).join('')}</div><div class="scale-legend"><span>${low}</span><span></span><span>${high}</span></div>`}
@@ -902,7 +902,7 @@ function chartLegend(items){return '<div class="legend">'+items.map(([c,t])=>`<s
 function barsSVG(series,labels,label){
   const W=640,H=270,pl=34,pb=44,pt=18,pr=10,iw=W-pl-pr,ih=H-pt-pb,gw=iw/labels.length,bw=Math.min(34,(gw-26)/series.length);
   let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">`;
-  [0,33.3,58.3,83.3,100].forEach(v=>{const y=pt+ih-v/100*ih;s+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" class="grid ${v>0&&v<100?'dash':''}"/><text x="${pl-6}" y="${y+4}" class="axis" text-anchor="end">${Math.round(v)}</text>`});
+  GRADE_TICKS.forEach(v=>{const y=pt+ih-v/100*ih;s+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" class="grid ${v>0&&v<100?'dash':''}"/><text x="${pl-6}" y="${y+4}" class="axis" text-anchor="end">${Math.round(v)}</text>`});
   labels.forEach((lb,i)=>{const cx=pl+gw*i+gw/2;series.forEach((se,j)=>{const v=se.vals[i];if(v==null)return;const h=v/100*ih,x=cx-(series.length*bw+(series.length-1)*6)/2+j*(bw+6);s+=`<rect x="${x}" y="${pt+ih-h}" width="${bw}" height="${h}" rx="6" class="${se.cls}"/><text x="${x+bw/2}" y="${pt+ih-h-5}" class="val" text-anchor="middle">${v}</text>`});s+=`<text x="${cx}" y="${H-18}" class="lab" text-anchor="middle">${esc(lb)}</text>`});
   return s+'</svg>';
 }
@@ -947,7 +947,7 @@ function vResult(pp,role){
     <div class="band">${leafSVG('#4A8A8E')}세컨플래닝을 통해 5가지 영역의 밸런스를 확인해보세요.</div>
     <div class="bal-sub">${SUBL.map(([e,k])=>`<div><span>${e}</span><b>${k}</b></div>`).join('')}</div>
     <div class="bal-legend"><span><i style="background:var(--bar)"></i>나의 평균</span><span><i style="background:var(--avg)"></i>성인 평균</span></div>
-    <div class="bal-wrap"><div class="bal-y">${[0,20,40,60,80,100].map(v=>`<span class="num" style="bottom:${v}%">${v}</span>`).join('')}${[['높음',91],['다소<br>높음',70],['보통',45],['다소<br>낮음',17]].map(([t,b])=>`<span class="lvw" style="bottom:${b}%">${t}</span>`).join('')}</div>
+    <div class="bal-wrap"><div class="bal-y">${BAL_Y_TICKS.map(v=>`<span class="num" style="bottom:${v}%">${v}</span>`).join('')}${BAL_Y_LEVELS.map(([t,b])=>`<span class="lvw" style="bottom:${b}%">${t}</span>`).join('')}</div>
     <div class="bal-plot" role="img" aria-label="영역별 나의 평균과 성인 평균">${sc.map((v,i)=>`<div class="bal-col"><div class="bb me" style="height:${v}%"><em>${v}</em></div><div class="bb avg" style="height:${REF_AVG[i]}%"><em>${REF_AVG[i]}</em></div></div>`).join('')}</div></div>
     <div class="bal-x">${AREAS.map((a,i)=>`<div class="x${i}">${a.k}</div>`).join('')}</div>${uns?`<div class="unsure">${UNSURE_NOTE}</div>`:''}
     <div class="bal-ul">${AREAS.map(a=>`<ul>${a.tag.map(t=>`<li>${t}</li>`).join('')}</ul>`).join('')}</div>
@@ -1014,7 +1014,7 @@ const logoThumb=x=>x.logo?`<img class="lthumb" src="${x.logo}" alt="">`:`<span c
 
 /* ---------- 상담사 수정 (지시서 §2-11·§9) ---------- */
 // status: 'draft' | 'submitted' | 'reopened'(향후: 상담사 승인 후 내담자 수정 — 이번 범위에서는 실행하지 않음)
-function bandCells(ai){const c=GRADE_SETS[ACTIVE_GRADE].cut[ai],cv=r=>(Math.round((r-3)*100/12*10)/10).toFixed(1),b=[[3,c[0]],[c[0]+1,c[1]],[c[1]+1,c[2]],[c[2]+1,15]];return b.map(([x,y])=>`<td>${cv(x)}~${cv(y)}<br><span class="hintline">원점수 ${x}~${y}</span></td>`).join('')}
+function bandCells(ai){const c=GRADE_SETS[ACTIVE_GRADE].cut[ai],cv=r=>toScore(r).toFixed(1),b=[[RAW_MIN,c[0]],[c[0]+1,c[1]],[c[1]+1,c[2]],[c[2]+1,RAW_MAX]];return b.map(([x,y])=>`<td>${cv(x)}~${cv(y)}<br><span class="hintline">원점수 ${x}~${y}</span></td>`).join('')}
 // 재계산: 같은 영역·같은 분류면 제출 때 고른 코멘트·키워드를 유지하고, 바뀐 경우에만 새로 고른다
 function recomputeResult(p,old){
   const n=computeResult(p);
@@ -1090,27 +1090,29 @@ function selfTests(){
   const T=[],add=(c,it,ex,got)=>T.push({c,it,ex:String(ex),got:String(got),ok:String(ex)===String(got)});
   const A=['자기인식','직업탐색','의사결정','커리어플랜','목표실행'];
   const x1=[2,2,1,4,3,4,2,1,3,1,2,3,1,4,3],s1=areaScores(x1),e1=[[16.7,'다소 낮음'],[66.7,'다소 높음'],[25,'다소 낮음'],[25,'다소 낮음'],[41.7,'보통']];
-  e1.forEach((e,i)=>add('엑셀 Result 5행',A[i]+' 환산/판정',e[0]+' / '+e[1],s1[i]+' / '+level(s1[i])));
+  e1.forEach((e,i)=>add('엑셀 Result 5행',A[i]+' 환산/판정',e[0]+' / '+e[1],s1[i]+' / '+gradeOf(i,rawSums(x1)[i])));
   add('엑셀 Result 5행','코멘트 대상 영역',A[0],A[commentArea(x1)]);
   const x2=[3,4,4,4,4,4,4,4,3,3,4,4,4,4,3],s2=areaScores(x2),e2=[66.7,75,66.7,66.7,66.7];
   e2.forEach((e,i)=>add('샘플 PDF(홍길동)',A[i]+' 환산',e,s2[i]));
   add('샘플 PDF(홍길동)','동점 4개 영역 → 우선순위',A[0],A[commentArea(x2)]);
   add('경계 사례','직업탐색·커리어플랜 동점',A[1],A[commentArea([5,5,5,2,2,2,5,5,5,2,2,2,5,5,5])]);
-  [3,4,5,6,7,8,9,10,11,12,13,14,15].forEach(r=>{const v=Math.round((r-3)*100/12*10)/10;add('평가기준 C22:E34','원점수 '+r+' ('+v+'점)',labelRaw(r),level(v))});
+  // 평가기준 C22:E34 (엑셀 표를 옮긴 고정 값): 원점수 → 판정
+  const C22E34={3:'다소 낮음',4:'다소 낮음',5:'다소 낮음',6:'다소 낮음',7:'다소 낮음',8:'보통',9:'보통',10:'보통',11:'다소 높음',12:'다소 높음',13:'다소 높음',14:'매우 높음',15:'매우 높음'};
+  [3,4,5,6,7,8,9,10,11,12,13,14,15].forEach(r=>{const v=toScore(r);add('평가기준 C22:E34','원점수 '+r+' ('+v+'점)',C22E34[r],gradeOf(0,r))});
   const tp=emptyP({pre:x1,preDate:'2026-10-22',reg:{birth:'1966'},goal:{b13:['창업','다른 업종 재취업']}}),R=computeResult(tp,()=>0);
   add('인생키워드','1966년생 · 2026 응답 → 연령대','60대',R.kw.age.band);
   add('인생키워드','13번 1순위 창업 → 분류','창업',R.kw.goal.group);
   add('결과코멘트','최저 영역 자기인식 → 코드','Code_A_01',R.comment);
   // 지시서 §10 기능 테스트 (계산·검증 함수로 재현 가능한 항목)
   const rawT=a=>rawSums(a).join(',')+' / '+areaScores(a).join(',');
-  add('지시서 T01','전부 1점 → 원점수/환산','3,3,3,3,3 / 0,0,0,0,0',rawT(Array(15).fill(1)));
-  add('지시서 T02','전부 5점 → 원점수/환산','15,15,15,15,15 / 100,100,100,100,100',rawT(Array(15).fill(5)));
+  add('지시서 T01','전부 1점 → 원점수/환산','3,3,3,3,3 / 0,0,0,0,0',rawT(Array(ITEM_COUNT).fill(1)));
+  add('지시서 T02','전부 5점 → 원점수/환산','15,15,15,15,15 / 100,100,100,100,100',rawT(Array(ITEM_COUNT).fill(5)));
   add('지시서 T03','영역마다 3,4,4 → 원점수/환산','11,11,11,11,11 / 66.7,66.7,66.7,66.7,66.7',rawT([3,4,4,3,4,4,3,4,4,3,4,4,3,4,4]));
   add('지시서 T04','A·C 동률 최저 → 코멘트 영역',A[0],A[commentArea([2,2,2,4,4,4,2,2,2,4,4,4,4,4,4])]);
   add('지시서 T05','B·E 동률 최저 → 코멘트 영역',A[1],A[commentArea([4,4,4,2,2,2,4,4,4,4,4,4,2,2,2])]);
-  add('지시서 T06','5개 영역 동률 → 코멘트 영역',A[0],A[commentArea(Array(15).fill(3))]);
+  add('지시서 T06','5개 영역 동률 → 코멘트 영역',A[0],A[commentArea(Array(ITEM_COUNT).fill(3))]);
   const ok=()=>emptyP({counselor:'102',reg:{a1:'동의',consent:true,name:'테스트',gender:'남',birthDate:'1968-03-15',birth:'1968',phone:'010-1234-5678',email:'t@example.com',industry:'금융',income:'기타',incomeEtc:'협의',careers:[{co:'가',title:'나',task:'다'},{},{}]},
-    goal:{b11:[OPT['goal.b11'][0]],b12:[OPT['goal.b12'][0]],b13:[OPT['goal.b13'][0],OPT['goal.b13'][1]],b14:[OPT['goal.b14'][0]],b15:'70',b16:'6'},pre:Array(15).fill(3),
+    goal:{b11:[OPT['goal.b11'][0]],b12:[OPT['goal.b12'][0]],b13:[OPT['goal.b13'][0],OPT['goal.b13'][1]],b14:[OPT['goal.b14'][0]],b15:'70',b16:'6'},pre:Array(ITEM_COUNT).fill(3),
     expect:{d32:[OPT['expect.d32'][0]],d33:OPT['expect.d33'].slice(0,3),d34:[OPT['expect.d34'][0]],d35:OPT['expect.d35'].slice(0,2),d36:[OPT['expect.d36'][0]]}});
   const mc=p=>missing(p).map(x=>x.code).join(',')||'없음';
   add('검증 기준선','모든 필수 응답 완료','없음',mc(ok()));
@@ -1305,7 +1307,7 @@ const SH={
 };
 const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
 const r1f=x=>Math.round(x*10)/10;
-const rawA=(arr,i)=>sum(arr.slice(i*3,i*3+3));
+const rawA=(arr,i)=>sum(arr.slice(i*ITEMS_PER_AREA,(i+1)*ITEMS_PER_AREA));
 const arrow=v=>v>0?'▲':v<0?'▼':'';
 const sgn=v=>(v>0?'+':'')+v;
 const mx=a=>{const m=Math.max(1,...a),st=m<=6?1:m<=12?2:5;return {max:Math.ceil((m+.5)/st)*st,step:st}};
@@ -1361,9 +1363,9 @@ function rp1(d){
   const order=rate.map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0]).map(x=>x[1]),ord=['1st','2nd','3rd'];
   const top=rate.map((v,i)=>({t:`${v}% ${arrow(v)}`,c:v<0?'dn':'',r:order.indexOf(i)<3?ord[order.indexOf(i)]:''}));
   const tp=r1f(sum(pre)),tq=r1f(sum(post)),tr=tp?r1f((tq-tp)/tp*100):0;
-  return `<div class="tiles"><div class="tile"><span>사전·사후 참여자</span><b>${d.N}명</b></div><div class="tile c3"><span>사전 평균 합계 (75점)</span><b>${tp}</b></div><div class="tile c2"><span>사후 평균 합계 (75점)</span><b>${tq}</b></div><div class="tile c1"><span>전체 변화율</span><b>${tr}% ${arrow(tr)}</b></div></div>
-  <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">${legend2('사전_평균','사후_평균')}<span class="hintline">영역별 원점수(15점 만점 기준) · 변화율 순위 TOP3 표시</span></div>
-  ${gbars({series:[{vals:pre,cls:'rpre'},{vals:post,cls:'rpost'}],labels:AREAS.map(a=>a.k),max:15,step:1,top,pt:50,h:350,label:'영역별 사전 사후 평균 원점수'})}
+  return `<div class="tiles"><div class="tile"><span>사전·사후 참여자</span><b>${d.N}명</b></div><div class="tile c3"><span>사전 평균 합계 (${AREA_COUNT*RAW_MAX}점)</span><b>${tp}</b></div><div class="tile c2"><span>사후 평균 합계 (${AREA_COUNT*RAW_MAX}점)</span><b>${tq}</b></div><div class="tile c1"><span>전체 변화율</span><b>${tr}% ${arrow(tr)}</b></div></div>
+  <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">${legend2('사전_평균','사후_평균')}<span class="hintline">영역별 원점수(${RAW_MAX}점 만점 기준) · 변화율 순위 TOP3 표시</span></div>
+  ${gbars({series:[{vals:pre,cls:'rpre'},{vals:post,cls:'rpost'}],labels:AREAS.map(a=>a.k),max:RAW_MAX,step:1,top,pt:50,h:350,label:'영역별 사전 사후 평균 원점수'})}
   <div class="scroll"><table class="t c"><tr><th>구분</th>${AREAS.map(a=>`<th>${a.k}</th>`).join('')}</tr><tr><th>사전_평균</th>${pre.map(v=>`<td>${v}</td>`).join('')}</tr><tr><th>사후_평균</th>${post.map(v=>`<td>${v}</td>`).join('')}</tr><tr><th>변화율(%)</th>${rate.map(v=>`<td>${v}% ${arrow(v)}</td>`).join('')}</tr></table></div>`;
 }
 function rp2(d){
@@ -1377,7 +1379,7 @@ function rp2(d){
   <div class="scroll"><table class="t c" style="min-width:900px"><tr><th rowspan="2">사전<br>사후<br>모두응답</th>${AREAS.map((a,i)=>`<th colspan="4">요인${i+1}_${a.k}</th>`).join('')}</tr>
   <tr>${AREAS.map((a,i)=>[0,1,2].map(j=>`<th>${FACTORS[i*3+j][0]}</th>`).join('')+`<th>종합 <sup>${ord[arank.indexOf(i)]}</sup></th>`).join('')}</tr>
   ${row('사전_평균점수',fp,ap,v=>v.toFixed(1),false)}${row('사후_평균점수',fo,ao,v=>v.toFixed(1),false)}${row('변화 스코어(Point)',fd,ad,sgn,false)}${row('변화율(%)',fr,ar,sgn,true)}</table></div>
-  <p class="fnote">요인은 5점 평균, 종합은 영역별 원점수(15점 만점) 기준 · 노란색: 요인별 변화율 TOP5, 주황색: 영역 종합 변화율 TOP3</p>
+  <p class="fnote">요인은 ${SCALE_MAX}점 평균, 종합은 영역별 원점수(${RAW_MAX}점 만점) 기준 · 노란색: 요인별 변화율 TOP5, 주황색: 영역 종합 변화율 TOP3</p>
   <div class="legend" style="margin-top:12px"><span><i class="sw" style="background:var(--ink-soft);opacity:.4"></i>사전_평균</span><span><i class="sw" style="background:linear-gradient(90deg,var(--a1),var(--a3),var(--a5))"></i>사후_평균 (영역별 색 구분)</span></div>
   <div class="scroll"><div style="min-width:880px">${gbars({series:[{vals:fp,cls:'rgray'},{vals:fo,cls:i=>'ra'+(Math.floor(i/3)+1)}],labels:FACTORS.map(f=>f[0]),max:5,step:1,top,box:ftop,w:1000,h:340,pt:40,bw:24,label:'요인별 사전 사후 평균'})}</div></div>`;
 }

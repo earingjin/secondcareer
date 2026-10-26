@@ -22,7 +22,7 @@ function inBrowser() {
   for (let ai = 0; ai < NA; ai++) for (const r of RAWS) {
     const rs = [LO, LO, LO, LO, LO]; rs[ai] = r;
     const x = mk(rs), sc = areaScores(x)[ai];
-    const o = { area: ai, raw: r, score: sc, level: level(sc), labelRaw: labelRaw(r), gradeOf: gradeOf(ai, r), gradeUnsure: gradeUnsure(ai, r), gradeTxt: gradeTxt(ai, r), bySet: {} };
+    const o = { area: ai, raw: r, score: sc, gradeOf: gradeOf(ai, r), gradeUnsure: gradeUnsure(ai, r), gradeTxt: gradeTxt(ai, r), bySet: {} };
     for (const k of Object.keys(GRADE_SETS)) o.bySet[k] = gradeBy(k, ai, r);
     out.conversion.push(o);
   }
