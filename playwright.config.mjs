@@ -5,6 +5,7 @@ export default defineConfig({
   testMatch: '**/*.spec.mjs',
   timeout: 120000,
   workers: 1,
+  use: { actionTimeout: 10000 },
   reporter: 'list',
   outputDir: 'test-results',
   // 캡처 기준 이미지 위치: tests/snapshot/baseline/img/<이름>.jpg

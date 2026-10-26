@@ -8,15 +8,20 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "playwright test",
     "test:golden": "playwright test tests/golden",
-    "golden:generate": "node tests/golden/generate.mjs"
+    "golden:generate": "node tests/golden/generate.mjs",
+    "test:snapshot": "playwright test tests/snapshot",
+    "test:e2e": "playwright test tests/e2e",
+    "golden:clockdiff": "node tests/golden/clockdiff.mjs",
+    "snapshot:update": "node tests/snapshot/update.mjs",
+    "fixture:make": "node tests/snapshot/fixture.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "private": "true",
+  "private": true,
   "devDependencies": {
     "@playwright/test": "^1.64.1"
   }

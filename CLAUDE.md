@@ -61,4 +61,17 @@
 - 모듈로 나누면 `file://` 로 열 수 없다. 단계 3부터는 로컬 서버가 필요하다.
 
 ## 테스트 실행
-(단계 0에서 확정한 뒤 이 칸을 채운다)
+Windows PowerShell 기준. Node 24, Playwright 1.64, Chromium headless shell. `npm install` 뒤 `npx playwright install chromium` 를 한 번 실행한다.
+
+| 명령 | 내용 | 시간 |
+|---|---|---|
+| `npm test` | 아래 세 가지 전부 | 약 2분 |
+| `npm run test:golden` | 계산 정답표 대조(환산·판정, 코멘트 영역 371,293조합, `computeResult` 47,520건, 연령대·13번 분류, 재계산·`resultOf`, 자체 검증 57건) | 약 4초 |
+| `npm run test:snapshot` | 화면 기준선 대조(HTML·집계 JSON 전 화면, 캡처 252장, 인쇄 쪽수 34건, CSS 규칙 지문) | 약 2분 |
+| `npm run test:e2e` | 역할별 흐름(관리자→내담자→상담사→고객사→사후→보고서) | 약 20초 |
+
+- 대조 대상은 기본이 `legacy/index.original.html` 이다. 다른 파일은 `$env:TARGET_HTML='src/index.html'` 로 지정한다. 일부 화면만: `$env:SCENE='^res-p-'`.
+- 기준 갱신은 legacy 에서만 한다: `npm run golden:generate`, `npm run snapshot:update`(캡처 포함). 단계 작업 중에는 기준을 갱신하지 않는다. 기준이 바뀌어야 하면 이유를 보고하고 승인받는다.
+- 시계는 2026-10-26T03:00:00Z, 난수는 고정 시드로 고정한다(`tests/golden/collect.mjs`). 화면 입력 데이터는 `tests/snapshot/fixture.json`. 시계를 바꿔 달라지는 항목 확인: `npm run golden:clockdiff`.
+- 캡처(JPEG 품질 80)는 이 PC의 글꼴(Pretendard 미포함, 시스템 대체 글꼴)에 묶여 있다. 다른 PC·OS에서는 캡처만 어긋날 수 있다(HTML·JSON·계산 정답표는 글꼴과 무관). 글꼴은 단계 4에서 고정한다.
+- 전역 함수 이름(`computeResult`, `S`, `render` 등)을 쓰므로 단계 1~2 산출물에서 그대로 동작한다. 모듈화(단계 3)에서는 수집기 어댑터를 새로 만든다.
