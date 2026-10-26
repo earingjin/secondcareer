@@ -17,7 +17,8 @@
     "snapshot:update": "node tests/snapshot/update.mjs",
     "fixture:make": "node tests/snapshot/fixture.mjs",
     "test:visual": "node tests/snapshot/visual.mjs",
-    "visual:update": "node tests/snapshot/update.mjs --visual"
+    "visual:update": "node tests/snapshot/update.mjs --visual",
+    "test:src": "node tests/run-src.mjs"
   },
   "keywords": [],
   "author": "",
