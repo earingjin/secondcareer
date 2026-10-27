@@ -457,6 +457,8 @@ import {COUNSELORS,setCounselors,OPT,LIM,demoD36,demoSat} from './js/03-options.
 import {esc,today,sum,areaScores,lowestArea} from './js/04-util.js';
 import {rawSums,commentArea,ageBand,rint,resKey,computeResult,resolveResult,recomputeResultCore,cmtParts,full,getPath,setPath} from './js/05-engine.js';
 import {$,toast,copyText} from './browser/dom.js';
+import {S} from './shared/state.js';
+import {createUI} from './shared/ui.js';
 import {installLegacyGlobals} from './js/06-legacy-globals.js';
 
 /* ---------- 데이터 ---------- */
@@ -545,17 +547,7 @@ const preDone=p=>steps(p).every(Boolean);
 const linkOf=p=>location.href.split('#')[0].split('?')[0]+'#join-'+p.id;
 
 /* ---------- 상태 ---------- */
-const S={showMiss:{},mode:'participant',view:'login',user:null,step:1,mode2:'pre',tab:'p1',ent:'e1',ep:1,f:{company:'전체',q:'',st:'전체',page:1},res:null,rep:{company:'전체'},created:[],bulk:'',berr:'',from:null,formBack:'result',prevEnt:null,mgr:null,mgrNew:null,cc:'102',ctab:'list',cent:null,rtab:'r1',rdir:0,pstep:1,err:'',prefill:''};
-function render(){
-  const y=window.scrollY;
-  $('#m-p').classList.toggle('on',S.mode==='participant');$('#m-c').classList.toggle('on',S.mode==='counselor');$('#m-m').classList.toggle('on',S.mode==='client');$('#m-a').classList.toggle('on',S.mode==='admin');
-  const V={login:vLogin,home:vHome,wizard:vWizard,result:vResult,form:vForm,admin:vAdmin,cns:vCns,clogin:vClogin,cdash:vCdash};
-  $('#app').innerHTML=V[S.view]();
-  window.scrollTo(0,y);
-}
-function nav(v){S.view=v;S.err='';render();window.scrollTo(0,0)}
-function setMode(m){if(S.cedit)abortEdit();S.mode=m;S.f.company='전체';S.f.page=1;S.f.st='전체';S.f.q='';S.created=[];S.bulk='';S.berr='';S.view=m==='counselor'?'cns':m==='admin'?'admin':m==='client'?(S.mgr?'cdash':'clogin'):(S.user?'home':'login');render();window.scrollTo(0,0)}
-function goHome(){nav(S.mode==='counselor'?'cns':S.mode==='admin'?'admin':S.mode==='client'?(S.mgr?'cdash':'clogin'):(S.user?'home':'login'))}
+const {render,nav,setMode,goHome}=createUI({vLogin,vHome,vWizard,vResult,vForm,vAdmin,vCns,vClogin,vCdash,abortEdit});
 function setF(path,val){const p=S.user;if(!p)return;setPath(p,path,val);save()}
 function setCareer(i,k,v){const p=S.user;p.reg.careers[i]=p.reg.careers[i]||{};p.reg.careers[i][k]=v;save()}
 function toggleChip(path,i,root){
