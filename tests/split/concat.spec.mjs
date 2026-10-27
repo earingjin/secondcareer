@@ -18,7 +18,10 @@ const matches = [...src.matchAll(RE)];
 const files = matches.length ? [...matches[0][1].matchAll(/src="(js\/[^"]+)"/g)].map(m => m[1]) : [];
 const body = f => { const t = fs.readFileSync(path.join(root, 'src', f), 'utf8'); const i = t.indexOf('\n'); return { head: t.slice(0, i), text: t.slice(i + 1) }; };
 
-const moduleImports = text => [...text.matchAll(/^\s*import\s+(?:[\s\S]*?\s+from\s+)?['"]([^'"]+)['"];?/gm)].map(m=>m[1]);
+const moduleImports = text => [
+  ...[...text.matchAll(/^\s*import\s+(?:[\s\S]*?\s+from\s+)?['"]([^'"]+)['"];?/gm)].map(m=>m[1]),
+  ...[...text.matchAll(/\bimport\(\s*['"]([^'"]+)['"]\s*\)/g)].map(m=>m[1])
+];
 const resolveImport = (from,spec) => path.resolve(path.dirname(from),spec);
 
 test('단일 ES 모듈 진입점의 정적 import 그래프가 끊김·고아·순환 없이 src/js·src/data 전체를 포함한다', () => {
@@ -40,7 +43,8 @@ test('단일 ES 모듈 진입점의 정적 import 그래프가 끊김·고아·�
     visiting.delete(file);seen.add(file);
   };
   walk(entry,inline[1]);
-  const expected=['js','data','browser','shared','roles'].flatMap(d=>fs.readdirSync(path.join(root,'src',d),{recursive:true}).filter(f=>f.endsWith('.js')).map(f=>path.join(root,'src',d,f))).sort();
+  const liveEntry=seen.has(path.join(root,'src','main.js'));
+  const expected=[...['js','data','browser','shared','roles',...(liveEntry?['live']:[])].flatMap(d=>fs.readdirSync(path.join(root,'src',d),{recursive:true}).filter(f=>f.endsWith('.js')).map(f=>path.join(root,'src',d,f))),path.join(root,'src','prototype.js'),...(liveEntry?[path.join(root,'src','main.js')]:[])].sort();
   expect([...seen].filter(f=>f!==entry).sort()).toEqual(expected);
 });
 
