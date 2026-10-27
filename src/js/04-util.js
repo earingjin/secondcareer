@@ -2,12 +2,11 @@
 import {AREA_IDX,ITEMS_PER_AREA,toScore} from './02-eval-config.js';
 
 /* ---------- 유틸 ---------- */
-const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const today=()=>new Date().toISOString().slice(0,10);
 const sum=a=>a.reduce((x,y)=>x+y,0);
 function areaScores(a){return AREA_IDX.map(i=>toScore(sum(a.slice(i*ITEMS_PER_AREA,(i+1)*ITEMS_PER_AREA))))}
 function lowestArea(sc){let m=0;sc.forEach((v,i)=>{if(v<sc[m])m=i});return m}
 
-export {$,esc,today,sum,areaScores,lowestArea};
+export {esc,today,sum,areaScores,lowestArea};
 

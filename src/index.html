@@ -454,8 +454,9 @@ import {QUESTION_STEPS,QUESTION_DEFS,qdByPath,qdText,qdRequired,qdOptions,qdMax,
 import {AREAS,FACTORS} from './js/01-areas.js';
 import {AREA_COUNT,ITEMS_PER_AREA,SCALE_MIN,SCALE_MAX,SCORE_MAX,ITEM_COUNT,RAW_MIN,RAW_MAX,AREA_IDX,toScore,GRADE_TICKS,BAL_Y_TICKS,BAL_Y_LEVELS,COMPARE_SETS,ACTIVE_COMPARE,REF_AVG,EVAL_VERSION,GRADE_SETS,ACTIVE_GRADE,GRADE_NAMES,gradeBy,gradeOf,gradeUnsure,gradeTxt,UNSURE_NOTE,SCALE} from './js/02-eval-config.js';
 import {COUNSELORS,setCounselors,OPT,LIM,demoD36,demoSat} from './js/03-options.js';
-import {$,esc,today,sum,areaScores,lowestArea} from './js/04-util.js';
-import {rawSums,commentArea,ageBand,rint,resKey,computeResult,resolveResult,recomputeResultCore,cmtParts,full,toast,getPath,setPath,copyText} from './js/05-engine.js';
+import {esc,today,sum,areaScores,lowestArea} from './js/04-util.js';
+import {rawSums,commentArea,ageBand,rint,resKey,computeResult,resolveResult,recomputeResultCore,cmtParts,full,getPath,setPath} from './js/05-engine.js';
+import {$,toast,copyText} from './browser/dom.js';
 import {installLegacyGlobals} from './js/06-legacy-globals.js';
 
 /* ---------- 데이터 ---------- */
