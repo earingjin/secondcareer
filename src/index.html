@@ -455,7 +455,7 @@ import {AREAS,FACTORS} from './js/01-areas.js';
 import {AREA_COUNT,ITEMS_PER_AREA,SCALE_MIN,SCALE_MAX,SCORE_MAX,ITEM_COUNT,RAW_MIN,RAW_MAX,AREA_IDX,toScore,GRADE_TICKS,BAL_Y_TICKS,BAL_Y_LEVELS,COMPARE_SETS,ACTIVE_COMPARE,REF_AVG,EVAL_VERSION,GRADE_SETS,ACTIVE_GRADE,GRADE_NAMES,gradeBy,gradeOf,gradeUnsure,gradeTxt,UNSURE_NOTE,SCALE} from './js/02-eval-config.js';
 import {COUNSELORS,setCounselors,OPT,LIM,demoD36,demoSat} from './js/03-options.js';
 import {$,esc,today,sum,areaScores,lowestArea} from './js/04-util.js';
-import {rawSums,commentArea,ageBand,rint,resKey,computeResult,resolveResult,cmtParts,full,toast,getPath,setPath,copyText} from './js/05-engine.js';
+import {rawSums,commentArea,ageBand,rint,resKey,computeResult,resolveResult,recomputeResultCore,cmtParts,full,toast,getPath,setPath,copyText} from './js/05-engine.js';
 import {installLegacyGlobals} from './js/06-legacy-globals.js';
 
 /* ---------- 데이터 ---------- */
@@ -1011,10 +1011,7 @@ const logoThumb=x=>x.logo?`<img class="lthumb" src="${x.logo}" alt="">`:`<span c
 function bandCells(ai){const c=GRADE_SETS[ACTIVE_GRADE].cut[ai],cv=r=>toScore(r).toFixed(1),b=[[RAW_MIN,c[0]],[c[0]+1,c[1]],[c[1]+1,c[2]],[c[2]+1,RAW_MAX]];return b.map(([x,y])=>`<td>${cv(x)}~${cv(y)}<br><span class="hintline">원점수 ${x}~${y}</span></td>`).join('')}
 // 재계산: 같은 영역·같은 분류면 제출 때 고른 코멘트·키워드를 유지하고, 바뀐 경우에만 새로 고른다
 function recomputeResult(p,old){
-  const n=computeResult(p);
-  if(old){if(old.area===n.area)n.comment=old.comment;if(old.kw){if(old.kw.age&&n.kw.age&&old.kw.age.band===n.kw.age.band)n.kw.age=old.kw.age;if(old.kw.goal&&n.kw.goal&&old.kw.goal.group===n.kw.goal.group)n.kw.goal=old.kw.goal;if(old.kw.pro)n.kw.pro=old.kw.pro}}
-  n.evaluationVersion=EVAL_VERSION;n.snapshot={counselor:COUNSELORS[p.counselor]?Object.assign({code:p.counselor},COUNSELORS[p.counselor]):null,generatedAt:new Date().toISOString()};
-  return n;
+  return recomputeResultCore(p,old,()=>({counselor:COUNSELORS[p.counselor]?Object.assign({code:p.counselor},COUNSELORS[p.counselor]):null,generatedAt:new Date().toISOString()}));
 }
 function applyCounselorEdit(p,before,by){
   const codes=WSTEPS.slice(0,5).flatMap(x=>x.codes);

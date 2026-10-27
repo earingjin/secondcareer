@@ -1,7 +1,7 @@
 // src/js/05-engine.js — legacy/index.original.html 549–597행을 그대로 옮김(원본 엔진(코멘트·키워드·computeResult·resultOf)과 공용 헬퍼). 2c 에서 문구 데이터 구간(legacy 550–566행)을 src/data/ 로 이동, 1b 에서 환산·구조 상수화 등 일부 수정(docs/decisions.md 참조).
 import {CMT} from '../data/feedback-comments.js';
 import {KW_AGE,KW_GOAL,KW_PRO,GOAL_TO_KW} from '../data/feedback-keywords.js';
-import {ITEMS_PER_AREA,ITEM_COUNT,SCALE_MIN,SCALE_MAX,AREA_IDX} from './02-eval-config.js';
+import {ITEMS_PER_AREA,ITEM_COUNT,SCALE_MIN,SCALE_MAX,AREA_IDX,EVAL_VERSION} from './02-eval-config.js';
 import {OPT} from './03-options.js';
 import {$,today,sum} from './04-util.js';
 
@@ -25,6 +25,12 @@ function computeResult(p,pick){
 }
 // 무작위 선택(RANDBETWEEN)은 처음 한 번만 정하고 저장 → 다시 열어도 같은 리포트
 function resolveResult(p){if(!full(p.pre))return {result:null,updated:false};if(!p.result||p.result.key!==resKey(p))return {result:computeResult(p),updated:true};return {result:p.result,updated:false}}
+function recomputeResultCore(p,old,snapshotAfterCalculation){
+  const n=computeResult(p);
+  if(old){if(old.area===n.area)n.comment=old.comment;if(old.kw){if(old.kw.age&&n.kw.age&&old.kw.age.band===n.kw.age.band)n.kw.age=old.kw.age;if(old.kw.goal&&n.kw.goal&&old.kw.goal.group===n.kw.goal.group)n.kw.goal=old.kw.goal;if(old.kw.pro)n.kw.pro=old.kw.pro}}
+  n.evaluationVersion=EVAL_VERSION;n.snapshot=snapshotAfterCalculation();
+  return n;
+}
 function cmtParts(code){const t=CMT[code]||'',i=t.indexOf('\n');return i<0?[t,'']:[t.slice(0,i).trim().replace(/^"|"$/g,''),t.slice(i).trim()]}
 const full=a=>Array.isArray(a)&&a.length===ITEM_COUNT&&a.every(v=>v>=SCALE_MIN&&v<=SCALE_MAX);
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2400)}
@@ -36,5 +42,5 @@ function copyText(t,msg){
   function fallback(){try{const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();done()}catch(e){toast('복사하지 못했습니다. 직접 선택해 복사해 주세요')}}
 }
 
-export {rawSums,commentArea,ageBand,rint,resKey,computeResult,resolveResult,cmtParts,full,toast,getPath,setPath,copyText};
+export {rawSums,commentArea,ageBand,rint,resKey,computeResult,resolveResult,recomputeResultCore,cmtParts,full,toast,getPath,setPath,copyText};
 
