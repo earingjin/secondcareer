@@ -40,7 +40,7 @@ test('단일 ES 모듈 진입점의 정적 import 그래프가 끊김·고아·�
     visiting.delete(file);seen.add(file);
   };
   walk(entry,inline[1]);
-  const expected=['js','data','browser','shared'].flatMap(d=>fs.readdirSync(path.join(root,'src',d)).filter(f=>f.endsWith('.js')).map(f=>path.join(root,'src',d,f))).sort();
+  const expected=['js','data','browser','shared','roles'].flatMap(d=>fs.readdirSync(path.join(root,'src',d),{recursive:true}).filter(f=>f.endsWith('.js')).map(f=>path.join(root,'src',d,f))).sort();
   expect([...seen].filter(f=>f!==entry).sort()).toEqual(expected);
 });
 
