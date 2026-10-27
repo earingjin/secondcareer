@@ -34,3 +34,5 @@ const KW_PRO=[
 ];
 // 13번 1순위 → 인생키워드 경력목표 분류 (OPT['goal.b13'] 순서)
 const GOAL_TO_KW=['재취업','재취업','프리랜서','창업','귀농귀촌귀어','재능기부 및 사회기여','결정된 바 없음'];
+
+export {KW_AGE,KW_GOAL,KW_PRO,GOAL_TO_KW};

@@ -1,4 +1,10 @@
 // src/js/05-engine.js — legacy/index.original.html 549–597행을 그대로 옮김(원본 엔진(코멘트·키워드·computeResult·resultOf)과 공용 헬퍼). 2c 에서 문구 데이터 구간(legacy 550–566행)을 src/data/ 로 이동, 1b 에서 환산·구조 상수화 등 일부 수정(docs/decisions.md 참조).
+import {CMT} from '../data/feedback-comments.js';
+import {KW_AGE,KW_GOAL,KW_PRO,GOAL_TO_KW} from '../data/feedback-keywords.js';
+import {ITEMS_PER_AREA,ITEM_COUNT,SCALE_MIN,SCALE_MAX,AREA_IDX} from './02-eval-config.js';
+import {OPT} from './03-options.js';
+import {$,today,sum} from './04-util.js';
+
 /* ---------- 원본 엔진 : 01_커리어플래닝_매크로_원본.xlsm ---------- */
 // 코멘트·키워드 문구(CMT, KW_AGE, KW_GOAL, KW_PRO, GOAL_TO_KW)는 src/data/feedback-*.js 로 옮겼다(단계 2c). 엔진보다 먼저 로드된다.
 const rawSums=a=>AREA_IDX.map(i=>sum(a.slice(i*ITEMS_PER_AREA,(i+1)*ITEMS_PER_AREA)));
@@ -18,7 +24,9 @@ function computeResult(p,pick){
     kw:{age:ka?{band,code:ka[0],text:ka[1]}:null,goal:kg?{group:gk,code:kg[0],text:kg[1]}:null,pro:{code:kp[0],text:kp[1]}},at:today()};
 }
 // 무작위 선택(RANDBETWEEN)은 처음 한 번만 정하고 저장 → 다시 열어도 같은 리포트
-function resultOf(p){if(!full(p.pre))return null;if(!p.result||p.result.key!==resKey(p)){p.result=computeResult(p);save()}return p.result}
+let engineSave=()=>{throw new Error('engine save is not configured')};
+function configureEngineSave(save){engineSave=save}
+function resultOf(p){if(!full(p.pre))return null;if(!p.result||p.result.key!==resKey(p)){p.result=computeResult(p);engineSave()}return p.result}
 function cmtParts(code){const t=CMT[code]||'',i=t.indexOf('\n');return i<0?[t,'']:[t.slice(0,i).trim().replace(/^"|"$/g,''),t.slice(i).trim()]}
 const full=a=>Array.isArray(a)&&a.length===ITEM_COUNT&&a.every(v=>v>=SCALE_MIN&&v<=SCALE_MAX);
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2400)}
@@ -29,4 +37,6 @@ function copyText(t,msg){
   try{ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done,()=>fallback())}else fallback() }catch(e){fallback()}
   function fallback(){try{const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();done()}catch(e){toast('복사하지 못했습니다. 직접 선택해 복사해 주세요')}}
 }
+
+export {rawSums,commentArea,ageBand,rint,resKey,computeResult,resultOf,cmtParts,full,toast,getPath,setPath,copyText,configureEngineSave};
 

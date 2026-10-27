@@ -34,3 +34,5 @@ function gradeUnsure(ai,raw){const v=Object.keys(GRADE_SETS).map(k=>gradeBy(k,ai
 const gradeTxt=(ai,raw)=>(gradeOf(ai,raw)||'검증 필요').replace(' ','')+(gradeUnsure(ai,raw)?'*':'');
 const UNSURE_NOTE='* 표시는 원본 평가기준표의 버전(1차·2차·환산표)에 따라 판정이 달라 확인이 필요한 점수입니다.';
 const SCALE=['전혀 아니다','아니다','보통','그렇다','매우 그렇다'];
+
+export {AREA_COUNT,ITEMS_PER_AREA,SCALE_MIN,SCALE_MAX,SCORE_MAX,ITEM_COUNT,RAW_MIN,RAW_MAX,AREA_IDX,toScore,GRADE_TICKS,BAL_Y_TICKS,BAL_Y_LEVELS,COMPARE_SETS,ACTIVE_COMPARE,REF_AVG,EVAL_VERSION,GRADE_SETS,ACTIVE_GRADE,GRADE_NAMES,gradeBy,gradeOf,gradeUnsure,gradeTxt,UNSURE_NOTE,SCALE};

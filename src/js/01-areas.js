@@ -1,4 +1,6 @@
 // src/js/01-areas.js — legacy/index.original.html 451–485행을 그대로 옮김(기준 데이터(영역·요인)). 이 줄만 추가됨.
+import {qdFactors} from './00-question-defs-module.js';
+
 /* ---------- 기준 데이터 ---------- */
 const AREAS=[
  {k:'자기인식',en:'self-awareness',tag:['개인의 특성과 상황이해','강점, 역량, 흥미 등','직업적인 선호요인'],
@@ -18,3 +20,5 @@ const AREAS=[
   cm:['목표실행 : 확신과 도전, 꾸준함으로 성공가능성 높이기','목표가 있을 때 하고자 하는 의욕과 방향감각, 삶을 스스로 통제하고 있다는 확신이 생깁니다. 현재의 목표가 성취 가능한 목표인지 다시 한번 점검해 보세요.']}
 ];
 const FACTORS=qdFactors();
+
+export {AREAS,FACTORS};

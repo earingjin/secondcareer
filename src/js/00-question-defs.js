@@ -144,3 +144,5 @@ const qdOptions=(path,field)=>qdByPath(path).options.map(o=>o[field]);   // fiel
 const qdMax=path=>qdByPath(path).max;
 const qdStepCodes=n=>QUESTION_DEFS.filter(d=>d.step===n).sort((a,b)=>a.pos-b.pos).map(d=>d.code);
 const qdFactors=()=>QUESTION_DEFS.filter(d=>d.factor!==undefined).sort((a,b)=>a.pos-b.pos).map(d=>[d.factor,d.text.report]);
+
+globalThis.__SECOND_PLANNING_QUESTION_DEFS__={QUESTION_STEPS,QUESTION_DEFS,qdByPath,qdText,qdRequired,qdOptions,qdMax,qdStepCodes,qdFactors};

@@ -447,15 +447,17 @@ img.logo{max-height:56px;max-width:200px;object-fit:contain;margin:0 auto 16px;d
 <footer class="ft"><div class="wrap"><div><b>세컨플래닝 · 퇴직준비도 진단</b><br>The better life, The better career</div><div>© 2026 JMCAREER. The Human Data Center</div></div></footer>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="data/feedback-comments.js"></script>
-<script src="data/feedback-keywords.js"></script>
-<script src="js/00-question-defs.js"></script>
-<script src="js/01-areas.js"></script>
-<script src="js/02-eval-config.js"></script>
-<script src="js/03-options.js"></script>
-<script src="js/04-util.js"></script>
-<script src="js/05-engine.js"></script>
-<script>
+<script type="module">
+import {CMT} from './data/feedback-comments.js';
+import {KW_AGE,KW_GOAL,KW_PRO,GOAL_TO_KW} from './data/feedback-keywords.js';
+import {QUESTION_STEPS,QUESTION_DEFS,qdByPath,qdText,qdRequired,qdOptions,qdMax,qdStepCodes,qdFactors} from './js/00-question-defs-module.js';
+import {AREAS,FACTORS} from './js/01-areas.js';
+import {AREA_COUNT,ITEMS_PER_AREA,SCALE_MIN,SCALE_MAX,SCORE_MAX,ITEM_COUNT,RAW_MIN,RAW_MAX,AREA_IDX,toScore,GRADE_TICKS,BAL_Y_TICKS,BAL_Y_LEVELS,COMPARE_SETS,ACTIVE_COMPARE,REF_AVG,EVAL_VERSION,GRADE_SETS,ACTIVE_GRADE,GRADE_NAMES,gradeBy,gradeOf,gradeUnsure,gradeTxt,UNSURE_NOTE,SCALE} from './js/02-eval-config.js';
+import {COUNSELORS,setCounselors,OPT,LIM,demoD36,demoSat} from './js/03-options.js';
+import {$,esc,today,sum,areaScores,lowestArea} from './js/04-util.js';
+import {rawSums,commentArea,ageBand,rint,resKey,computeResult,resultOf,cmtParts,full,toast,getPath,setPath,copyText,configureEngineSave} from './js/05-engine.js';
+import {installLegacyGlobals} from './js/06-legacy-globals.js';
+
 /* ---------- 데이터 ---------- */
 const KEY='sp-demo-v5';
 function emptyP(o){return Object.assign({id:'',pw:'',nick:'',company:'',counselor:null,reg:{careers:[{},{},{}],consent:false},goal:{},pre:Array(ITEM_COUNT).fill(null),post:null,expect:{},done:{reg:false,goal:false,expect:false},preDate:null,postDate:null,created:today()},o||{})}
@@ -524,6 +526,7 @@ DB.forEach((p,k)=>{if(p.sat&&!p.sat._v2&&(p.id==='11112222'||p.id==='55556666'||
 DB.forEach((p,k)=>{if(p.expect&&p.expect.d36&&!p.expect._v2&&p.id!=='11112222'&&(p.id==='55556666'||p.id==='22223333'||p.id==='66667777'||p.id==='88889999'||p.id==='33334444'||/^30[0-3]\d{5}$/.test(p.id))){p.expect.d36=demoD36(k);p.expect._v2=1}});
 ENT.forEach(e=>{if(!Array.isArray(e.managers))e.managers=(DEFMG[e.id]||[]).map(m=>Object.assign({},m))});
 function save(){try{localStorage.setItem(KEY,JSON.stringify({ent:ENT,db:DB}))}catch(e){}}
+configureEngineSave(save);
 const byId=id=>DB.find(p=>p.id===id);
 const pname=p=>p.reg&&p.reg.name?p.reg.name:p.nick;
 function regOK(p){const r=p.reg||{};return !!(r.name&&r.gender&&r.birth&&r.phone&&r.consent)}
@@ -997,7 +1000,7 @@ const PAGE=20;
 const entOf=p=>ENT.find(e=>e.name===p.company)||null;
 const pmOf=(p,ent)=>{ent=ent||entOf(p);if(ent&&ent.pm&&ent.pm.n)return ent.pm;return COUNSELORS[p.counselor]||null};
 const curEnt=()=>ENT.find(e=>e.id===S.ent)||ENT[0];
-function rebuildC(){COUNSELORS={};ENT.forEach(e=>e.consultants.forEach(c=>{COUNSELORS[c.code]=c}))}
+function rebuildC(){setCounselors({});ENT.forEach(e=>e.consultants.forEach(c=>{COUNSELORS[c.code]=c}))}
 rebuildC();
 function entStats(e){const L=DB.filter(p=>p.company===e.name),pre=L.filter(preDone).length;return {n:L.length,pre,miss:L.length-pre,post:L.filter(p=>full(p.post)).length}}
 const logoThumb=x=>x.logo?`<img class="lthumb" src="${x.logo}" alt="">`:`<span class="lthumb">${esc(x.name.replace(/[㈜()\s]/g,'').slice(0,1))}</span>`;
@@ -1686,6 +1689,17 @@ function vCdash(){
   :`<div class="card empty">아직 등록된 참여 인원이 없습니다. 운영팀에서 참여자를 등록하면 이곳에 완료율이 표시됩니다.</div>`}
   <p class="hintline" style="margin:6px 0 0">개인별 응답과 결과는 공개되지 않으며, 인원 집계만 제공됩니다.</p></div>`;
 }
+
+const legacyGlobalValues={
+  a2Msg,ageMsg,ansText,applyCounselorEdit,areaScores,cmtParts,commentArea,computeResult,demoD36,demoSat,emptyP,fitSheets,fmtDate,fmtPhone,gradeBy,gradeOf,gradeUnsure,missing,nav,openRes,recomputeResult,render,resultOf,save,seed,seedEnt,selfTests,setMode,setPath,startEdit,status,steps,toAssessment,toSat,vVerify,
+  ACTIVE_COMPARE,ACTIVE_GRADE,ageBand,AREA_COUNT,AREAS,byId,C_CODES,CMT,COMPARE_SETS,EVAL_VERSION,FACTORS,full,GOAL_TO_KW,GRADE_NAMES,GRADE_SETS,gradeTxt,ITEMS_PER_AREA,KW_AGE,KW_GOAL,KW_PRO,LIM,OPT,qdByPath,qdFactors,qdMax,qdOptions,qdRequired,qdStepCodes,qdText,qLabel,QLABEL,qName,QNO,QT,QUESTION_DEFS,QUESTION_STEPS,REF_AVG,REQUIRED,S,SCALE,SH,stepOf,TOTAL_Q,WSTEPS,
+  setF,goPage,copyText,goEp,goStep,addClients,answer,copyLink,dl,goHome,msgOf,nextFrom,previewReport,readCsv,rmove,selEnt,a2Hint,addCons,addEnt,addMgr,cancelEdit,clearLogo,curEnt,delCons,delEnt,delMgr,doLogin,doMgrLogin,exportPptx,finishPost,goQ,goReg,logout,logoutMgr,mgrMsg,nextStep,reissueMgr,rgo,saveEdit,setBirth,setCareer,setConsent,setFc,setFq,setFs,setLogo,setSat,submitPre,toggleChip,$
+};
+installLegacyGlobals(legacyGlobalValues,{
+  DB:{get:()=>DB,set:value=>{DB=value}},
+  ENT:{get:()=>ENT,set:value=>{ENT=value}},
+  COUNSELORS:{get:()=>COUNSELORS,set:value=>{setCounselors(value)}}
+});
 
 /* ---------- 시작 ---------- */
 (function(){
