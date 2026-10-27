@@ -2,7 +2,7 @@ import {S} from '../../shared/state.js';
 import {COUNSELORS} from '../../js/03-options.js';
 
 // 기존 프로토타입 연결을 주입한다. 계산 엔진과 저장 구현은 진입점에 둔다.
-function createSurvey({save,render,nav,toast,getPath,setPath,OPT,LIM,ITEM_COUNT,REQUIRED,stepOf,agreed,parseBirth,PHONE_RE,EMAIL_RE,C_CODES,full,today,computeResult,EVAL_VERSION,ageMsg}){
+function createSurvey({save,render,nav,toast,getPath,setPath,OPT,LIM,ITEM_COUNT,REQUIRED,stepOf,agreed,parseBirth,PHONE_RE,EMAIL_RE,C_CODES,full,today,computeResult,EVAL_VERSION,ageMsg,submitAssessment}){
 function setF(path,val){const p=S.user;if(!p)return;setPath(p,path,val);save()}
 function setCareer(i,k,v){const p=S.user;p.reg.careers[i]=p.reg.careers[i]||{};p.reg.careers[i][k]=v;save()}
 function toggleChip(path,i,root){
@@ -52,6 +52,7 @@ function nextFrom(n){
 function submitPre(){
   const p=S.user,m=missing(p);
   if(m.length){S.showMiss={0:1,1:1,2:1,3:1,4:1};render();toast('누락된 항목이 있어 제출할 수 없습니다');return}
+  if(submitAssessment)return submitAssessment(p);
   const now=new Date();
   p.done.reg=p.done.goal=p.done.expect=true;p.preDate=p.preDate||today();
   p.status='submitted';p.submittedAt=now.toISOString();

@@ -434,12 +434,6 @@ img.logo{max-height:56px;max-width:200px;object-fit:contain;margin:0 auto 16px;d
 <header class="nav">
   <div class="nav-inner">
     <div class="brand" onclick="goHome()"><span class="mark">🌿</span>세컨플래닝</div>
-    <div class="seg" role="tablist" aria-label="화면 선택">
-      <button id="m-p" onclick="setMode('participant')">참여자</button>
-      <button id="m-c" onclick="setMode('counselor')">상담사</button>
-      <button id="m-a" onclick="setMode('admin')">관리자</button>
-      <button id="m-m" onclick="setMode('client')">고객사 담당자</button>
-    </div>
   </div>
 </header>
 <div class="proto-note">프로토타입 · 입력한 내용은 이 브라우저에만 저장되며, 문자 발송과 PDF 파일 생성은 아직 연동 전입니다.</div>
@@ -448,7 +442,7 @@ img.logo{max-height:56px;max-width:200px;object-fit:contain;margin:0 auto 16px;d
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script type="module">
-import './prototype.js';
+import './main.js';
 </script>
 </body>
 </html>

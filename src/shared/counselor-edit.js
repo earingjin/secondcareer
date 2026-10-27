@@ -2,7 +2,7 @@ import {S} from './state.js';
 import {esc} from '../js/04-util.js';
 import {EVAL_VERSION} from '../js/02-eval-config.js';
 
-function createCounselorEdit({byId,getDB,save,nav,render,toast,missing,ansText,getWSTEPS,toAssessment,qName,getCounselors,recomputeResultCore}){
+function createCounselorEdit({byId,getDB,save,nav,render,toast,missing,ansText,getWSTEPS,toAssessment,qName,getCounselors,recomputeResultCore,persistEdit}){
 // 재계산: 같은 영역·같은 분류면 제출 때 고른 코멘트·키워드를 유지하고, 바뀐 경우에만 새로 고른다
 function recomputeResult(p,old){
   return recomputeResultCore(p,old,()=>({counselor:getCounselors()[p.counselor]?Object.assign({code:p.counselor},getCounselors()[p.counselor]):null,generatedAt:new Date().toISOString()}));
@@ -22,6 +22,7 @@ function cancelEdit(){const e=S.cedit;abortEdit();S.res=e.res;S.from=e.from;nav(
 function saveEdit(){
   const p=S.user,e=S.cedit,m=missing(p);
   if(m.length){S.showMiss={0:1,1:1,2:1,3:1,4:1};render();toast('누락된 항목이 있어 저장할 수 없습니다');return}
+  if(persistEdit)return persistEdit(p,e);
   const by=S.mode==='counselor'?((getCounselors()[S.cc]||{n:S.cc}).n+' 상담사'):'관리자 화면(데모)';
   const n=applyCounselorEdit(p,e.before,by);save();S.user=e.prevUser;S.cedit=null;S.res=e.res;S.from=e.from;nav('result');
   toast(n?`${n}개 문항을 수정하고 결과를 다시 계산했습니다`:'바뀐 응답이 없습니다');
