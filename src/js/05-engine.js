@@ -24,9 +24,7 @@ function computeResult(p,pick){
     kw:{age:ka?{band,code:ka[0],text:ka[1]}:null,goal:kg?{group:gk,code:kg[0],text:kg[1]}:null,pro:{code:kp[0],text:kp[1]}},at:today()};
 }
 // 무작위 선택(RANDBETWEEN)은 처음 한 번만 정하고 저장 → 다시 열어도 같은 리포트
-let engineSave=()=>{throw new Error('engine save is not configured')};
-function configureEngineSave(save){engineSave=save}
-function resultOf(p){if(!full(p.pre))return null;if(!p.result||p.result.key!==resKey(p)){p.result=computeResult(p);engineSave()}return p.result}
+function resolveResult(p){if(!full(p.pre))return {result:null,updated:false};if(!p.result||p.result.key!==resKey(p))return {result:computeResult(p),updated:true};return {result:p.result,updated:false}}
 function cmtParts(code){const t=CMT[code]||'',i=t.indexOf('\n');return i<0?[t,'']:[t.slice(0,i).trim().replace(/^"|"$/g,''),t.slice(i).trim()]}
 const full=a=>Array.isArray(a)&&a.length===ITEM_COUNT&&a.every(v=>v>=SCALE_MIN&&v<=SCALE_MAX);
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2400)}
@@ -38,5 +36,5 @@ function copyText(t,msg){
   function fallback(){try{const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();done()}catch(e){toast('복사하지 못했습니다. 직접 선택해 복사해 주세요')}}
 }
 
-export {rawSums,commentArea,ageBand,rint,resKey,computeResult,resultOf,cmtParts,full,toast,getPath,setPath,copyText,configureEngineSave};
+export {rawSums,commentArea,ageBand,rint,resKey,computeResult,resolveResult,cmtParts,full,toast,getPath,setPath,copyText};
 
