@@ -6,6 +6,7 @@ import {createCounselorEdit} from '../shared/counselor-edit.js';
 import {createSurveyView} from './survey-view.js';
 import {createAPI} from './api.js';
 import {loginView} from './login-view.js';
+import {counselorView} from './counselor-view.js';
 import {esc,getPath,setPath} from './fields.js';
 import {$,toast} from '../browser/dom.js';
 
@@ -102,28 +103,10 @@ async function openRes(id){
   if(busy||profile?.role!=='counselor'||!byId(id))return;busy=true;render();
   try{const data=await api.report(id);if(typeof data.html!=='string')throw Error('보고서를 확인하지 못했습니다.');reportHTML=data.html;S.res={id,role:'c'};S.from='cns';S.view='result';S.err=''}catch(e){S.err=e.message}finally{busy=false;render()}
 }
-function counselorStatus(p){return p.status==='submitted'?'submitted':p._assessmentId?'draft':'new'}
 function filterCounselor(clear=false){
   if(busy||profile?.role!=='counselor'||S.view!=='cns')return;
   counselorFilter=clear?{name:'',status:'all'}:{name:$('#cns-name').value.trim(),status:$('#cns-status').value};
   render();
-}
-function counselorView(){
-  // records contains only the relationship-scoped response from the server.
-  const name=counselorFilter.name.toLocaleLowerCase();
-  const rows=records.filter(p=>(!name||String(pname(p)||'').toLocaleLowerCase().includes(name))&&
-    (counselorFilter.status==='all'||(counselorFilter.status==='incomplete'?p.status!=='submitted':counselorStatus(p)===counselorFilter.status)));
-  const completed=rows.filter(p=>p.status==='submitted').length;
-  const labels={new:'미시작',draft:'작성 중',submitted:'진단 완료'};
-  const options=[['all','전체'],['new','미시작'],['draft','작성 중'],['submitted','진단 완료'],['incomplete','미완료']];
-  return `<div class="wrap" style="padding-top:26px"><div class="filters" style="justify-content:space-between"><div><h2>상담사 페이지</h2><p class="sub">${esc(profile.display_name||'상담사')} · 서버에서 확인한 담당 내담자</p></div><div class="acts"><button class="btn ghost" onclick="refresh()">새로 조회</button><button class="btn ghost" onclick="logout()">로그아웃</button></div></div>
-  <div class="part"><h2>내 내담자 현황</h2></div>
-  <section class="sec" aria-label="담당 내담자 현황"><p class="hintline">검색·상태 조건이 적용된 담당 내담자 기준입니다. 진단 완료는 서버에서 최종 제출이 확인된 경우입니다.</p>
-  <div class="tiles" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))"><div class="tile" data-kpi="total"><span>대상자</span><b>${rows.length}</b></div><div class="tile c2" data-kpi="completed"><span>진단 완료</span><b>${completed}</b></div><div class="tile c3" data-kpi="incomplete"><span>미완료 인원</span><b>${rows.length-completed}</b></div></div></section>
-  <section class="card sec" id="plist" style="padding:20px 18px"><h2>참여자 리스트 및 진행사항</h2>
-  <form class="filters" onsubmit="event.preventDefault();filterCounselor()"><label class="hintline" for="cns-name">이름 검색</label><input class="in" id="cns-name" type="search" placeholder="내담자 이름 검색" value="${esc(counselorFilter.name)}"><label class="hintline" for="cns-status">진행 상태</label><select class="in" id="cns-status" onchange="filterCounselor()">${options.map(([value,label])=>`<option value="${value}" ${counselorFilter.status===value?'selected':''}>${label}</option>`).join('')}</select><button class="btn sm" type="submit">검색</button><button class="btn ghost sm" type="button" onclick="filterCounselor(true)">초기화</button></form>
-  <p class="hintline" role="status">검색 결과 ${rows.length}명 / 담당 내담자 ${records.length}명</p>
-  <div class="scroll"><table class="t zebra"><thead><tr><th>내담자 이름</th><th>소속기업</th><th>진행 상태</th><th>제출일</th><th>결과 열람</th></tr></thead><tbody>${rows.length?rows.map(p=>{const state=counselorStatus(p);return `<tr data-participant="${esc(p.id)}"><td><b>${esc(pname(p)||'-')}</b></td><td>${esc(p.company||'-')}</td><td><span class="badge-s s-${state==='submitted'?'pre':state==='draft'?'prog':'new'}">${labels[state]}</span></td><td>${esc(p.preDate||p.submittedAt?.slice(0,10)||'-')}</td><td>${state==='submitted'?`<button class="btn sm" onclick="openRes('${esc(p.id)}')">결과 리포트</button>`:'<span class="hintline">최종 제출 후 열람 가능</span>'}</td></tr>`}).join(''):`<tr><td colspan="5" class="empty">${records.length?'검색·상태 조건에 맞는 내담자가 없습니다.':'배정된 내담자가 없습니다.'}</td></tr>`}</tbody></table></div></section></div>`;
 }
 function render(){
   $('.seg')?.remove();
@@ -132,7 +115,7 @@ function render(){
   if(!profile)html=loginView();
   else if(S.view==='wizard')html=`<div class="narrow noprint"><p id="live-save" role="status">${esc(saveMessage)}</p>${profile.role==='participant'?'<div class="acts"><button class="btn ghost sm" onclick="retrySave()">지금 임시저장</button><button class="btn ghost sm" onclick="logout()">로그아웃</button></div>':''}</div>`+view.vWizard();
   else if(profile.role==='counselor'&&S.view==='result')html=reportHTML;
-  else if(profile.role==='counselor')html=counselorView();
+  else if(profile.role==='counselor')html=counselorView({profile,records,counselorFilter,pname});
   else html=S.user.status==='submitted'
     ?`<div class="narrow" style="padding-top:34px"><div class="card"><h2>${esc(pname(S.user))}님, 제출이 완료되었습니다</h2><p class="sub">전체 응답과 서버 계산 결과가 저장되었습니다. 결과는 담당 상담사가 안내합니다.</p><button class="btn ghost" onclick="logout()">로그아웃</button></div></div>`
     :`<div class="narrow" style="padding-top:34px"><div class="card"><h2>설문 작성 중</h2><p class="sub">${esc(saveMessage)}</p><div class="acts"><button class="btn" onclick="nav('wizard')">이어서 작성</button><button class="btn ghost" onclick="logout()">로그아웃</button></div></div></div>`;

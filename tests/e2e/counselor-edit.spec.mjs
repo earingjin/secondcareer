@@ -1,5 +1,10 @@
 import {test,expect} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
 import {resolveTarget,toUrl} from '../lib/target.mjs';
+
+// The repository uses CommonJS for .js files; load the standalone ESM config as an ES module.
+const configSource=await readFile(new URL('../../src/js/02-eval-config.js',import.meta.url));
+const {ITEMS_PER_AREA}=await import('data:text/javascript;base64,'+configSource.toString('base64'));
 
 test('counselor edit: cancel, unchanged save, validation, history and Assessment copy',async({page})=>{
   const errors=[];page.on('pageerror',e=>errors.push(String(e)));
@@ -41,10 +46,10 @@ test('counselor edit: cancel, unchanged save, validation, history and Assessment
   await page.locator('#q-C17 .scale button').nth(value-1).click();
   await review();await save();
   await expect(page.locator('#toast')).toHaveText('2개 문항을 수정하고 결과를 다시 계산했습니다');
-  const first=await page.evaluate(p=>{
+  const first=await page.evaluate(({p,itemsPerArea})=>{
     const x=byId(p.id),h=x.history.at(-1);
-    return {codes:h.changes.map(c=>c.code),name:x.reg.name,raw:x.result.raw[0],sum:x.pre.slice(0,ITEMS_PER_AREA).reduce((a,b)=>a+b,0),changed:h.resultChanged,by:h.by,expectedBy:COUNSELORS[S.cc].n+' 상담사',updated:x.updatedAt,at:h.at,persisted:JSON.stringify(JSON.parse(localStorage.getItem('sp-demo-v5')).db.find(x=>x.id===p.id))===JSON.stringify(x)};
-  },probe);
+    return {codes:h.changes.map(c=>c.code),name:x.reg.name,raw:x.result.raw[0],sum:x.pre.slice(0,itemsPerArea).reduce((a,b)=>a+b,0),changed:h.resultChanged,by:h.by,expectedBy:COUNSELORS[S.cc].n+' 상담사',updated:x.updatedAt,at:h.at,persisted:JSON.stringify(JSON.parse(localStorage.getItem('sp-demo-v5')).db.find(x=>x.id===p.id))===JSON.stringify(x)};
+  },{p:probe,itemsPerArea:ITEMS_PER_AREA});
   expect(first.codes).toEqual(['A3','C17']);expect(first.name).toBe('첫 수정 이름');
   expect(first.raw).toBe(first.sum);expect(first.changed).toBe(true);expect(first.by).toBe(first.expectedBy);
   expect(first.updated).toMatch(/^\d{4}-\d\d-\d\dT/);expect(first.at).toMatch(/^\d{4}-\d\d-\d\dT/);expect(first.persisted).toBe(true);
