@@ -13,10 +13,11 @@ const clone=x=>JSON.parse(JSON.stringify(x));
     assert.equal(sources[name],fs.readFileSync(path.join('src',name),'utf8'),'deployed source changed: '+name);
   }
   let handler,stored=null,history=[],ticks=0;
+  const extraAssessments=[];
   const org='organization-fixture',participant='participant-fixture',counselor='counselor-fixture',owner='owner-fixture';
   const profiles=[{user_id:owner,organization_id:org,role:'participant',display_name:'Fixture Client'},{user_id:counselor,organization_id:org,role:'counselor',display_name:'Fixture Counselor'},{user_id:'unassigned',organization_id:org,role:'counselor',display_name:'Unassigned'}];
   const participants=[{id:participant,auth_user_id:owner,counselor_user_id:counselor,organization_id:org,display_name:'Fixture Client'}];
-  const tables=()=>({user_profiles:profiles,participants,assessments:stored?[stored]:[],assessment_history:history});
+  const tables=()=>({user_profiles:profiles,participants,assessments:[...(stored?[stored]:[]),...extraAssessments],assessment_history:history});
   function from(name){
     let rows=clone(tables()[name]||[]);
     const q={select(){return q},eq(k,v){rows=rows.filter(r=>r[k]===v);return q},in(k,vs){rows=rows.filter(r=>vs.includes(r[k]));return q},limit(n){rows=rows.slice(0,n);return q},order(){return q},maybeSingle:async()=>({data:rows[0]||null,error:null}),then(resolve,reject){return Promise.resolve({data:rows,error:null}).then(resolve,reject)}};return q;
@@ -99,16 +100,55 @@ const clone=x=>JSON.parse(JSON.stringify(x));
     assert.equal((await request(owner,{action:'draft',answers})).status,409);
     assert.equal((await request(owner)).data.assessments[0].result,undefined);
     await page.click('button[onclick="logout()"]');await page.waitForSelector('#lg-id');
-    await login('consult01');await page.waitForSelector('button[onclick^="openRes"]');await page.click('button[onclick^="openRes"]');await page.waitForSelector('.sheet');
+    // These rows exist only in this mock server. No demo records are imported
+    // by the application or written to the real Supabase database.
+    participants.push({id:'draft-fixture',auth_user_id:'draft-owner',counselor_user_id:counselor,organization_id:org,display_name:'Draft Fixture'},
+      {id:'new-fixture',auth_user_id:'new-owner',counselor_user_id:counselor,organization_id:org,display_name:'New Fixture'},
+      {id:'other-fixture',auth_user_id:'other-owner',counselor_user_id:'unassigned',organization_id:org,display_name:'Other Counselor Fixture'});
+    const draftAnswers=clone(answers);draftAnswers.reg.name='Draft Fixture';draftAnswers.reg.careers[0].co='Draft Company';
+    extraAssessments.push({id:'draft-assessment',participant_id:'draft-fixture',phase:'pre',status:'draft',answers:draftAnswers,result:null,updated_at:new Date().toISOString(),submitted_at:null});
+    await login('consult01');await page.waitForSelector('button[onclick^="openRes"]');
+    async function counts(total,completed,incomplete){
+      assert.equal(await page.locator('[data-kpi="total"] b').textContent(),String(total));
+      assert.equal(await page.locator('[data-kpi="completed"] b').textContent(),String(completed));
+      assert.equal(await page.locator('[data-kpi="incomplete"] b').textContent(),String(incomplete));
+      assert.equal(await page.locator('#plist tbody tr[data-participant]').count(),total);
+      assert.equal(completed+incomplete,total);
+    }
+    await counts(3,1,2);assert.equal(await page.evaluate(()=>window.scrollY),0);assert.ok((await page.locator('#plist').textContent()).includes('Draft Company'));
+    assert.ok(!(await page.locator('#plist').textContent()).includes('Other Counselor Fixture'));
+    await page.fill('#cns-name','  fIxTuRe ClIeNt  ');await page.locator('#plist button[type="submit"]').click();await counts(1,1,0);
+    await page.selectOption('#cns-status','draft');await counts(0,0,0);
+    await page.click('button[onclick="filterCounselor(true)"]');await counts(3,1,2);
+    for(const [status,total,completed,incomplete] of [['draft',1,0,1],['new',1,0,1],['incomplete',2,0,2],['submitted',1,1,0]]){
+      await page.selectOption('#cns-status',status);await counts(total,completed,incomplete);
+    }
+    await page.click('button[onclick="filterCounselor(true)"]');await page.fill('#cns-name','Other Counselor Fixture');
+    await page.locator('#plist button[type="submit"]').click();await counts(0,0,0);
+    await page.click('button[onclick="filterCounselor(true)"]');
+    assert.equal(await page.locator('#plist button[onclick^="openRes"]').count(),1);
+    console.log('PASS counselor KPI/list consistency, submitted-only completion, names, companies, search, every status filter and assigned-only scope');
+    await page.screenshot({path:'test-results/counselor-list.png',fullPage:true});
+    await page.click('button[onclick^="openRes"]');await page.waitForSelector('.sheet');
     assert.equal(await page.locator('.sheet').count(),5);assert.equal(await page.locator('.editpanel').count(),1);
     await page.screenshot({path:'test-results/live-report.png',fullPage:true});
     const pdf=await page.pdf({path:'test-results/live-report.pdf',preferCSSPageSize:true,printBackground:true});assert.ok(pdf.length>10000);
     const pages=(pdf.toString('latin1').match(/\/Type \/Page\b/g)||[]).length;assert.equal(pages,5);console.log('PASS browser PDF: 5 A4 pages');
     await page.click('button[onclick^="startEdit"]');await page.evaluate(()=>goStep(1));await page.waitForSelector('#q-A3');
     await page.fill('#q-A3 input','Cancelled Edit');await page.evaluate(()=>goStep(5));await page.click('button[onclick="cancelEdit()"]');assert.equal(stored.answers.reg.name,'Fixture Client');
-    await page.click('button[onclick^="startEdit"]');await page.evaluate(()=>goStep(1));await page.waitForSelector('#q-A3');await page.fill('#q-A3 input','Counselor Edit');await page.evaluate(()=>goStep(5));await page.click('button[onclick="saveEdit()"]');await page.waitForFunction(()=>!!document.querySelector('.sheet')&&!document.querySelector('#q-A3'));
+    await page.click('button[onclick^="startEdit"]');await page.evaluate(()=>goStep(1));await page.fill('#q-A3 input','Abandoned Edit');
+    await page.evaluate(()=>goHome());await counts(3,1,2);
+    await page.click('button[onclick^="openRes"]');await page.waitForSelector('.sheet');
+    assert.ok((await page.locator('.sheet').first().textContent()).includes('Fixture Client'));
+    await page.click('button[onclick^="startEdit"]');await page.evaluate(()=>goStep(1));await page.waitForSelector('#q-A3');await page.fill('#q-A3 input','Counselor Edit');
+    await page.evaluate(()=>goStep(3));await page.locator('.scale.lk').first().locator('button').first().click();
+    await page.evaluate(()=>goStep(5));await page.click('button[onclick="saveEdit()"]');await page.waitForFunction(()=>!!document.querySelector('.sheet')&&!document.querySelector('#q-A3'));
     assert.equal(stored.answers.reg.name,'Counselor Edit');assert.equal(stored.result.comment,JSON.parse(fixed).comment);assert.equal(JSON.stringify(stored.result.kw),JSON.stringify(JSON.parse(fixed).kw));
     assert.ok(await page.locator('.editpanel').textContent().then(s=>s.includes('Counselor Edit')));
+    assert.equal(stored.result.raw[0],JSON.parse(fixed).raw[0]-2);
+    assert.deepEqual(stored.result.raw.slice(1),JSON.parse(fixed).raw.slice(1));
+    assert.equal(history.filter(h=>h.action==='edit').length,1);
+    assert.equal(history.find(h=>h.action==='edit').after_data.answers.pre[0],1);
     const last=JSON.stringify(stored.result),edits=history.filter(h=>h.action==='edit').length;
     await page.click('button[onclick^="startEdit"]');await page.evaluate(()=>goStep(1));await page.waitForSelector('#q-A3');await page.evaluate(()=>goStep(5));await page.click('button[onclick="saveEdit()"]');await page.waitForSelector('.sheet');
     assert.equal(JSON.stringify(stored.result),last);assert.equal(history.filter(h=>h.action==='edit').length,edits);
