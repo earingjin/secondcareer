@@ -1,5 +1,8 @@
 import {S} from '../shared/state.js';
 import {esc} from './fields.js';
+export function passwordChangeView(){
+  return `<section class="narrow" style="padding-top:34px"><form class="card" onsubmit="event.preventDefault();changePassword()"><h2>최초 비밀번호 변경</h2><p class="sub">임시 비밀번호를 본인만 아는 새 비밀번호로 변경하면 진단을 시작할 수 있습니다.</p><div class="field"><label for="new-password">새 비밀번호 (12~128자)</label><input class="in" id="new-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></div><div class="field"><label for="confirm-password">새 비밀번호 확인</label><input class="in" id="confirm-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></div><div class="acts"><button class="btn" type="submit">변경하고 진단 시작</button><button class="btn ghost" type="button" onclick="logout()">로그아웃</button></div></form></section>`;
+}
 function forestSVG(cls,H){
   H=H||300;const k=H/300;
   const pine=(x,y0,h,w,fill,op)=>{const t=y0-h;return `<path d="M${x} ${t} L${x+w*.34} ${t+h*.42} L${x+w*.17} ${t+h*.42} L${x+w*.5} ${y0} L${x-w*.5} ${y0} L${x-w*.17} ${t+h*.42} L${x-w*.34} ${t+h*.42}Z" fill="${fill}" opacity="${op}"/>`};

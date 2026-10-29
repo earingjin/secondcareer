@@ -44,7 +44,14 @@ test('단일 ES 모듈 진입점의 정적 import 그래프가 끊김·고아·�
   };
   walk(entry,inline[1]);
   const liveEntry=seen.has(path.join(root,'src','main.js'));
-  const expected=[...['js','data','browser','shared','roles',...(liveEntry?['live']:[])].flatMap(d=>fs.readdirSync(path.join(root,'src',d),{recursive:true}).filter(f=>f.endsWith('.js')).map(f=>path.join(root,'src',d,f))),path.join(root,'src','prototype.js'),...(liveEntry?[path.join(root,'src','main.js')]:[])].sort();
+  // Registration is now connected; account creation stays disabled server-side
+  // until the required assessment guard and schema integration are enabled.
+  const allowedDisconnected = [];
+  for (const file of allowedDisconnected) {
+    expect(fs.existsSync(file), file).toBe(true);
+    expect(seen.has(file), `${file} must remain disconnected`).toBe(false);
+  }
+  const expected=[...['js','data','browser','shared','roles',...(liveEntry?['live']:[])].flatMap(d=>fs.readdirSync(path.join(root,'src',d),{recursive:true}).filter(f=>f.endsWith('.js')).map(f=>path.join(root,'src',d,f))),path.join(root,'src','prototype.js'),...(liveEntry?[path.join(root,'src','main.js')]:[])].filter(f=>!allowedDisconnected.includes(f)).sort();
   expect([...seen].filter(f=>f!==entry).sort()).toEqual(expected);
 });
 

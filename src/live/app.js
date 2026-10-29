@@ -5,7 +5,8 @@ import {createSurvey} from '../roles/participant/survey.js';
 import {createCounselorEdit} from '../shared/counselor-edit.js';
 import {createSurveyView} from './survey-view.js';
 import {createAPI} from './api.js';
-import {loginView} from './login-view.js';
+import {loginView,passwordChangeView} from './login-view.js';
+import {mountParticipantRegistration} from './participant-registration.js';
 import {counselorView} from './counselor-view.js';
 import {esc,getPath,setPath} from './fields.js';
 import {$,toast} from '../browser/dom.js';
@@ -13,6 +14,7 @@ import {$,toast} from '../browser/dom.js';
 let profile=null,records=[],participants=[],reportHTML='',busy=false,dirty=false;
 let saveTimer=null,saving=null,epoch=0,saveMessage='서버에서 조회한 응답입니다.';
 let counselorFilter={name:'',status:'all'};
+let registrationContext=null,unmountRegistration=null,mustChangePassword=false;
 const api=createAPI(()=>{reset();S.err='세션이 만료되었습니다. 다시 로그인해 주세요.';render()});
 const byId=id=>records.find(p=>p.id===id),pname=p=>p.reg?.name||p.nick;
 const view=createSurveyView({missing:p=>survey.missing(p),pname});
@@ -22,11 +24,12 @@ const edits=createCounselorEdit({byId,getDB:()=>records,save:()=>{},nav,render,t
 
 function reset(){epoch++;clearTimeout(saveTimer);profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
 function hydrate(data){
-  if(!data.profile||!['participant','counselor'].includes(data.profile.role)||!Array.isArray(data.participants)||!Array.isArray(data.assessments))throw Error('권한 또는 조회 응답이 올바르지 않습니다.');
-  profile=data.profile;participants=data.participants;setCounselors(data.counselors||{});
+  if(!data.profile||!['participant','counselor','admin'].includes(data.profile.role)||!Array.isArray(data.participants)||!Array.isArray(data.assessments))throw Error('권한 또는 조회 응답이 올바르지 않습니다.');
+  profile=data.profile;mustChangePassword=data.mustChangePassword===true;participants=data.participants;setCounselors(data.assessmentCounselors||{});
+  registrationContext=data.registrationAvailable===false?null:{profile,counselors:Array.isArray(data.counselors)?data.counselors:[],organizationName:data.organizationName||'',defaultCounselorId:''};
   records=participants.map(p=>{
     const a=data.assessments.find(a=>a.participant_id===p.id&&a.phase==='pre');
-    return {id:p.id,nick:p.display_name,company:a?.answers?.reg?.careers?.[0]?.co||'',reg:{careers:[{},{},{}],consent:false},goal:{},expect:{},pre:Array(ITEM_COUNT).fill(null),post:null,done:{reg:false,goal:false,expect:false},...a?.answers,counselor:p.counselor_user_id,status:a?.status||'draft',submittedAt:a?.submitted_at||null,preDate:a?.dateOfAssessment||null,_updatedAt:a?.updated_at||null,_assessmentId:a?.id||null};
+    return {id:p.id,nick:p.display_name,company:p.company_name||a?.answers?.reg?.careers?.[0]?.co||'',reg:{careers:[{co:p.company_name||''},{},{}],phone:view.fmtPhone(p.phone||''),consent:false},goal:{},expect:{},pre:Array(ITEM_COUNT).fill(null),post:null,done:{reg:false,goal:false,expect:false},...a?.answers,counselor:p.counselor_user_id,status:a?.status||'draft',submittedAt:a?.submitted_at||null,preDate:a?.dateOfAssessment||null,_updatedAt:a?.updated_at||null,_assessmentId:a?.id||null};
   });
   S.mode=profile.role;S.mode2='pre';
 }
@@ -70,7 +73,7 @@ async function persistEdit(p,e){
   }catch(error){S.err=error.message}finally{busy=false;render()}
 }
 function nav(v){
-  if(busy)return;
+  if(busy||mustChangePassword)return;
   const allowed=profile?.role==='participant'?['wizard','home']:['cns','wizard','result'];
   if(!profile||!allowed.includes(v))return;
   if(v==='wizard'&&(!S.user||(profile.role==='counselor'&&!S.cedit)))return;
@@ -83,12 +86,25 @@ async function doLogin(){
   if(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{5,31}$/.test(id)||pw.length<8||pw.length>128){S.err='부여받은 아이디와 8자리 이상의 비밀번호를 입력해 주세요.';render();return}
   busy=true;S.err='';render();
   try{const data=await api.login(id,pw);hydrate(data);
-    if(profile.role==='participant'){
+    if(mustChangePassword)S.view='password';
+    else if(profile.role==='participant'){
       if(records.length!==1)throw Error('내담자 배정 정보를 확인하지 못했습니다.');
       S.user=records[0];S.step=0;S.view=S.user.status==='submitted'?'home':'wizard';
     }else S.view='cns';
     saveMessage='서버에서 조회한 응답입니다.';
   }catch(e){api.clear();reset();S.err=e.message}finally{busy=false;render();if(profile?.role==='counselor')window.scrollTo(0,0)}
+}
+async function changePassword(){
+  if(busy||!mustChangePassword)return;
+  const password=$('#new-password').value,confirm=$('#confirm-password').value;
+  $('#new-password').value='';$('#confirm-password').value='';
+  if(password.length<12||password.length>128||password!==confirm){S.err='12~128자의 새 비밀번호를 동일하게 두 번 입력해 주세요.';render();return}
+  busy=true;S.err='';render();
+  try{
+    hydrate(await api.changePassword(password));
+    if(mustChangePassword||records.length!==1)throw Error('변경 후 참여자 정보를 확인하지 못했습니다. 다시 로그인해 주세요.');
+    S.user=records[0];S.step=0;S.view=S.user.status==='submitted'?'home':'wizard';
+  }catch(error){S.err=error.message}finally{busy=false;render()}
 }
 async function logout(){
   if(busy)return;busy=true;render();
@@ -109,10 +125,14 @@ function filterCounselor(clear=false){
   render();
 }
 function render(){
+  unmountRegistration?.();unmountRegistration=null;
+  if(!profile){registrationContext=null;mustChangePassword=false}
   $('.seg')?.remove();
-  $('.proto-note').textContent=profile?'Supabase 실연동 · 서버에 저장된 실제 응답 · '+(profile.role==='counselor'?'상담사':'내담자'):'Supabase 실연동 · 계정으로 로그인해 주세요.';
+  $('.proto-note').textContent=profile?'Supabase 실연동 · 서버에 저장된 실제 응답 · '+({counselor:'상담사',admin:'관리자',participant:'내담자'}[profile.role]):'Supabase 실연동 · 계정으로 로그인해 주세요.';
   let html;
   if(!profile)html=loginView();
+  else if(mustChangePassword)html=passwordChangeView();
+  else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 참여자 등록</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button></div><div id="live-registration"></div></div>`;
   else if(S.view==='wizard')html=`<div class="narrow noprint"><p id="live-save" role="status">${esc(saveMessage)}</p>${profile.role==='participant'?'<div class="acts"><button class="btn ghost sm" onclick="retrySave()">지금 임시저장</button><button class="btn ghost sm" onclick="logout()">로그아웃</button></div>':''}</div>`+view.vWizard();
   else if(profile.role==='counselor'&&S.view==='result')html=reportHTML;
   else if(profile.role==='counselor')html=counselorView({profile,records,counselorFilter,pname});
@@ -121,10 +141,12 @@ function render(){
     :`<div class="narrow" style="padding-top:34px"><div class="card"><h2>설문 작성 중</h2><p class="sub">${esc(saveMessage)}</p><div class="acts"><button class="btn" onclick="nav('wizard')">이어서 작성</button><button class="btn ghost" onclick="logout()">로그아웃</button></div></div></div>`;
   if(profile&&S.err)html=`<div class="narrow err noprint" role="alert">${esc(S.err)}</div>`+html;
   $('#app').innerHTML=html;
+  const registration=$('#live-registration');
+  if(registration&&registrationContext&&!busy){const run=epoch;unmountRegistration=mountParticipantRegistration(registration,{context:registrationContext,register:body=>api.register(body),onBusy:value=>{if(run===epoch)busy=value}})}
   if(busy)$('#app').querySelectorAll('input,button,select,textarea').forEach(e=>e.disabled=true);
 }
-function editable(){return !busy&&profile&&(profile.role==='participant'?S.user?.status!=='submitted':!!S.cedit)}
-const handlers={doLogin,logout,refresh,openRes,render,nav,filterCounselor,goHome:()=>nav(profile?.role==='counselor'?'cns':'home'),
+function editable(){return !busy&&!mustChangePassword&&profile&&(profile.role==='participant'?S.user?.status!=='submitted':!!S.cedit)}
+const handlers={doLogin,changePassword,logout,refresh,openRes,render,nav,filterCounselor,goHome:()=>nav(profile?.role==='counselor'?'cns':'home'),
   retrySave:async()=>{if(!busy){dirty=true;try{await flushDraft()}catch{}}},
   startEdit:id=>{if(!busy&&profile?.role==='counselor'&&byId(id)?.status==='submitted')edits.startEdit(id)},
   cancelEdit:()=>{if(!busy&&S.cedit){S.err='';edits.cancelEdit()}},
