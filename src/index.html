@@ -145,6 +145,14 @@ table.t th{background:var(--tint-coral);font-weight:800;white-space:nowrap;width
 table.t.c th,table.t.c td{text-align:center}
 table.t.zebra tr:nth-child(even) td{background:rgba(77,159,165,.07)}
 .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.registration-grid{max-width:100%;max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:14px}
+.registration-grid .t{min-width:760px}
+.registration-grid .t th,.registration-grid .t td{border:1px solid var(--line)}
+.registration-grid .t thead th{position:sticky;top:0;z-index:1;background:var(--tint-coral)}
+.registration-grid .t td{padding:5px}
+.registration-grid .in{min-height:40px;padding:7px 9px;border-radius:8px}
+.registration-grid .in[aria-invalid="true"]{border-color:var(--coral)}
+.registration-grid-label{font-weight:700;margin-bottom:8px}
 .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;font-weight:700;margin:6px 0 4px}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:6px;vertical-align:-1px}
 svg{display:block;width:100%;height:auto}

@@ -74,6 +74,9 @@ async function setup(page,{pending=false,enabled=true}={}){
   return {h,assessments,reads:()=>assessmentReads,drafts:()=>drafts,submissions:()=>submissions};
 }
 async function login(page,id,password='Fixture-password-123!'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill(password);await page.getByRole('button',{name:'로그인',exact:true}).click()}
+async function fillRow(page,[name,phone,counselor='',company=''],index=1){
+  for(const [label,value] of Object.entries({'이름':name,'연락처':phone,'담당 상담사':counselor,'소속기업':company}))await page.getByRole('textbox',{name:`${index}행 ${label}`}).fill(value);
+}
 
 test('CSV quoting, Excel paste, duplicate IDs and admin counselor resolution',async({page})=>{
   await page.goto(server.url+'/live/fields.js');
@@ -92,14 +95,56 @@ test('CSV quoting, Excel paste, duplicate IDs and admin counselor resolution',as
   expect(result.duplicate[1].error).toContain('같은 로그인');expect(result.admin[0].counselorUserId).toBe('self');expect(result.invalid).toBeTruthy();
 });
 
+test('editable grid keeps values across add, delete, Tab navigation and preview',async({page})=>{
+  await setup(page);await login(page,'consult01');
+  await expect(page.locator('.registration-grid tbody tr')).toHaveCount(1);
+  await fillRow(page,['첫참여자','010-1234-5678','','첫기업']);
+  await page.getByRole('textbox',{name:'1행 이름'}).focus();
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('textbox',{name:'1행 연락처'})).toBeFocused();
+  await page.getByRole('button',{name:'행 추가'}).click();
+  await expect(page.getByRole('textbox',{name:'1행 이름'})).toHaveValue('첫참여자');
+  await fillRow(page,['둘참여자','010-8765-4321','','둘기업'],2);
+  await page.getByRole('button',{name:'입력 확인',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'2행 이름'})).toHaveValue('둘참여자');
+  await expect(page.locator('[data-preview] tbody tr')).toHaveCount(2);
+  await page.getByRole('button',{name:'1행 삭제'}).click();
+  await expect(page.getByRole('textbox',{name:'1행 이름'})).toHaveValue('둘참여자');
+});
+
+test('Excel multi-cell paste fills the grid and row and field errors block registration',async({page})=>{
+  const {h}=await setup(page);await login(page,'consult01');
+  const pasted='이름\t연락처\t담당 상담사\t소속기업\n붙여넣기1\t010-1234-5678\t\t기업1\n붙여넣기2\t010-8765-4321\t\t기업2';
+  await page.getByRole('textbox',{name:'1행 이름'}).evaluate((input,value)=>{
+    const clipboardData=new DataTransfer();clipboardData.setData('text/plain',value);
+    input.dispatchEvent(new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData}));
+  },pasted);
+  await expect(page.getByRole('textbox',{name:'2행 소속기업'})).toHaveValue('기업2');
+  await page.getByRole('button',{name:'입력 확인',exact:true}).click();
+  await expect(page.locator('[data-preview] tbody tr')).toHaveCount(2);
+  await page.getByRole('textbox',{name:'2행 연락처'}).fill('011-1234-5678');
+  await page.getByRole('button',{name:'입력 확인',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'2행 연락처'})).toHaveAttribute('aria-invalid','true');
+  await expect(page.locator('[data-preview] tbody tr').nth(1)).toContainText('같은 로그인 아이디');
+  await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();
+  expect(h.state.created).toHaveLength(0);
+  await page.getByRole('textbox',{name:'2행 연락처'}).fill('123');
+  await page.getByRole('button',{name:'입력 확인',exact:true}).click();
+  await expect(page.getByRole('textbox',{name:'2행 연락처'})).toHaveAttribute('aria-invalid','true');
+  await expect(page.locator('[data-preview] tbody tr').nth(1)).toContainText('연락처는 숫자');
+  await expect(page.getByRole('textbox',{name:'2행 이름'})).toHaveValue('붙여넣기2');
+});
+
 test('separate CSV and compressed XLSX uploads, formula rejection, safe server credential delivery and erasure',async({page})=>{
   const {h}=await setup(page);await login(page,'consult01');
   await page.locator('[data-file="xlsx"]').setInputFiles({name:'participants.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:xlsx({scientific:true})});
-  await expect(page.locator('#registration-bulk')).toContainText('엑셀참여자');
+  await expect(page.getByRole('textbox',{name:'1행 이름'})).toHaveValue('엑셀참여자');
+  await expect(page.getByRole('textbox',{name:'1행 연락처'})).toHaveValue('1012345678');
   await expect(page.getByRole('cell',{name:'12345678',exact:true})).toBeVisible();
   await page.locator('[data-file="xlsx"]').setInputFiles({name:'formula.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:xlsx({formula:true})});
   await expect(page.getByRole('status').filter({hasText:'수식은 값으로'})).toBeVisible();
   await page.locator('[data-file="csv"]').setInputFiles({name:'participants.csv',mimeType:'text/csv',buffer:Buffer.from('이름,연락처,담당 상담사,소속기업\n가상참여자,010-1234-5678,무시됨,테스트기업')});
+  await expect(page.getByRole('textbox',{name:'1행 이름'})).toHaveValue('가상참여자');
   await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();
   await expect(page.getByRole('cell',{name:'등록 완료',exact:true})).toBeVisible();
   expect(h.state.tables.participants.at(-1).counselor_user_id).toBe(ids.counselor);
@@ -147,12 +192,12 @@ test('temporary participant cannot open diagnosis before password change; changi
 test('issued passwords expire after five minutes and on tab hiding',async({page})=>{
   await setup(page);await login(page,'consult01');
   await page.clock.install();
-  await page.locator('#registration-bulk').fill('시간검증,010-1234-5678,,테스트기업');
+  await fillRow(page,['시간검증','010-1234-5678','','테스트기업']);
   await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();
   await expect(page.getByLabel('시간검증 임시 비밀번호')).toHaveCount(1);
   await page.clock.fastForward(5*60*1000+1);
   await expect(page.getByLabel('시간검증 임시 비밀번호')).toHaveCount(0);
-  await page.locator('#registration-bulk').fill('탭검증,010-8765-4321,,테스트기업');
+  await fillRow(page,['탭검증','010-8765-4321','','테스트기업']);
   await page.getByRole('button',{name:'입력 확인',exact:true}).click();
   await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();
   await expect(page.getByLabel('탭검증 임시 비밀번호')).toHaveCount(1);
@@ -162,13 +207,15 @@ test('issued passwords expire after five minutes and on tab hiding',async({page}
 
 test('registration input stays usable at desktop and mobile widths',async({page})=>{
   await setup(page);await login(page,'consult01');
-  await page.locator('#registration-bulk').fill('화면확인,010-1234-5678,,테스트기업');
+  await fillRow(page,['화면확인','010-1234-5678','','테스트기업']);
   await page.getByRole('button',{name:'입력 확인',exact:true}).click();
   for(const width of [1100,375]){
     await page.setViewportSize({width,height:900});
-    await expect(page.locator('#registration-bulk')).toBeVisible();
-    const bounds=await page.locator('#registration-bulk').boundingBox();
+    await expect(page.locator('.registration-grid')).toBeVisible();
+    const bounds=await page.locator('.registration-grid').boundingBox();
     expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(width);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    if(width===375)expect(await page.locator('.registration-grid').evaluate(e=>e.scrollWidth>e.clientWidth)).toBe(true);
     await page.screenshot({path:`test-results/registration-${width}.png`,fullPage:true});
   }
 });
@@ -178,7 +225,7 @@ test('existing participant still opens survey; administrator gets only registrat
   await page.getByRole('button',{name:'로그아웃',exact:true}).click();await login(page,'admin01');
   await expect(page.getByRole('heading',{name:'관리자 참여자 등록'})).toBeVisible();expect(mock.reads()).toBe(1);
   await page.locator('#registration-counselor').selectOption(ids.counselor);
-  await page.locator('#registration-bulk').fill('관리자등록,010-8765-4321,,테스트기업');
+  await fillRow(page,['관리자등록','010-8765-4321','','테스트기업']);
   await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();await expect(page.getByRole('cell',{name:'등록 완료',exact:true})).toBeVisible();
 });
 
@@ -192,7 +239,7 @@ test('disabled registration does not prevent existing counselor data access',asy
 
 test('newly linked participant can resume a draft and submit via the existing request contract (protocol mock)',async({page})=>{
   const mock=await setup(page);await login(page,'consult01');
-  await page.locator('#registration-bulk').fill('진단연결,010-2468-1357,,가상기업');
+  await fillRow(page,['진단연결','010-2468-1357','','가상기업']);
   await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();
   const secret=page.getByLabel('진단연결 임시 비밀번호');await expect(secret).toHaveCount(1);
   const temporaryPassword=await secret.inputValue();

@@ -28,19 +28,19 @@ export function registrationRows(rows,{profile,counselors=[],organizationName=''
     const [displayName='',rawPhone='',counselorName='',rawCompany='']=cells.map(c=>String(c??'').trim());
     const phone=rawPhone.replace(/\D/g,''),loginId=phone.slice(-8);
     let counselorUserId=profile.role==='counselor'?profile.user_id:defaultCounselorId;
-    const errors=[];
+    const errors=[],fieldErrors={};
     if(cells.length>4)errors.push('이름·연락처·상담사·소속기업의 4개 열을 사용해 주세요');
-    if(!displayName||displayName.length>12)errors.push('이름은 1~12자로 입력해 주세요');
-    if(phone.length<8||phone.length>20)errors.push('연락처는 숫자 8~20자리가 필요합니다');
-    if(rawCompany.length>200)errors.push('소속기업은 200자 이내로 입력해 주세요');
+    if(!displayName||displayName.length>12)errors.push(fieldErrors.displayName='이름은 1~12자로 입력해 주세요');
+    if(phone.length<8||phone.length>20)errors.push(fieldErrors.phone='연락처는 숫자 8~20자리가 필요합니다');
+    if(rawCompany.length>200)errors.push(fieldErrors.companyName='소속기업은 200자 이내로 입력해 주세요');
     if(profile.role==='admin'&&counselorName){
       const matches=counselors.filter(c=>c.id===counselorName||c.name===counselorName);
-      if(matches.length===1)counselorUserId=matches[0].id;else errors.push('같은 조직의 상담사 이름 또는 ID를 확인해 주세요');
+      if(matches.length===1)counselorUserId=matches[0].id;else errors.push(fieldErrors.counselorName='같은 조직의 상담사 이름 또는 ID를 확인해 주세요');
     }
-    if(!counselors.some(c=>c.id===counselorUserId))errors.push('담당 상담사를 선택해 주세요');
-    if(seen.has(loginId))errors.push('입력 안에 같은 로그인 아이디가 있습니다');
+    if(!counselors.some(c=>c.id===counselorUserId))errors.push(fieldErrors.counselorName='담당 상담사를 선택해 주세요');
+    if(seen.has(loginId))errors.push(fieldErrors.phone='입력 안에 같은 로그인 아이디가 있습니다');
     seen.add(loginId);
-    return {line:index+1,displayName,phone,loginId,counselorUserId,companyName:rawCompany||organizationName,error:errors.join(' · ')};
+    return {line:index+1,displayName,phone,loginId,counselorUserId,companyName:rawCompany||organizationName,error:errors.join(' · '),fieldErrors};
   });
 }
 
