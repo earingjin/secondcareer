@@ -24,7 +24,7 @@ export function createAPI(onExpired){
     }
     return data;
   }
-  async function readExistingCounselor(){
+  async function readExistingAccount(){
     // Auth returns the fresh, server-controlled app_metadata. Check before
     // contacting assessment so a temporary participant cannot use fallback.
     const user=await request('/auth/v1/user');
@@ -34,13 +34,15 @@ export function createAPI(onExpired){
        (metadata.must_change_password===undefined&&Object.hasOwn(metadata,'registration_request_id')))throw Error('계정 상태를 확인할 수 없어 로그인할 수 없습니다.');
     const data=await request('/functions/v1/secondcareer-assessment');
     // The existing server determines the role and filters assigned records.
-    if(data.profile?.role!=='counselor')throw Error('계정 상태를 확인할 수 없어 로그인할 수 없습니다.');
+    if(!['counselor','participant'].includes(data.profile?.role))throw Error('계정 상태를 확인할 수 없어 로그인할 수 없습니다.');
+    if(data.profile.role==='participant'&&(Object.hasOwn(metadata,'registration_request_id')||
+       !Array.isArray(data.participants)||data.participants.length!==1||!Array.isArray(data.assessments)))throw Error('계정 상태를 확인할 수 없어 로그인할 수 없습니다.');
     return {...data,assessmentCounselors:data.counselors,mustChangePassword:false,registrationAvailable:false};
   }
   async function read(){
     let account;
     try{account=await request('/functions/v1/secondcareer-account')}
-    catch(error){if(error.accountUnavailable)return readExistingCounselor();throw error}
+    catch(error){if(error.accountUnavailable)return readExistingAccount();throw error}
     if(!account.profile||!['participant','counselor','admin'].includes(account.profile.role)||typeof account.mustChangePassword!=='boolean')throw Error('계정 상태를 확인하지 못했습니다.');
     passwordChangeRequired=account.mustChangePassword;
     if(passwordChangeRequired||account.profile.role==='admin')return {...account,registrationAvailable:account.registrationAvailable===true,participants:[],assessments:[]};

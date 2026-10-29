@@ -5,7 +5,7 @@ let server;
 test.beforeAll(async()=>{server=await serve('src')});
 test.afterAll(async()=>{await server.close()});
 
-async function setup(page,{account='cors',role='counselor',metadata={},authStatus=200}={}){
+async function setup(page,{account='cors',role='counselor',metadata={},authStatus=200,participantCount=1,assessmentStatus='submitted'}={}){
   const calls=[];
   await page.route('**/main.js',route=>route.fulfill({contentType:'text/javascript',body:"import './live/app.js';"}));
   await page.route('https://tafrbtqjlrokdnhudswb.supabase.co/**',async route=>{
@@ -21,7 +21,7 @@ async function setup(page,{account='cors',role='counselor',metadata={},authStatu
       status=authStatus;data=authStatus===200?{id:'fixture-user',app_metadata:metadata}:{error:'AUTH_INVALID'};
     }else if(path.endsWith('/secondcareer-assessment')){
       if(url.searchParams.has('id'))data={html:'<div>검증용 상담사 리포트</div>'};
-      else data={profile:{role,display_name:'기존 계정'},participants:[{id:'assigned',display_name:'테스트 참여자',counselor_user_id:'fixture-user'}],assessments:[{id:'assessment',participant_id:'assigned',phase:'pre',status:'submitted',answers:{},submitted_at:'2026-10-01T00:00:00Z'}],counselors:{'fixture-user':{code:'fixture-user',n:'기존 계정'}}};
+      else data={profile:{role,display_name:'기존 계정'},participants:Array.from({length:participantCount},(_,i)=>({id:i?'other':'assigned',display_name:'테스트 참여자',counselor_user_id:'fixture-user'})),assessments:[{id:'assessment',participant_id:'assigned',phase:'pre',status:assessmentStatus,answers:{},submitted_at:assessmentStatus==='submitted'?'2026-10-01T00:00:00Z':null}],counselors:{'fixture-user':{code:'fixture-user',n:'기존 계정'}}};
     }else if(path==='/auth/v1/logout')return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*'}});
     else throw Error('Unexpected request: '+path);
     await route.fulfill({status,headers:{'Access-Control-Allow-Origin':'*','Content-Type':'application/json'},body:JSON.stringify(data)});
@@ -64,12 +64,36 @@ test('temporary account API server error falls back only after counselor verific
   expect(calls.filter(c=>c.path.endsWith('/secondcareer-assessment'))).toHaveLength(1);
 });
 
-test('fallback does not accept a participant even when password change is not required',async({page})=>{
-  const calls=await setup(page,{role:'participant',metadata:{must_change_password:false}});
+for(const account of ['cors',404,503])test(`existing participant can resume a draft when account API is ${account}`,async({page})=>{
+  const calls=await setup(page,{account,role:'participant',metadata:{must_change_password:false},assessmentStatus:'draft'});
+  await login(page);
+  await expect(page.locator('#live-save')).toBeVisible();
+  expect(calls.map(c=>c.path)).toEqual(['/functions/v1/secondcareer-login','/functions/v1/secondcareer-account','/auth/v1/user','/functions/v1/secondcareer-assessment']);
+  await expect(page.getByRole('heading',{name:'참여자 일괄 등록'})).toHaveCount(0);
+});
+
+test('legacy participant with no password flag sees submitted confirmation',async({page})=>{
+  await setup(page,{role:'participant'});await login(page);
+  await expect(page.getByRole('heading',{name:'테스트 참여자님, 제출이 완료되었습니다'})).toBeVisible();
+});
+
+for(const participantCount of [0,2])test(`participant mapping with ${participantCount} rows fails closed`,async({page})=>{
+  await setup(page,{role:'participant',participantCount});await login(page);
+  await expect(page.getByRole('alert')).toContainText('계정 상태를 확인할 수 없어');
+  await expect(page.locator('#live-save')).toHaveCount(0);
+});
+
+test('registered participant cannot bypass account API even with a completed flag',async({page})=>{
+  const calls=await setup(page,{role:'participant',metadata:{must_change_password:false,registration_request_id:'fixture-registration'}});
   await login(page);
   await expect(page.getByRole('alert')).toContainText('계정 상태를 확인할 수 없어');
   expect(calls.filter(c=>c.path.endsWith('/secondcareer-assessment'))).toHaveLength(1);
   await expect(page.locator('#live-save')).toHaveCount(0);
+});
+
+test('administrator cannot use the existing-account fallback',async({page})=>{
+  await setup(page,{role:'admin'});await login(page);
+  await expect(page.getByRole('alert')).toContainText('계정 상태를 확인할 수 없어');
 });
 
 test('untrusted or missing Auth metadata fails closed without requesting assessments',async({page})=>{
