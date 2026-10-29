@@ -8,6 +8,7 @@ export function createAPI(onExpired){
   async function request(path,{body,anonymous=false,method=body?'POST':'GET'}={}){
     const epoch=generation;
     const accountRead=path==='/functions/v1/secondcareer-account'&&method==='GET';
+    const reportRead=path.startsWith('/functions/v1/secondcareer-assessment?id=')&&method==='GET';
     const unavailable=()=>Object.assign(Error('계정 상태 서비스를 사용할 수 없습니다.'),{accountUnavailable:true});
     if(!anonymous&&(!session||Date.now()>=session.expires_at*1000)){clear();onExpired();throw Error('세션이 만료되었습니다. 다시 로그인해 주세요.')}
     let response;
@@ -18,6 +19,10 @@ export function createAPI(onExpired){
     if(!response.ok){
       if(response.status===401&&!anonymous){clear();onExpired()}
       if(accountRead&&(response.status===404||response.status>=500))throw unavailable();
+      if(reportRead){
+        const messages={400:'보고서 종류 또는 조회 요청을 확인해 주세요.',401:'세션이 만료되었습니다. 다시 로그인해 주세요.',403:'보고서를 조회할 권한이 없거나 최종 제출이 완료되지 않았습니다.',404:'보고서를 찾을 수 없습니다.'};
+        throw Error(messages[response.status]||'보고서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      }
       const messages={401:'아이디 또는 비밀번호를 확인해 주세요.',403:'이 작업에 대한 권한이 없습니다.',409:'다른 저장 또는 제출이 먼저 반영되었습니다. 새로 조회해 주세요.',429:'로그인 시도가 많습니다. 잠시 후 다시 시도해 주세요.'};
       const registrationErrors={LOGIN_ID_UNAVAILABLE:'이미 등록된 아이디입니다.',REGISTRATION_ALREADY_REQUESTED:'이미 요청된 아이디입니다. 처리 결과를 관리자에게 확인해 주세요.',REGISTRATION_OUTCOME_UNKNOWN:'등록 결과 미확인: 다시 등록하지 말고 관리자에게 확인해 주세요.',REGISTRATION_NOT_CONFIGURED:'등록 서버 설정과 필수 보안 통합이 아직 준비되지 않았습니다.',INVALID_PASSWORD:'새 비밀번호는 12~128자로 입력해 주세요.',PASSWORD_UPDATE_FAILED:'비밀번호 변경을 확인하지 못했습니다. 다시 로그인해 상태를 확인해 주세요.',PASSWORD_CHANGE_REQUIRED:'먼저 임시 비밀번호를 변경해 주세요.'};
       throw Error(registrationErrors[data?.error]||messages[response.status]||'서버 처리 결과를 확인하지 못했습니다. 다시 등록하지 말고 관리자에게 확인해 주세요.');
@@ -66,7 +71,7 @@ export function createAPI(onExpired){
     },
     register:body=>request('/functions/v1/secondcareer-register-participant',{body}),
     write:(action,body)=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment',{body:{action,...body}})},
-    report:id=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?id='+encodeURIComponent(id))},
+    report:(id,kind='c')=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');if(!['c','p'].includes(kind))throw Error('보고서 종류를 확인해 주세요.');return request('/functions/v1/secondcareer-assessment?id='+encodeURIComponent(id)+'&kind='+kind)},
     async logout(){try{if(session)await request('/auth/v1/logout',{method:'POST'})}finally{clear()}},
     clear
   };

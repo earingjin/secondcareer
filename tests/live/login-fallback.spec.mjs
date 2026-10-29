@@ -45,7 +45,7 @@ test('missing account API: verified counselor opens assigned results and report 
   await expect(page.getByText('검증용 상담사 리포트')).toBeVisible();
   expect(calls.map(c=>c.path)).toEqual(['/functions/v1/secondcareer-login','/functions/v1/secondcareer-account','/auth/v1/user','/functions/v1/secondcareer-assessment','/functions/v1/secondcareer-assessment']);
   expect(calls.slice(1).every(c=>c.authorization==='Bearer fixture-token')).toBe(true);
-  expect(calls.at(-1).query).toBe('?id=assigned');
+  expect(calls.at(-1).query).toBe('?id=assigned&kind=c');
 });
 
 test('fallback supports an absent endpoint but blocks accounts requiring a new password before assessment',async({page})=>{

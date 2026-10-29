@@ -4,6 +4,7 @@ const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const assert=require('node:assert/strict'),zlib=require('node:zlib');
 const {createServer}=require('node:http');
 const {chromium}=require('@playwright/test');
+const {transformSync}=require('esbuild');
 const clone=x=>JSON.parse(JSON.stringify(x));
 
 (async()=>{
@@ -22,7 +23,7 @@ const clone=x=>JSON.parse(JSON.stringify(x));
     let rows=clone(tables()[name]||[]);
     const q={select(){return q},eq(k,v){rows=rows.filter(r=>r[k]===v);return q},in(k,vs){rows=rows.filter(r=>vs.includes(r[k]));return q},limit(n){rows=rows.slice(0,n);return q},order(){return q},maybeSingle:async()=>({data:rows[0]||null,error:null}),then(resolve,reject){return Promise.resolve({data:rows,error:null}).then(resolve,reject)}};return q;
   }
-  const client={from,auth:{getUser:async token=>({data:{user:profiles.some(p=>p.user_id===token)?{id:token}:null},error:null})},rpc:async(_name,args)=>{
+  const client={from,auth:{getUser:async token=>({data:{user:profiles.some(p=>p.user_id===token)?{id:token,app_metadata:{}}:null},error:null})},rpc:async(_name,args)=>{
     if(stored&&stored.updated_at!==args.expected_updated_at)return {error:{code:'40001'}};
     const before=clone(stored);stored={id:'assessment-fixture',participant_id:participant,phase:'pre',status:args.operation==='draft'?'draft':'submitted',answers:clone(args.payload),result:clone(args.calculated),submitted_at:args.operation==='draft'?null:new Date().toISOString(),updated_at:new Date(Date.now()+(++ticks)).toISOString()};
     history.push({assessment_id:stored.id,action:args.operation,before_data:before?{answers:before.answers,result:before.result}:null,after_data:{answers:stored.answers,result:stored.result},created_at:stored.updated_at});
@@ -31,7 +32,7 @@ const clone=x=>JSON.parse(JSON.stringify(x));
   const context=vm.createContext({console,Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,Uint32Array,crypto:require('node:crypto').webcrypto,Date,Math,Deno:{env:{get:()=> 'server-test-value'},serve:f=>{handler=f}}});
   const modules={};
   const npm=new vm.SyntheticModule(['createClient'],function(){this.setExport('createClient',()=>client)},{context,identifier:'supabase'});
-  function moduleFor(name){return modules[name]||(modules[name]=new vm.SourceTextModule(sources[name],{context,identifier:name}))}
+  function moduleFor(name){return modules[name]||(modules[name]=new vm.SourceTextModule(name.endsWith('.ts')?transformSync(sources[name],{loader:'ts',format:'esm',target:'es2022'}).code:sources[name],{context,identifier:name}))}
   const root=moduleFor('index.ts');
   await root.link((specifier,ref)=>specifier.startsWith('npm:')?npm:moduleFor(path.posix.normalize(path.posix.join(path.posix.dirname(ref.identifier),specifier))));
   await root.evaluate();assert.equal(typeof handler,'function');
@@ -49,7 +50,7 @@ const clone=x=>JSON.parse(JSON.stringify(x));
   assert.equal(count,golden.total);console.log('PASS server computeResult golden cases:',count);
   const opts=options.OPT;
   const answers={reg:{a1:'동의',consent:true,name:'Fixture Client',gender:'남',birthDate:'1966-01-01',birth:'1966',phone:'010-0000-0000',email:'fixture@example.com',careers:[{co:'Fixture Company',title:'Fixture Title',task:'Fixture Task'}],industry:opts['reg.industry'][0],income:opts['reg.income'][0]},goal:{b11:opts['goal.b11'].slice(0,1),b12:opts['goal.b12'].slice(0,1),b13:opts['goal.b13'].slice(0,2),b14:opts['goal.b14'].slice(0,1),b15:'70',b16:'6'},pre:Array(config.ITEM_COUNT).fill(3),expect:{d32:opts['expect.d32'].slice(0,1),d33:opts['expect.d33'].slice(0,3),d34:opts['expect.d34'].slice(0,1),d35:opts['expect.d35'].slice(0,2),d36:opts['expect.d36'].slice(0,1)},done:{reg:true,goal:true,expect:true}};
-  async function request(token,body,id){const r=await handler(new Request('https://fixture.invalid/'+(id?'?id='+encodeURIComponent(id):''),{method:body?'POST':'GET',headers:token?{authorization:'Bearer '+token}: {},...(body?{body:JSON.stringify(body)}:{})}));return {status:r.status,data:await r.json()}}
+  async function request(token,body,id,kind='c'){const r=await handler(new Request('https://fixture.invalid/'+(id?'?id='+encodeURIComponent(id)+'&kind='+encodeURIComponent(kind):''),{method:body?'POST':'GET',headers:token?{authorization:'Bearer '+token}: {},...(body?{body:JSON.stringify(body)}:{})}));return {status:r.status,data:await r.json()}}
   assert.equal((await request(null)).status,401);assert.equal((await request('expired')).status,401);
   assert.equal((await request(owner,{action:'draft',answers:{pre:answers.pre}})).status,400);
   assert.equal((await request(owner,{action:'edit',participantId:participant,answers})).status,403);
@@ -75,7 +76,7 @@ const clone=x=>JSON.parse(JSON.stringify(x));
       if(u.pathname.endsWith('/secondcareer-account'))return route.fulfill({status:404,json:{error:'NOT_FOUND'}});
       if(u.pathname==='/auth/v1/user')return route.fulfill({json:{id:r.headers().authorization?.replace('Bearer ',''),app_metadata:{}}});
       if(failDraft&&body?.action==='draft')return route.fulfill({status:503,json:{error:'SAVE_FAILED'}});
-      const result=await request(r.headers().authorization?.replace('Bearer ',''),body,u.searchParams.get('id'));return route.fulfill({status:result.status,json:result.data});
+      const result=await request(r.headers().authorization?.replace('Bearer ',''),body,u.searchParams.get('id'),u.searchParams.get('kind')||'c');return route.fulfill({status:result.status,json:result.data});
     });
     const origin='http://127.0.0.1:'+server.address().port;
     await page.goto(origin);await page.waitForSelector('#lg-id');
@@ -128,7 +129,7 @@ const clone=x=>JSON.parse(JSON.stringify(x));
     await page.click('button[onclick="filterCounselor(true)"]');await page.fill('#cns-name','Other Counselor Fixture');
     await page.locator('#plist button[type="submit"]').click();await counts(0,0,0);
     await page.click('button[onclick="filterCounselor(true)"]');
-    assert.equal(await page.locator('#plist button[onclick^="openRes"]').count(),1);
+    assert.equal(await page.locator('#plist button[onclick^="openRes"]').count(),2);
     console.log('PASS counselor KPI/list consistency, submitted-only completion, names, companies, search, every status filter and assigned-only scope');
     await page.screenshot({path:'test-results/counselor-list.png',fullPage:true});
     await page.click('button[onclick^="openRes"]');await page.waitForSelector('.sheet');
@@ -136,6 +137,14 @@ const clone=x=>JSON.parse(JSON.stringify(x));
     await page.screenshot({path:'test-results/live-report.png',fullPage:true});
     const pdf=await page.pdf({path:'test-results/live-report.pdf',preferCSSPageSize:true,printBackground:true});assert.ok(pdf.length>10000);
     const pages=(pdf.toString('latin1').match(/\/Type \/Page\b/g)||[]).length;assert.equal(pages,5);console.log('PASS browser PDF: 5 A4 pages');
+    await page.locator('#live-report-kind').getByRole('button',{name:'내담자용 3쪽',exact:true}).click();
+    await page.waitForFunction(()=>document.querySelectorAll('.sheet').length===3);
+    assert.equal(await page.locator('.editpanel').count(),0);
+    const participantPDF=await page.pdf({preferCSSPageSize:true,printBackground:true});
+    assert.equal((participantPDF.toString('latin1').match(/\/Type \/Page\b/g)||[]).length,3);
+    console.log('PASS participant report and browser PDF: 3 A4 pages');
+    await page.locator('#live-report-kind').getByRole('button',{name:'상담사용 5쪽',exact:true}).click();
+    await page.waitForFunction(()=>document.querySelectorAll('.sheet').length===5);
     await page.click('button[onclick^="startEdit"]');await page.evaluate(()=>goStep(1));await page.waitForSelector('#q-A3');
     await page.fill('#q-A3 input','Cancelled Edit');await page.evaluate(()=>goStep(5));await page.click('button[onclick="cancelEdit()"]');assert.equal(stored.answers.reg.name,'Fixture Client');
     await page.click('button[onclick^="startEdit"]');await page.evaluate(()=>goStep(1));await page.fill('#q-A3 input','Abandoned Edit');

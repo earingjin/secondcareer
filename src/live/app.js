@@ -69,7 +69,9 @@ async function persistEdit(p,e){
   try{const data=await api.write('edit',{participantId:p.id,answers:answers(p),expectedUpdatedAt:e.before._updatedAt});
     if(data.status!=='submitted')throw Error('수정 완료를 확인하지 못했습니다.');
     const fresh=await api.read();hydrate(fresh);S.user=e.prevUser;S.cedit=null;S.res=e.res;S.from=e.from;
-    const report=await api.report(p.id);reportHTML=report.html;S.view='result';toast('응답 수정과 서버 재계산을 저장했습니다');
+    // Discard the old report after a successful save, even if reloading fails.
+    reportHTML='';S.view='result';
+    const report=await api.report(p.id,S.res?.role||'c');if(typeof report.html!=='string'||!report.html.trim())throw Error('저장 후 보고서를 확인하지 못했습니다. 보고서를 다시 조회해 주세요.');reportHTML=report.html;toast('응답 수정과 서버 재계산을 저장했습니다');
   }catch(error){S.err=error.message}finally{busy=false;render()}
 }
 function nav(v){
@@ -115,9 +117,13 @@ async function refresh(){
   if(busy)return;busy=true;render();
   try{if(dirty)await flushDraft();const id=S.user?.id;hydrate(await api.read());if(id)S.user=byId(id);S.err=''}catch(e){S.err=e.message}finally{busy=false;render()}
 }
-async function openRes(id){
-  if(busy||profile?.role!=='counselor'||!byId(id))return;busy=true;render();
-  try{const data=await api.report(id);if(typeof data.html!=='string')throw Error('보고서를 확인하지 못했습니다.');reportHTML=data.html;S.res={id,role:'c'};S.from='cns';S.view='result';S.err=''}catch(e){S.err=e.message}finally{busy=false;render()}
+async function openRes(id,kind='c'){
+  if(busy||profile?.role!=='counselor')return;
+  if(S.cedit){S.err='수정 중인 응답이 있습니다. 수정 저장 또는 취소 후 보고서를 전환해 주세요.';render();return}
+  if(!['c','p'].includes(kind)||!byId(id)){S.err='담당 내담자와 보고서 종류를 확인해 주세요.';render();return}
+  if(byId(id).status!=='submitted'){S.err='최종 제출이 완료된 내담자만 보고서를 조회할 수 있습니다.';render();return}
+  busy=true;reportHTML='';render();
+  try{const data=await api.report(id,kind);if(typeof data.html!=='string'||!data.html.trim())throw Error('보고서를 확인하지 못했습니다.');reportHTML=data.html;S.res={id,role:kind};S.from='cns';S.view='result';S.err=''}catch(e){S.err=e.message}finally{busy=false;render()}
 }
 function filterCounselor(clear=false){
   if(busy||profile?.role!=='counselor'||S.view!=='cns')return;
@@ -134,7 +140,7 @@ function render(){
   else if(mustChangePassword)html=passwordChangeView();
   else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 참여자 등록</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button></div><div id="live-registration"></div></div>`;
   else if(S.view==='wizard')html=`<div class="narrow noprint"><p id="live-save" role="status">${esc(saveMessage)}</p>${profile.role==='participant'?'<div class="acts"><button class="btn ghost sm" onclick="retrySave()">지금 임시저장</button><button class="btn ghost sm" onclick="logout()">로그아웃</button></div>':''}</div>`+view.vWizard();
-  else if(profile.role==='counselor'&&S.view==='result')html=reportHTML;
+  else if(profile.role==='counselor'&&S.view==='result')html=`<div class="narrow noprint"><div class="toolbar" id="live-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openRes('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openRes('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('cns')">담당 내담자 목록</button></div></div></div>`+reportHTML;
   else if(profile.role==='counselor')html=counselorView({profile,records,counselorFilter,pname});
   else html=S.user.status==='submitted'
     ?`<div class="narrow" style="padding-top:34px"><div class="card"><h2>${esc(pname(S.user))}님, 제출이 완료되었습니다</h2><p class="sub">전체 응답과 서버 계산 결과가 저장되었습니다. 결과는 담당 상담사가 안내합니다.</p><button class="btn ghost" onclick="logout()">로그아웃</button></div></div>`
