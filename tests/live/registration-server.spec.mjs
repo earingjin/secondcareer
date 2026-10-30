@@ -4,6 +4,19 @@ import {randomUUID} from 'node:crypto';
 const {harness,ids}=createRequire(import.meta.url)('./server-harness.cjs');
 const input=()=>({displayName:'가상 참여자',phone:'010-1234-5678',companyName:'테스트 기업',counselorUserId:ids.other,requestId:randomUUID()});
 
+test('organization assessment URL is validated, scoped to admins and returned on reload',async()=>{
+  const h=harness(),action='update-assessment-url';
+  const save=url=>h.call(h.account.handleAccount,ids.admin,{action,assessmentUrl:url});
+  for(const url of ['http://example.com','javascript:alert(1)','https://user:pass@example.com','https://example.com/#fragment','https://example.com/\npath','https://example.com\\evil'])
+    expect((await save(url)).status).toBe(400);
+  expect((await h.call(h.account.handleAccount,ids.counselor,{action,assessmentUrl:'https://example.com'})).status).toBe(403);
+  expect((await h.call(h.account.handleAccount,ids.admin,{action,assessmentUrl:'https://example.com',organizationId:'other-org'})).status).toBe(400);
+  expect((await save('https://example.invalid/diagnosis')).data.assessmentUrl).toBe('https://example.invalid/diagnosis');
+  expect((await h.call(h.account.handleAccount,ids.counselor)).data.assessmentUrl).toBe('https://example.invalid/diagnosis');
+  expect((await h.call(h.account.handleAccount,ids.admin)).data.assessmentUrl).toBe('https://example.invalid/diagnosis');
+  expect((await save('')).data.assessmentUrl).toBeNull();
+});
+
 test('authenticated counselor provisions linked Auth account, server password and own assignment',async()=>{
   const h=harness(),r=await h.call(h.registration.handleRegistration,ids.counselor,input());
   expect(r.status).toBe(201);expect(r.data.loginId).toBe('12345678');expect(r.data.temporaryPassword.length).toBeGreaterThanOrEqual(12);

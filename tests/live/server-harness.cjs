@@ -11,8 +11,8 @@ function harness(){
   const tables={user_profiles:profiles,organizations:[{id:ids.org,name:'테스트 기업'}],server_login_lookup:profiles.map(p=>({user_id:p.user_id,login_id:loginIds[p.user_id],internal_email:users[p.user_id].email})),participant_registration_requests:[],participants:[{id:'existing-participant',auth_user_id:ids.participant,counselor_user_id:ids.counselor,organization_id:ids.org,display_name:'기존참여자',company_name:'테스트기업'}]};
   const state={tables,users,created:[],updated:[],enabled:true,failCreate:false,failComplete:false,failProfile:false,failUpdate:false};
   const db={from(name){
-    let filters=[],insert=null;
-    const q={select(){return q},eq(k,v){filters.push([k,v]);return q},insert(row){insert=row;return q},async maybeSingle(){return run(true)},then(resolve,reject){return run(false).then(resolve,reject)}};
+    let filters=[],insert=null,update=null;
+    const q={select(){return q},eq(k,v){filters.push([k,v]);return q},insert(row){insert=row;return q},update(row){update=row;return q},async maybeSingle(){return run(true)},then(resolve,reject){return run(false).then(resolve,reject)}};
     async function run(single){
       if(name==='user_profiles'&&state.failProfile)return {error:{code:'QUERY_ERROR'},data:null};
       if(!tables[name])return {error:{code:'MISSING_TABLE'},data:null};
@@ -21,6 +21,7 @@ function harness(){
         tables[name].push({...insert});return {error:null,data:null};
       }
       const rows=tables[name].filter(r=>filters.every(([k,v])=>r[k]===v));
+      if(update)rows.forEach(row=>Object.assign(row,update));
       if(single&&rows.length>1)return {data:null,error:{code:'MULTIPLE_ROWS'}};
       return {data:single?(rows[0]||null):rows,error:null};
     }
@@ -48,7 +49,7 @@ function harness(){
     return {data:id,error:null};
   }};
   const cache=new Map(),root=path.resolve('supabase/functions');
-  const context=vm.createContext({Request,Response,TextEncoder,TextDecoder,Uint8Array,btoa,crypto:webcrypto,Deno:{env:{get:key=>key==='SECONDCAREER_REGISTRATION_ENABLED'?(state.enabled?'true':'false'):'fixture'},serve:()=>{}}});
+  const context=vm.createContext({Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,btoa,crypto:webcrypto,Deno:{env:{get:key=>key==='SECONDCAREER_REGISTRATION_ENABLED'?(state.enabled?'true':'false'):'fixture'},serve:()=>{}}});
   function load(filename){
     filename=path.resolve(filename);if(cache.has(filename))return cache.get(filename).exports;
     const module={exports:{}};cache.set(filename,module);

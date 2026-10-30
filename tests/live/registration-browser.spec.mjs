@@ -232,6 +232,27 @@ test('notice copies the issued response with a supplied assessment URL',async({p
   expect(notice).toBe('[세컨플래닝] 홍길동님, 퇴직준비도 진단 안내입니다.\n\n접속 링크: https://example.invalid/assessment\n\n아이디: 12345678\n임시 비밀번호: Temporary-123!\n\n최초 로그인 시 비밀번호를 변경한 후 진단에 참여해 주세요.');
 });
 
+test('admin saves organization URL and counselor copies it with issued credentials',async({page})=>{
+  const {h}=await setup(page);await login(page,'admin01');
+  await page.getByLabel('진단 접속 주소 (HTTPS)').fill('http://example.invalid');
+  await page.getByRole('button',{name:'주소 저장'}).click();
+  await expect(page.getByRole('status').filter({hasText:'올바른 HTTPS 진단 접속 주소를 입력해 주세요'})).toBeVisible();
+  await page.getByLabel('진단 접속 주소 (HTTPS)').fill('https://example.invalid/assessment');
+  await page.getByRole('button',{name:'주소 저장'}).click();
+  await expect(page.getByText('진단 접속 주소를 저장했습니다.')).toBeVisible();
+  await page.getByRole('button',{name:'로그아웃',exact:true}).click();await login(page,'consult01');
+  await page.evaluate(()=>{window.copiedNotice='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.copiedNotice=text}}})});
+  await fillRow(page,['안내대상','010-1234-5678','','기업']);
+  await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();
+  const password=await page.getByLabel('안내대상 임시 비밀번호').inputValue();
+  await page.getByRole('button',{name:'사전진단 안내문 복사'}).click();
+  const copied=await page.evaluate(()=>window.copiedNotice);
+  expect(copied).toContain('접속 링크: https://example.invalid/assessment');
+  expect(copied).toContain('아이디: 12345678');expect(copied).toContain(`임시 비밀번호: ${password}`);
+  expect(h.state.tables.organizations[0].assessment_url).toBe('https://example.invalid/assessment');
+  await expect(page.getByRole('button',{name:'주소 저장'})).toHaveCount(0);
+});
+
 test('registration input stays usable at desktop and mobile widths',async({page})=>{
   await setup(page);await login(page,'consult01');
   await fillRow(page,['화면확인','010-1234-5678','','테스트기업']);
