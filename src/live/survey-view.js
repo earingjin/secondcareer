@@ -90,7 +90,7 @@ function vWizard(){
   if(!post&&isSubmitted(p)&&!S.cedit)return `<div class="narrow" style="padding-top:34px"><div class="card"><h2>응답이 제출되어 수정할 수 없습니다</h2><p class="sub" style="margin-top:8px">제출한 응답은 담당 상담사만 수정할 수 있습니다. 고칠 내용이 있으면 상담사에게 요청해 주세요.</p><div class="acts" style="margin-top:16px"><button class="btn" onclick="nav('home')">처음 화면으로</button></div></div></div>`;
   let body='';
   if(post)body='';else body=[wConsent,wReg,wGoal,wDiagPre,wExpect,wReview][S.step]();
-  return `<div class="narrow" style="padding-top:20px">${S.cedit?`<div class="editbar">상담사 수정 모드 · ${esc(pname(p))}</div>`:''}${stepper(S.step,post)}<div class="card">${body}</div></div>`;
+  return `<div class="narrow${S.cedit?'':' mobile-survey'}" style="padding-top:20px">${S.cedit?`<div class="editbar">상담사 수정 모드 · ${esc(pname(p))}</div>`:''}${stepper(S.step,post)}<div class="card">${body}</div></div>`;
 }
 function wConsent(){
   const p=S.user,r=p.reg,c=COUNSELORS[p.counselor];

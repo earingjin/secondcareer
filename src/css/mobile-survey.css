@@ -1,0 +1,16 @@
+/* Participant survey only; the screen media condition also excludes printing. */
+.mobile-survey{padding-left:14px;padding-right:14px}
+.mobile-survey .stepper{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0 12px}
+.mobile-survey .stepper .st{min-width:0;padding:6px;border-radius:12px;font-size:12px;line-height:1.3;gap:5px;overflow-wrap:anywhere}
+.mobile-survey .stepper .st i{width:22px;height:22px}
+.mobile-survey > .card{padding:20px 16px}
+.mobile-survey .q{padding:20px 0;min-width:0}
+.mobile-survey .qt{font-size:16px;line-height:1.6;overflow-wrap:anywhere}
+.mobile-survey .chip{max-width:100%;min-height:48px;line-height:1.45;overflow-wrap:anywhere}
+.mobile-survey .in{min-width:0;max-width:100%;font-size:16px}
+.mobile-survey .scale{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.mobile-survey .scale.lk button{min-width:0;min-height:64px;padding:6px 2px}
+.mobile-survey .scale.lk button span{font-size:11px;line-height:1.25;overflow-wrap:anywhere}
+.mobile-survey .scale.lk button.on{box-shadow:inset 0 0 0 2px var(--coral-deep)}
+.mobile-survey .acts .btn{min-height:48px;padding:12px 18px}
+.mobile-survey .rv dd,.mobile-survey .rv dt,.mobile-survey .cons{overflow-wrap:anywhere}
