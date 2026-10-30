@@ -189,20 +189,47 @@ test('temporary participant cannot open diagnosis before password change; changi
   await expect.poll(()=>mock.drafts()).toBe(1);
 });
 
-test('issued passwords expire after five minutes and on tab hiding',async({page})=>{
-  await setup(page);await login(page,'consult01');
-  await page.clock.install();
+test('issued results survive time, hidden tabs and rerenders until logout or page departure',async({page})=>{
+  await setup(page);await login(page,'consult01');await page.clock.install();
   await fillRow(page,['시간검증','010-1234-5678','','테스트기업']);
   await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();
-  await expect(page.getByLabel('시간검증 임시 비밀번호')).toHaveCount(1);
+  const secret=page.getByLabel('시간검증 임시 비밀번호');
+  await expect(secret).toHaveCount(1);const password=await secret.inputValue();
+  await expect(page.getByRole('button',{name:'사전진단 안내문 복사'})).toBeDisabled();
+  await expect(page.getByText('진단 접속 주소 설정이 필요합니다')).toBeVisible();
   await page.clock.fastForward(5*60*1000+1);
-  await expect(page.getByLabel('시간검증 임시 비밀번호')).toHaveCount(0);
-  await fillRow(page,['탭검증','010-8765-4321','','테스트기업']);
+  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));render()});
+  await expect(secret).toHaveValue(password);
   await page.getByRole('button',{name:'입력 확인',exact:true}).click();
+  await expect(secret).toHaveValue(password);
+  await page.evaluate(()=>window.dispatchEvent(new PageTransitionEvent('pagehide')));
+  await page.evaluate(()=>render());await expect(secret).toHaveCount(0);
+  await fillRow(page,['로그아웃검증','010-8765-4321','','테스트기업']);
   await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();
-  await expect(page.getByLabel('탭검증 임시 비밀번호')).toHaveCount(1);
-  await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'))});
-  await expect(page.getByLabel('탭검증 임시 비밀번호')).toHaveCount(0);
+  const nextSecret=page.getByLabel('로그아웃검증 임시 비밀번호');await expect(nextSecret).toHaveCount(1);
+  const nextPassword=await nextSecret.inputValue();
+  await page.getByRole('button',{name:'로그아웃',exact:true}).click();
+  expect(await page.content()).not.toContain(nextPassword);
+  await login(page,'consult01');await expect(nextSecret).toHaveCount(0);
+});
+
+test('notice copies the issued response with a supplied assessment URL',async({page})=>{
+  await page.goto(server.url+'/live/fields.js');
+  const notice=await page.evaluate(async()=>{
+    const {mountParticipantRegistration}=await import('/live/participant-registration.js');
+    document.body.innerHTML='<div id="test"></div>';
+    const context={profile:{role:'counselor',user_id:'self'},counselors:[{id:'self',name:'상담사'}],organizationName:'기업',assessmentUrl:'https://example.invalid/assessment'};
+    let copied='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{copied=text}}});
+    mountParticipantRegistration(document.querySelector('#test'),{context,register:async()=>({participantId:'p',loginId:'12345678',temporaryPassword:'Temporary-123!'})});
+    for(const [key,value] of Object.entries({displayName:'홍길동',phone:'010-1234-5678'})){
+      const input=document.querySelector(`[data-row="0"][data-key="${key}"]`);input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+    document.querySelector('[data-action="register"]').click();
+    await new Promise(resolve=>setTimeout(resolve,0));
+    document.querySelector('[data-action="copy-notice"]').click();
+    await new Promise(resolve=>setTimeout(resolve,0));return copied;
+  });
+  expect(notice).toBe('[세컨플래닝] 홍길동님, 퇴직준비도 진단 안내입니다.\n\n접속 링크: https://example.invalid/assessment\n\n아이디: 12345678\n임시 비밀번호: Temporary-123!\n\n최초 로그인 시 비밀번호를 변경한 후 진단에 참여해 주세요.');
 });
 
 test('registration input stays usable at desktop and mobile widths',async({page})=>{

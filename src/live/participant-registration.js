@@ -1,4 +1,5 @@
 import {esc} from './fields.js';
+import {assessmentNotice} from './assessment-notice.js';
 import {parseRegistrationText,registrationRows,readXlsx} from './registration-input.js';
 
 const COLUMNS=[
@@ -23,19 +24,20 @@ export function participantRegistrationView({context,inputRows=[blankRow()],rowE
   <div class="acts"><button class="btn ghost" data-action="preview">입력 확인</button><button class="btn" data-action="register">실제 계정 일괄 등록</button></div>
   <p role="status" class="hintline">${esc(message)}</p>
   ${rows.length?`<div class="scroll" data-preview><table class="t"><thead><tr><th>행</th><th>이름</th><th>아이디</th><th>소속기업</th><th>입력 확인</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.line}</td><td>${esc(r.displayName)}</td><td>${esc(r.loginId)}</td><td>${esc(r.companyName)}</td><td>${esc(r.error||'등록 가능')}</td></tr>`).join('')}</tbody></table></div>`:''}
-  ${results.length?`<div class="notice-s"><p>성공한 계정의 임시 비밀번호는 이번 화면에서만 확인할 수 있습니다. 본인 확인 후 별도 안전한 경로로 전달하세요. 화면 이동·탭 숨김·5분 후 지워지며 다시 조회할 수 없습니다.</p><div class="acts"><button class="btn ghost sm" data-action="reveal">${reveal?'비밀번호 가리기':'발급 비밀번호 확인'}</button><button class="btn ghost sm" data-action="clear">발급 비밀번호 지우기</button></div><table class="t"><thead><tr><th>이름</th><th>아이디</th><th>등록 결과</th><th>임시 비밀번호</th></tr></thead><tbody>${results.map(r=>`<tr><td>${esc(r.displayName)}</td><td>${esc(r.loginId)}</td><td>${esc(r.message)}</td><td>${r.temporaryPassword?`<input class="in" aria-label="${esc(r.displayName)} 임시 비밀번호" type="${reveal?'text':'password'}" readonly autocomplete="off" value="${esc(r.temporaryPassword)}">`:'-'}</td></tr>`).join('')}</tbody></table></div>`:''}
+  ${results.length?`<div class="notice-s"><p>성공한 계정의 임시 비밀번호는 이번 화면에서만 확인할 수 있습니다. 본인 확인 후 별도 안전한 경로로 전달하세요. 로그아웃, 페이지 이탈 또는 새로고침 시 지워지며 다시 조회할 수 없습니다.</p><div class="acts"><button class="btn ghost sm" data-action="reveal">${reveal?'비밀번호 가리기':'발급 비밀번호 확인'}</button><button class="btn ghost sm" data-action="clear">발급 비밀번호 지우기</button></div><table class="t"><thead><tr><th>이름</th><th>아이디</th><th>등록 결과</th><th>임시 비밀번호</th><th>안내문</th></tr></thead><tbody>${results.map((r,index)=>`<tr><td>${esc(r.displayName)}</td><td>${esc(r.loginId)}</td><td>${esc(r.message)}</td><td>${r.temporaryPassword?`<input class="in" aria-label="${esc(r.displayName)} 임시 비밀번호" type="${reveal?'text':'password'}" readonly autocomplete="off" value="${esc(r.temporaryPassword)}">`:'-'}</td><td>${r.temporaryPassword?`<button class="btn ghost sm" data-action="copy-notice" data-result="${index}" ${!context.assessmentUrl?'disabled':''}>사전진단 안내문 복사</button>${!context.assessmentUrl?'<span>진단 접속 주소 설정이 필요합니다</span>':''}`:'-'}</td></tr>`).join('')}</tbody></table></div>`:''}
   ${working?'<p role="status">등록 중입니다. 완료될 때까지 기다려 주세요.</p>':''}</section>`;
 }
 
-export function mountParticipantRegistration(container,{context,register,onBusy=()=>{}}){
-  let inputRows=[blankRow()],rowErrors={},rows=[],results=[],message='',working=false,reveal=false,disposed=false,secretTimer=null;
+export function mountParticipantRegistration(container,{context,register,onBusy=()=>{},resultState={results:[]}}){
+  let inputRows=[blankRow()],rowErrors={},rows=[],message='',working=false,reveal=false,disposed=false;
+  const results=resultState.results;
   const requests=new Map();
   function render(){
     if(disposed)return;
     container.innerHTML=participantRegistrationView({context,inputRows,rowErrors,rows,results,message,working,reveal});
     if(working)container.querySelectorAll('button,input,select,textarea').forEach(e=>e.disabled=true);
   }
-  function clearSecrets(){results=results.map(({temporaryPassword,...r})=>r);reveal=false;clearTimeout(secretTimer);secretTimer=null;render()}
+  function clearSecrets(){results.forEach(r=>delete r.temporaryPassword);reveal=false;render()}
   function checkedRows(){
     const active=inputRows.map((row,index)=>({row,index})).filter(({row})=>hasValue(row));
     const checked=registrationRows(active.map(({row})=>COLUMNS.map(({key})=>row[key])),context);
@@ -43,7 +45,7 @@ export function mountParticipantRegistration(container,{context,register,onBusy=
     return checked.map((row,index)=>({...row,line:active[index].index+1}));
   }
   function preview(){
-    clearSecrets();results=[];
+    if(!results.some(r=>r.temporaryPassword))results.length=0;
     rows=checkedRows();
     message=rows.some(r=>r.error)?'입력 오류를 수정한 뒤 등록해 주세요.':'입력 확인 완료. 실제 계정 일괄 등록을 누르면 서버에 등록됩니다.';
   }
@@ -86,6 +88,12 @@ export function mountParticipantRegistration(container,{context,register,onBusy=
     const action=event.target.closest('[data-action]')?.dataset.action;if(!action||working)return;
     try{
       if(action==='clear'){clearSecrets();return}
+      if(action==='copy-notice'){
+        const result=results[Number(event.target.closest('[data-result]').dataset.result)];
+        if(!context.assessmentUrl||!result?.temporaryPassword)return;
+        await navigator.clipboard.writeText(assessmentNotice(result,context.assessmentUrl));
+        message='사전진단 안내문을 복사했습니다.';render();return;
+      }
       if(action==='reveal'){reveal=!reveal;render();return}
       if(action==='add-row'){if(inputRows.length>=100)throw Error('한 번에 100명 이하로 나누어 등록해 주세요.');inputRows.push(blankRow());rows=[];rowErrors={};render();container.querySelector(`[data-row="${inputRows.length-1}"][data-key]`)?.focus();return}
       if(action==='remove-row'){inputRows.splice(Number(event.target.closest('[data-row]').dataset.row),1);if(!inputRows.length)inputRows=[blankRow()];rows=[];rowErrors={};render();return}
@@ -103,9 +111,6 @@ export function mountParticipantRegistration(container,{context,register,onBusy=
           if(disposed)break;
           if(data.loginId!==row.loginId||typeof data.participantId!=='string'||typeof data.temporaryPassword!=='string'||data.temporaryPassword.length<12)throw Error('발급 결과 미확인: 관리자 확인이 필요합니다.');
           results.push({displayName:row.displayName,loginId:data.loginId,temporaryPassword:data.temporaryPassword,message:'등록 완료'});
-          // Expire from the first disclosure; never prolong earlier secrets.
-          if(!secretTimer)secretTimer=setTimeout(clearSecrets,5*60*1000);
-          if(document.hidden)clearSecrets();
         }catch(error){if(disposed)break;results.push({displayName:row.displayName,loginId:row.loginId,message:error.message})}
         render();
       }
@@ -113,7 +118,6 @@ export function mountParticipantRegistration(container,{context,register,onBusy=
     }catch(error){message=error.message}
     finally{if(working){working=false;onBusy(false)}render()}
   }
-  const onVisibility=()=>{if(document.hidden)clearSecrets()};
   function onPaste(event){
     const {row,key}=event.target.dataset;
     if(row===undefined||!COLUMNS.some(c=>c.key===key)||working)return;
@@ -132,6 +136,5 @@ export function mountParticipantRegistration(container,{context,register,onBusy=
     }catch(error){message=error.message;render()}
   }
   render();container.addEventListener('input',onInput);container.addEventListener('change',onChange);container.addEventListener('click',onClick);container.addEventListener('paste',onPaste);
-  document.addEventListener('visibilitychange',onVisibility);window.addEventListener('pagehide',clearSecrets);
-  return ()=>{disposed=true;clearTimeout(secretTimer);results=[];container.innerHTML='';container.removeEventListener('input',onInput);container.removeEventListener('change',onChange);container.removeEventListener('click',onClick);container.removeEventListener('paste',onPaste);document.removeEventListener('visibilitychange',onVisibility);window.removeEventListener('pagehide',clearSecrets)};
+  return ()=>{disposed=true;container.innerHTML='';container.removeEventListener('input',onInput);container.removeEventListener('change',onChange);container.removeEventListener('click',onClick);container.removeEventListener('paste',onPaste)};
 }
