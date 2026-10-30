@@ -237,6 +237,10 @@ test('admin saves organization URL and counselor copies it with issued credentia
   await page.getByLabel('진단 접속 주소 (HTTPS)').fill('http://example.invalid');
   await page.getByRole('button',{name:'주소 저장'}).click();
   await expect(page.getByRole('status').filter({hasText:'올바른 HTTPS 진단 접속 주소를 입력해 주세요'})).toBeVisible();
+  await page.getByLabel('진단 접속 주소 (HTTPS)').fill('https://example.invalid/assessment?token=secret');
+  await page.getByRole('button',{name:'주소 저장'}).click();
+  await expect(page.getByRole('status').filter({hasText:'올바른 HTTPS 진단 접속 주소를 입력해 주세요'})).toBeVisible();
+  expect(h.state.tables.organizations[0].assessment_url).toBeUndefined();
   await page.getByLabel('진단 접속 주소 (HTTPS)').fill('https://example.invalid/assessment');
   await page.getByRole('button',{name:'주소 저장'}).click();
   await expect(page.getByText('진단 접속 주소를 저장했습니다.')).toBeVisible();

@@ -23,8 +23,9 @@ export async function handleAccount(req: Request) {
         if (value) {
           let url: URL;
           try { url = new URL(value); } catch { throw new APIError('INVALID_ASSESSMENT_URL'); }
-          if (value.length > 2048 || /[\s\\\u0000-\u001f\u007f]/.test(value) || !/^https:\/\//i.test(value) ||
-              url.protocol !== 'https:' || !url.hostname || url.username || url.password || url.hash) throw new APIError('INVALID_ASSESSMENT_URL');
+          const allowed = /^https:\/\/([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?(:[0-9]{1,5})?(\/([a-z0-9._~!$&'()*+,;=:@/-]|%[a-f0-9]{2})*)?$/i;
+          if (value.length > 2048 || !allowed.test(value) ||
+              url.protocol !== 'https:' || !url.hostname || url.username || url.password || url.search || url.hash) throw new APIError('INVALID_ASSESSMENT_URL');
         }
         const {data, error} = await admin.from('organizations').update({assessment_url:value || null}).eq('id', profile.organization_id).select('assessment_url').maybeSingle();
         if (error || !data) throw new APIError('ORGANIZATION_UPDATE_FAILED', 503);
