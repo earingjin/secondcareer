@@ -1,16 +1,40 @@
 const URL='https://tafrbtqjlrokdnhudswb.supabase.co';
 const KEY='sb_publishable_va6hVj1FwfrxMiD6IQb81Q_AWE5m0-8';
 
-// Credentials and tokens remain in this closure; no browser storage is used.
+// Only the rotating refresh token is kept for the lifetime of this browser tab.
+const SESSION_KEY='sp-live-refresh-token';
 export function createAPI(onExpired){
-  let session=null,timer=null,generation=0,passwordChangeRequired=false;
-  function clear(){session=null;clearTimeout(timer);generation++;passwordChangeRequired=false}
+  let session=null,timer=null,generation=0,passwordChangeRequired=false,refreshing=null;
+  function clear(){session=null;clearTimeout(timer);generation++;passwordChangeRequired=false;refreshing=null;try{sessionStorage.removeItem(SESSION_KEY)}catch{}}
+  function saveSession(data){
+    const expiresAt=Number.isFinite(data.expires_at)?data.expires_at:(Number.isFinite(data.expires_in)?Math.floor(Date.now()/1000)+data.expires_in:0);
+    if(typeof data.access_token!=='string'||!data.access_token||typeof data.refresh_token!=='string'||!data.refresh_token||expiresAt*1000<=Date.now())throw Error('올바른 로그인 세션을 받지 못했습니다.');
+    session={access_token:data.access_token,refresh_token:data.refresh_token,expires_at:expiresAt};
+    try{sessionStorage.setItem(SESSION_KEY,data.refresh_token)}catch{throw Error('세션을 안전하게 저장할 수 없습니다.')}
+    clearTimeout(timer);
+    timer=setTimeout(()=>refresh().catch(()=>{}),Math.min(Math.max(1000,expiresAt*1000-Date.now()-60000),2147483647));
+  }
+  async function refresh(){
+    if(refreshing)return refreshing;
+    const token=session?.refresh_token||sessionStorage.getItem(SESSION_KEY),epoch=generation;
+    if(!token)return false;
+    refreshing=(async()=>{
+      try{
+        const data=await request('/auth/v1/token?grant_type=refresh_token',{anonymous:true,body:{refresh_token:token}});
+        if(epoch!==generation)throw Error('세션이 변경되었습니다.');
+        saveSession(data);return true;
+      }catch(error){if(epoch===generation){clear();onExpired()}throw error}
+      finally{if(epoch===generation)refreshing=null}
+    })();
+    return refreshing;
+  }
   async function request(path,{body,anonymous=false,method=body?'POST':'GET'}={}){
     const epoch=generation;
     const accountRead=path==='/functions/v1/secondcareer-account'&&method==='GET';
     const reportRead=path.startsWith('/functions/v1/secondcareer-assessment?id=')&&method==='GET';
     const unavailable=()=>Object.assign(Error('계정 상태 서비스를 사용할 수 없습니다.'),{accountUnavailable:true});
-    if(!anonymous&&(!session||Date.now()>=session.expires_at*1000)){clear();onExpired();throw Error('세션이 만료되었습니다. 다시 로그인해 주세요.')}
+    if(!anonymous&&session&&Date.now()>=session.expires_at*1000)await refresh();
+    if(!anonymous&&!session){clear();onExpired();throw Error('세션이 만료되었습니다. 다시 로그인해 주세요.')}
     let response;
     try{response=await fetch(URL+path,{method,headers:{apikey:KEY,...(!anonymous?{Authorization:'Bearer '+session.access_token}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(20000)})}
     catch{if(accountRead)throw unavailable();throw Error('서버에 연결하지 못했습니다. 저장 여부를 확인한 뒤 다시 시도해 주세요.')}
@@ -60,10 +84,11 @@ export function createAPI(onExpired){
   return {
     async login(loginId,password){
       clear();const data=await request('/functions/v1/secondcareer-login',{anonymous:true,body:{loginId,password}});
-      if(typeof data.access_token!=='string'||!Number.isFinite(data.expires_at)||data.expires_at*1000<=Date.now())throw Error('올바른 로그인 세션을 받지 못했습니다.');
-      session={access_token:data.access_token,expires_at:data.expires_at};
-      timer=setTimeout(()=>{clear();onExpired()},Math.min(data.expires_at*1000-Date.now(),2147483647));
-      try{return await read()}catch(e){clear();throw e}
+      try{saveSession(data);return await read()}catch(e){clear();throw e}
+    },
+    async restore(){
+      if(!sessionStorage.getItem(SESSION_KEY))return null;
+      try{await refresh();return await read()}catch(error){clear();throw error}
     },
     read,
     async changePassword(password){

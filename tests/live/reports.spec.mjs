@@ -17,7 +17,7 @@ async function setup(page){
     if(r.method()==='OPTIONS')return route.fulfill({status:204});
     calls.push({path:u.pathname,query:u.search,method:r.method(),body});
     let status=200,data;
-    if(u.pathname.endsWith('/secondcareer-login'))data={access_token:'fixture-token',expires_at:Math.floor(Date.now()/1000)+600};
+    if(u.pathname.endsWith('/secondcareer-login'))data={access_token:'fixture-token',refresh_token:'fixture-refresh',expires_at:Math.floor(Date.now()/1000)+600};
     else if(u.pathname.endsWith('/secondcareer-account'))data={profile:{role:'counselor',display_name:'검증 상담사'},mustChangePassword:false,registrationAvailable:false};
     else if(u.pathname.endsWith('/secondcareer-assessment')){
       if(u.searchParams.has('id')){

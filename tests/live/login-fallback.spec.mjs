@@ -13,7 +13,7 @@ async function setup(page,{account='cors',role='counselor',metadata={},authStatu
     if(request.method()==='OPTIONS')return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,content-type','Access-Control-Allow-Methods':'GET,POST,OPTIONS'}});
     calls.push({path,authorization:request.headers().authorization,query:url.search});
     let status=200,data;
-    if(path.endsWith('/secondcareer-login'))data={access_token:'fixture-token',expires_at:Math.floor(Date.now()/1000)+3600};
+    if(path.endsWith('/secondcareer-login'))data={access_token:'fixture-token',refresh_token:'fixture-refresh',expires_at:Math.floor(Date.now()/1000)+3600};
     else if(path.endsWith('/secondcareer-account')){
       if(account==='cors')return route.abort('failed');
       status=account;data={error:'ACCOUNT_UNAVAILABLE'};

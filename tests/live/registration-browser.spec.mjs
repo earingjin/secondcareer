@@ -41,7 +41,10 @@ async function setup(page,{pending=false,enabled=true}={}){
       // Model the existing lookup -> Auth email/password -> matching user_id
       // contract; do not accept an arbitrary password for a known login ID.
       const id=h.signIn(body.loginId,body.password)?.id;
-      result=id?{status:200,data:{access_token:id,expires_at:Math.floor(Date.now()/1000)+3600}}:{status:401,data:{error:'INVALID_CREDENTIALS'}};
+      result=id?{status:200,data:{access_token:id,refresh_token:'refresh-'+id,expires_at:Math.floor(Date.now()/1000)+3600}}:{status:401,data:{error:'INVALID_CREDENTIALS'}};
+    }else if(url.pathname==='/auth/v1/token'){
+      const id=body?.refresh_token?.replace(/^refresh-/,'');
+      result=id&&h.state.users[id]?{status:200,data:{access_token:id,refresh_token:'refresh-'+id,expires_in:3600}}:{status:400,data:{error:'INVALID_REFRESH_TOKEN'}};
     }else if(url.pathname.endsWith('/secondcareer-account'))result=await h.call(h.account.handleAccount,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-register-participant'))result=await h.call(h.registration.handleRegistration,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-assessment')){
@@ -77,6 +80,48 @@ async function login(page,id,password='Fixture-password-123!'){await page.locato
 async function fillRow(page,[name,phone,counselor='',company=''],index=1){
   for(const [label,value] of Object.entries({'이름':name,'연락처':phone,'담당 상담사':counselor,'소속기업':company}))await page.getByRole('textbox',{name:`${index}행 ${label}`}).fill(value);
 }
+
+for(const [id,heading] of [['admin01','관리자 참여자 등록'],['consult01','상담사 페이지']]){
+  test(`${id} restores its role after refresh and logout clears the session`,async({page})=>{
+    await setup(page);await login(page,id);
+    await expect(page.getByRole('heading',{name:heading})).toBeVisible();
+    await page.reload();await expect(page.getByRole('heading',{name:heading})).toBeVisible();
+    await page.getByRole('button',{name:'로그아웃',exact:true}).click();await page.reload();
+    await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();
+    expect(await page.evaluate(()=>sessionStorage.getItem('sp-live-refresh-token'))).toBeNull();
+  });
+}
+test('participant restores diagnosis and pending password change stays gated',async({page})=>{
+  await setup(page);await login(page,'client01');await expect(page.locator('#live-save')).toBeVisible();
+  await page.reload();await expect(page.locator('#live-save')).toBeVisible();
+  await page.getByRole('button',{name:'로그아웃',exact:true}).click();
+  const mock=await setup(page,{pending:true});await login(page,'client01');
+  await expect(page.getByRole('heading',{name:'최초 비밀번호 변경'})).toBeVisible();
+  await page.reload();await expect(page.getByRole('heading',{name:'최초 비밀번호 변경'})).toBeVisible();
+  expect(mock.reads()).toBe(0);
+});
+test('invalid stored session is cleared on restore',async({page})=>{
+  await setup(page);await page.evaluate(()=>sessionStorage.setItem('sp-live-refresh-token','invalid'));
+  await page.reload();await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();
+  expect(await page.evaluate(()=>sessionStorage.getItem('sp-live-refresh-token'))).toBeNull();
+});
+test('reload restores login but discards issued temporary passwords',async({page})=>{
+  await setup(page);await login(page,'consult01');
+  await fillRow(page,['새로고침검증','010-1234-5678','','기업']);
+  await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();
+  const secret=page.getByLabel('새로고침검증 임시 비밀번호');const password=await secret.inputValue();
+  await page.reload();await expect(page.getByRole('heading',{name:'상담사 페이지'})).toBeVisible();
+  await expect(secret).toHaveCount(0);expect(await page.content()).not.toContain(password);
+  expect(await page.evaluate(password=>JSON.stringify({...localStorage,...sessionStorage}).includes(password),password)).toBe(false);
+});
+test('session refreshes before expiry without losing the role',async({page})=>{
+  await setup(page);await page.clock.install();await login(page,'consult01');
+  await expect(page.getByRole('heading',{name:'상담사 페이지'})).toBeVisible();
+  let refreshes=0;page.on('request',request=>{if(request.url().includes('/auth/v1/token?grant_type=refresh_token'))refreshes++});
+  await page.clock.fastForward(59*60*1000+1000);
+  await expect.poll(()=>refreshes).toBe(1);
+  await expect(page.getByRole('heading',{name:'상담사 페이지'})).toBeVisible();
+});
 
 test('CSV quoting, Excel paste, duplicate IDs and admin counselor resolution',async({page})=>{
   await page.goto(server.url+'/live/fields.js');
@@ -151,7 +196,7 @@ test('separate CSV and compressed XLSX uploads, formula rejection, safe server c
   const secret=page.getByLabel('가상참여자 임시 비밀번호');await expect(secret).toHaveAttribute('type','password');
   await page.getByRole('button',{name:'발급 비밀번호 확인'}).click();await expect(secret).toHaveAttribute('type','text');
   const password=await secret.inputValue();expect(password.length).toBeGreaterThanOrEqual(12);
-  expect(await page.evaluate(()=>localStorage.length+sessionStorage.length)).toBe(0);
+  expect(await page.evaluate(password=>JSON.stringify({...localStorage,...sessionStorage}).includes(password),password)).toBe(false);
   await page.getByRole('button',{name:'발급 비밀번호 지우기'}).click();await expect(secret).toHaveCount(0);
   expect(await page.content()).not.toContain(password);
   await page.getByRole('button',{name:'로그아웃',exact:true}).click();await login(page,'12345678',password);

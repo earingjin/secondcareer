@@ -11,7 +11,7 @@ import {counselorView} from './counselor-view.js';
 import {esc,getPath,setPath} from './fields.js';
 import {$,toast} from '../browser/dom.js';
 
-let profile=null,records=[],participants=[],reportHTML='',busy=false,dirty=false;
+let profile=null,records=[],participants=[],reportHTML='',busy=false,dirty=false,restoring=true;
 let saveTimer=null,saving=null,epoch=0,saveMessage='서버에서 조회한 응답입니다.';
 let counselorFilter={name:'',status:'all'};
 let registrationContext=null,unmountRegistration=null,mustChangePassword=false;
@@ -92,14 +92,17 @@ async function doLogin(){
   const id=$('#lg-id').value.trim(),pw=$('#lg-pw').value;$('#lg-pw').value='';
   if(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{5,31}$/.test(id)||pw.length<8||pw.length>128){S.err='부여받은 아이디와 8자리 이상의 비밀번호를 입력해 주세요.';render();return}
   busy=true;S.err='';render();
-  try{const data=await api.login(id,pw);hydrate(data);
-    if(mustChangePassword)S.view='password';
-    else if(profile.role==='participant'){
-      if(records.length!==1)throw Error('내담자 배정 정보를 확인하지 못했습니다.');
-      S.user=records[0];S.step=0;S.view=S.user.status==='submitted'?'home':'wizard';
-    }else S.view='cns';
-    saveMessage='서버에서 조회한 응답입니다.';
+  try{const data=await api.login(id,pw);openAccount(data);
   }catch(e){api.clear();reset();S.err=e.message}finally{busy=false;render();if(profile?.role==='counselor')window.scrollTo(0,0)}
+}
+function openAccount(data){
+  hydrate(data);
+  if(mustChangePassword)S.view='password';
+  else if(profile.role==='participant'){
+    if(records.length!==1)throw Error('내담자 배정 정보를 확인하지 못했습니다.');
+    S.user=records[0];S.step=0;S.view=S.user.status==='submitted'?'home':'wizard';
+  }else S.view='cns';
+  saveMessage='서버에서 조회한 응답입니다.';
 }
 async function changePassword(){
   if(busy||!mustChangePassword)return;
@@ -153,7 +156,8 @@ function render(){
   $('.seg')?.remove();
   $('.proto-note').textContent=profile?'Supabase 실연동 · 서버에 저장된 실제 응답 · '+({counselor:'상담사',admin:'관리자',participant:'내담자'}[profile.role]):'Supabase 실연동 · 계정으로 로그인해 주세요.';
   let html;
-  if(!profile)html=loginView();
+  if(restoring)html='<div class="narrow"><p role="status">로그인 세션을 확인하고 있습니다.</p></div>';
+  else if(!profile)html=loginView();
   else if(mustChangePassword)html=passwordChangeView();
   else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 참여자 등록</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>조직 공통 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS)</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><div id="live-registration"></div></div>`;
   else if(S.view==='wizard')html=`<div class="narrow noprint"><p id="live-save" role="status">${esc(saveMessage)}</p>${profile.role==='participant'?'<div class="acts"><button class="btn ghost sm" onclick="retrySave()">지금 임시저장</button><button class="btn ghost sm" onclick="logout()">로그아웃</button></div>':''}</div>`+view.vWizard();
@@ -184,3 +188,8 @@ function fitSheets(on){document.querySelectorAll('.sheet').forEach(el=>{el.style
 window.addEventListener('beforeprint',()=>fitSheets(true));window.addEventListener('afterprint',()=>fitSheets(false));
 window.addEventListener('beforeunload',e=>{if(dirty||saving){e.preventDefault();e.returnValue=''}});
 reset();render();
+(async()=>{
+  try{const data=await api.restore();if(data)openAccount(data)}
+  catch{api.clear();reset();S.err='세션을 확인하지 못했습니다. 다시 로그인해 주세요.'}
+  finally{restoring=false;render()}
+})();
