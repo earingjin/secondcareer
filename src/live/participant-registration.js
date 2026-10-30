@@ -47,7 +47,7 @@ export function mountParticipantRegistration(container,{context,register,onBusy=
   function preview(){
     if(!results.some(r=>r.temporaryPassword))results.length=0;
     rows=checkedRows();
-    message=rows.some(r=>r.error)?'입력 오류를 수정한 뒤 등록해 주세요.':'입력 확인 완료. 실제 계정 일괄 등록을 누르면 서버에 등록됩니다.';
+    message=rows.some(r=>r.error)?'입력 오류를 수정한 뒤 등록해 주세요.':'입력 확인 완료. 실제 계정 일괄 등록을 눌러 등록해 주세요.';
   }
   function onInput(event){
     const {row,key}=event.target.dataset;
@@ -102,7 +102,7 @@ export function mountParticipantRegistration(container,{context,register,onBusy=
       if(results.length)throw Error('결과를 확인한 뒤 새 입력 내용을 확인해 주세요. 실패·결과 미확인 행을 자동 재등록하지 않습니다.');
       rows=checkedRows();
       if(rows.some(r=>r.error))throw Error('입력 오류를 수정한 뒤 등록해 주세요.');
-      working=true;onBusy(true);message='서버에 순서대로 등록하고 있습니다.';render();
+      working=true;onBusy(true);message='참여자를 순서대로 등록하고 있습니다.';render();
       for(const row of rows){
         if(disposed)break;
         if(!requests.has(row.loginId))requests.set(row.loginId,crypto.randomUUID());

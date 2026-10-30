@@ -14,7 +14,7 @@ import {esc,getPath,setPath} from './fields.js';
 import {$,toast} from '../browser/dom.js';
 
 let profile=null,records=[],participants=[],reportHTML='',busy=false,dirty=false,restoring=true;
-let saveTimer=null,saving=null,epoch=0,saveMessage='서버에서 조회한 응답입니다.';
+let saveTimer=null,saving=null,epoch=0,saveMessage='응답을 불러왔습니다.';
 let counselorFilter={name:'',status:'all'};
 let registrationContext=null,unmountRegistration=null,mustChangePassword=false;
 let assessmentUrl='',assessmentUrlMessage='',assessmentUrlInput='';
@@ -44,7 +44,7 @@ function hydrate(data){
 function badge(){const e=$('#live-save');if(e)e.textContent=saveMessage}
 function save(){
   if(profile?.role!=='participant'||S.user?.status==='submitted'||S.cedit||busy)return;
-  dirty=true;saveMessage='저장 대기 중 · 아직 서버에 반영되지 않았습니다.';badge();clearTimeout(saveTimer);
+  dirty=true;saveMessage='저장 대기 중 · 변경한 응답이 아직 저장되지 않았습니다.';badge();clearTimeout(saveTimer);
   saveTimer=setTimeout(()=>flushDraft().catch(()=>{}),700);
 }
 function answers(p){return {reg:p.reg,goal:p.goal,pre:p.pre,expect:p.expect,done:p.done}}
@@ -53,7 +53,7 @@ async function flushDraft(){
   if(saving){await saving;if(dirty)return flushDraft();return}
   if(!dirty||!S.user||profile?.role!=='participant')return;
   const p=S.user,run=epoch,payload=JSON.parse(JSON.stringify(answers(p))),expected=p._updatedAt;
-  dirty=false;saveMessage='서버에 저장 중입니다…';badge();
+  dirty=false;saveMessage='응답을 저장하고 있습니다…';badge();
   saving=(async()=>{
     try{const data=await api.write('draft',{answers:payload,expectedUpdatedAt:expected});
       if(run!==epoch)return;
@@ -69,7 +69,7 @@ async function submit(p){
   try{await flushDraft();if(dirty)await flushDraft();
     const data=await api.write('submit',{answers:answers(p),expectedUpdatedAt:p._updatedAt});
     if(data.status!=='submitted')throw Error('최종 제출 완료를 확인하지 못했습니다.');
-    const fresh=await api.read();hydrate(fresh);S.user=byId(p.id);dirty=false;S.showMiss={};S.view='home';toast('서버에 제출하고 계산 결과를 저장했습니다');
+    const fresh=await api.read();hydrate(fresh);S.user=byId(p.id);dirty=false;S.showMiss={};S.view='home';toast('응답을 제출했습니다');
   }catch(e){S.err=e.message}finally{busy=false;render()}
 }
 async function persistEdit(p,e){
@@ -79,7 +79,7 @@ async function persistEdit(p,e){
     const fresh=await api.read();hydrate(fresh);S.user=e.prevUser;S.cedit=null;S.res=e.res;S.from=e.from;
     // Discard the old report after a successful save, even if reloading fails.
     reportHTML='';S.view='result';
-    const report=await api.report(p.id,S.res?.role||'c');if(typeof report.html!=='string'||!report.html.trim())throw Error('저장 후 보고서를 확인하지 못했습니다. 보고서를 다시 조회해 주세요.');reportHTML=report.html;toast('응답 수정과 서버 재계산을 저장했습니다');
+    const report=await api.report(p.id,S.res?.role||'c');if(typeof report.html!=='string'||!report.html.trim())throw Error('저장 후 보고서를 확인하지 못했습니다. 보고서를 다시 조회해 주세요.');reportHTML=report.html;toast('수정한 응답과 결과를 저장했습니다');
   }catch(error){S.err=error.message}finally{busy=false;render()}
 }
 function nav(v){
@@ -105,7 +105,7 @@ function openAccount(data){
     if(records.length!==1)throw Error('내담자 배정 정보를 확인하지 못했습니다.');
     S.user=records[0];S.step=0;S.view=S.user.status==='submitted'?'home':'wizard';mobileSurvey.reset();
   }else S.view='cns';
-  saveMessage='서버에서 조회한 응답입니다.';
+  saveMessage='응답을 불러왔습니다.';
 }
 async function changePassword(){
   if(busy||!mustChangePassword)return;
@@ -121,7 +121,7 @@ async function changePassword(){
 }
 async function logout(){
   if(busy)return;clearRegistrationResults();busy=true;render();
-  let message='';try{await api.logout()}catch{message='이 브라우저의 세션을 종료했습니다. 서버 세션 종료는 확인하지 못했습니다.'}
+  let message='';try{await api.logout()}catch{message='이 브라우저에서는 로그아웃했지만, 서비스에서 로그아웃 처리가 완료됐는지는 확인하지 못했습니다.'}
   reset();S.err=message;render();
 }
 async function refresh(){
@@ -158,17 +158,17 @@ function render(){
   unmountRegistration?.();unmountRegistration=null;
   if(!profile){registrationContext=null;mustChangePassword=false}
   $('.seg')?.remove();
-  $('.proto-note').textContent=profile?'Supabase 실연동 · 서버에 저장된 실제 응답 · '+({counselor:'상담사',admin:'관리자',participant:'내담자'}[profile.role]):'Supabase 실연동 · 계정으로 로그인해 주세요.';
+  $('.proto-note').textContent=profile?'세컨플래닝 · '+({counselor:'상담사',admin:'관리자',participant:'내담자'}[profile.role]):'계정으로 로그인해 주세요.';
   let html;
   if(restoring)html='<div class="narrow"><p role="status">로그인 세션을 확인하고 있습니다.</p></div>';
   else if(!profile)html=loginView();
   else if(mustChangePassword)html=passwordChangeView();
-  else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 참여자 등록</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>조직 공통 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS)</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><div id="live-registration"></div></div>`;
+  else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 참여자 등록</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><div id="live-registration"></div></div>`;
   else if(S.view==='wizard')html=`<div class="narrow noprint"><p id="live-save" role="status">${esc(saveMessage)}</p>${profile.role==='participant'?'<div class="acts"><button class="btn ghost sm" onclick="retrySave()">지금 임시저장</button><button class="btn ghost sm" onclick="logout()">로그아웃</button></div>':''}</div>`+view.vWizard();
   else if(profile.role==='counselor'&&S.view==='result')html=`<div class="narrow noprint"><div class="toolbar" id="live-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openRes('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openRes('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('cns')">담당 내담자 목록</button></div></div></div>`+reportHTML;
   else if(profile.role==='counselor')html=counselorView({profile,records,counselorFilter,pname,assessmentUrl});
   else html=S.user.status==='submitted'
-    ?`<div class="narrow" style="padding-top:34px"><div class="card"><h2>${esc(pname(S.user))}님, 제출이 완료되었습니다</h2><p class="sub">전체 응답과 서버 계산 결과가 저장되었습니다. 결과는 담당 상담사가 안내합니다.</p><button class="btn ghost" onclick="logout()">로그아웃</button></div></div>`
+    ?`<div class="narrow" style="padding-top:34px"><div class="card"><h2>${esc(pname(S.user))}님, 제출이 완료되었습니다</h2><p class="sub">전체 응답과 진단 결과가 저장되었습니다. 결과는 담당 상담사가 안내합니다.</p><button class="btn ghost" onclick="logout()">로그아웃</button></div></div>`
     :`<div class="narrow" style="padding-top:34px"><div class="card"><h2>설문 작성 중</h2><p class="sub">${esc(saveMessage)}</p><div class="acts"><button class="btn" onclick="nav('wizard')">이어서 작성</button><button class="btn ghost" onclick="logout()">로그아웃</button></div></div></div>`;
   if(profile&&S.err)html=`<div class="narrow err noprint" role="alert">${esc(S.err)}</div>`+html;
   $('#app').innerHTML=html;

@@ -100,7 +100,7 @@ function wConsent(){
   +qb('A1',`<div class="cons" style="margin-bottom:12px"><b>개인정보수집 이용 및 정보제공 동의</b><br>01. 수집 및 이용 목적 : 본인식별정보를 통한 컨설팅 서비스 제공을 위함<br>02. 수집 항목 : 본 서비스 이용을 위한 성명, 주소, 연락처 및 개인이력서 등 개인식별정보<br>03. 보유기간 및 개인정보의 파기 : 신청서 접수일부터 서비스 종료 후 1년 또는 고객사의 즉각적인 파기 요청시 정보를 파기<br>04. 제3자 정보제공 : 취업(또는 창업) 등 다른 기관에 개인정보를 의뢰할 목적일 때, 서비스의 위탁기관에서 수행 결과를 요청<br><span class="hintline">※ 원본 고객등록신청서 문구. 웹 서비스용 법정 고지문은 검토 후 확정 예정</span></div>`
     +`<div class="chips" role="radiogroup">${['동의','미동의'].map(o=>`<button type="button" role="radio" class="chip ${r.a1===o||(o==='동의'&&r.a1==null&&r.consent)?'on':''}" onclick="setConsent('${o}')">${o}</button>`).join('')}</div>`)
   +qb('A2',a2)
-  +`<div class="notice-s">응답은 서버 임시저장 후 다시 이어서 작성할 수 있습니다. 저장 상태를 확인해 주세요.</div>`
+  +`<div class="notice-s">응답을 임시저장한 후 다시 이어서 작성할 수 있습니다. 저장 상태를 확인해 주세요.</div>`
   +wNav(0,'다음 · 기본정보');
 }
 function a2Msg(v){v=String(v||'').trim();if(!v)return '';const c=COUNSELORS[v];return c?'담당 상담사: '+esc(c.n):'등록된 상담사 코드와 일치하지 않습니다. 코드를 다시 확인해 주세요.'}
@@ -114,15 +114,15 @@ function wReg(){
   return wHead(1,'기본정보','현재 또는 최근 경력을 기준으로 입력해 주세요.')
   +qb('A3',`<input class="in" maxlength="20" value="${esc(r.name||'')}" oninput="setF('reg.name',this.value)" aria-label="성함">`)
   +qb('A4',rchips('reg.gender',['남','여'],['남성','여성']))
-  +qb('A5',`<input class="in" inputmode="numeric" maxlength="10" placeholder="YYYY-MM-DD (예: 1968-03-15)" value="${esc(r.birthDate||'')}" oninput="this.value=fmtDate(this.value);setBirth(this.value)" aria-label="생년월일">${age}`,'생년월일을 입력합니다. (웹 변경 사항)')
-  +qb('PH',`<input class="in" inputmode="tel" maxlength="13" placeholder="010-1234-5678" value="${esc(r.phone||'')}" oninput="this.value=fmtPhone(this.value);setF('reg.phone',this.value)" aria-label="휴대전화번호">`,'원본에 없는 웹 추가 항목입니다.')
-  +qb('EM',`<input class="in" inputmode="email" maxlength="60" placeholder="name@example.com" value="${esc(r.email||'')}" oninput="setF('reg.email',this.value.trim())" aria-label="이메일">`,'원본에 없는 웹 추가 항목입니다.')
+  +qb('A5',`<input class="in" inputmode="numeric" maxlength="10" placeholder="YYYY-MM-DD (예: 1968-03-15)" value="${esc(r.birthDate||'')}" oninput="this.value=fmtDate(this.value);setBirth(this.value)" aria-label="생년월일">${age}`,'생년월일을 입력합니다.')
+  +qb('PH',`<input class="in" inputmode="tel" maxlength="13" placeholder="010-1234-5678" value="${esc(r.phone||'')}" oninput="this.value=fmtPhone(this.value);setF('reg.phone',this.value)" aria-label="휴대전화번호">`,'')
+  +qb('EM',`<input class="in" inputmode="email" maxlength="60" placeholder="name@example.com" value="${esc(r.email||'')}" oninput="setF('reg.email',this.value.trim())" aria-label="이메일">`,'')
   +qb('A6',ci('co'))+qb('A7',ci('title'))+qb('A8',ci('task','예: 인사팀 채용 업무'))
   +qb('A9',rchips('reg.industry',OPT['reg.industry'],QLABEL['reg.industry'],1))
   +qb('A10',rchips('reg.income',OPT['reg.income'],QLABEL['reg.income'],1))
   +wNav(1,'다음 · 경력목표');
 }
-function ageMsg(v){const b=parseBirth(v);return b?'만 '+manAge(b)+'세 · 평가용 연령 '+(new Date().getFullYear()-b.y)+'세 (원본 방식: 응답연도-출생연도)':''}
+function ageMsg(v){const b=parseBirth(v);return b?'만 '+manAge(b)+'세 · 평가용 연령 '+(new Date().getFullYear()-b.y)+'세 (응답 연도에서 출생 연도를 뺀 나이)':''}
 function numIn(path,unit,ph){return `<div class="unit"><input class="in" inputmode="numeric" maxlength="3" placeholder="${ph}" value="${esc(getPath(S.user,path)||'')}" oninput="this.value=this.value.replace(/\\D/g,'');setF('${path}',this.value)" aria-label="${unit}"><span>${unit}</span></div>`}
 function wGoal(){
   return wHead(2,'경력목표','퇴직 이후의 계획과 기대를 알려 주세요.')
