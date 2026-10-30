@@ -14,3 +14,20 @@
 .mobile-survey .scale.lk button.on{box-shadow:inset 0 0 0 2px var(--coral-deep)}
 .mobile-survey .acts .btn{min-height:48px;padding:12px 18px}
 .mobile-survey .rv dd,.mobile-survey .rv dt,.mobile-survey .cons{overflow-wrap:anywhere}
+
+/* Applied by the participant/pre-survey controller only. This stylesheet's
+   screen media link leaves the original full step intact when printing. */
+.mobile-survey.single-question .stepper,
+.mobile-survey.single-question .q:not([data-mobile-current]),
+.mobile-survey.single-question .area-head:not([data-mobile-current]),
+.mobile-survey.single-question .card > .acts,
+.mobile-survey.single-question .card > .hintline,
+.mobile-survey.single-question .whead > .hintline,
+.mobile-survey.single-question .whead .sub{display:none}
+.mobile-survey.single-question{padding-top:12px!important}
+.mobile-survey.single-question .q[data-mobile-current]{max-height:60vh;max-height:60svh;overflow-y:auto;overscroll-behavior-y:contain;overflow-wrap:anywhere;padding:16px 2px;border-bottom:0}
+.mobile-survey.single-question .q.miss{padding:14px 10px}
+.mobile-survey .mobile-question-progress{font-size:13px;font-weight:800;color:var(--coral-deep);line-height:1.5;margin-bottom:8px}
+.mobile-survey .mobile-question-nav{display:flex;justify-content:space-between;gap:12px;margin-top:16px}
+.mobile-survey .mobile-question-nav .btn{min-width:88px;min-height:48px;padding:12px 20px}
+.mobile-survey .mobile-review-edit{display:flex;margin-top:8px;min-height:44px}

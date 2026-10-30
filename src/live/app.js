@@ -4,6 +4,7 @@ import {ITEM_COUNT,SCALE_MIN,SCALE_MAX} from '../js/02-eval-config.js';
 import {createSurvey} from '../roles/participant/survey.js';
 import {createCounselorEdit} from '../shared/counselor-edit.js';
 import {createSurveyView} from './survey-view.js';
+import {createMobileSurvey} from './mobile-survey.js';
 import {createAPI} from './api.js';
 import {loginView,passwordChangeView} from './login-view.js';
 import {mountParticipantRegistration} from './participant-registration.js';
@@ -25,9 +26,10 @@ const byId=id=>records.find(p=>p.id===id),pname=p=>p.reg?.name||p.nick;
 const view=createSurveyView({missing:p=>survey.missing(p),pname});
 const full=a=>Array.isArray(a)&&a.length===ITEM_COUNT&&a.every(v=>Number.isInteger(v)&&v>=SCALE_MIN&&v<=SCALE_MAX);
 const survey=createSurvey({save,render,nav,toast,getPath,setPath,OPT,LIM,ITEM_COUNT,...view,full,today:()=>new Date().toISOString().slice(0,10),submitAssessment:submit});
+const mobileSurvey=createMobileSurvey({getProfile:()=>profile,steps:view.WSTEPS,missing:survey.missing,goStep:survey.goStep,goQ:survey.goQ,nextFrom:survey.nextFrom,render,toast});
 const edits=createCounselorEdit({byId,getDB:()=>records,save:()=>{},nav,render,toast,missing:survey.missing,ansText:view.ansText,getWSTEPS:()=>view.WSTEPS,getCounselors:()=>COUNSELORS,persistEdit, EVAL_VERSION:'',toAssessment:()=>null});
 
-function reset(){clearRegistrationResults();assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
+function reset(){mobileSurvey.reset();clearRegistrationResults();assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
 function hydrate(data){
   if(!data.profile||!['participant','counselor','admin'].includes(data.profile.role)||!Array.isArray(data.participants)||!Array.isArray(data.assessments))throw Error('권한 또는 조회 응답이 올바르지 않습니다.');
   profile=data.profile;mustChangePassword=data.mustChangePassword===true;participants=data.participants;setCounselors(data.assessmentCounselors||{});
@@ -101,7 +103,7 @@ function openAccount(data){
   if(mustChangePassword)S.view='password';
   else if(profile.role==='participant'){
     if(records.length!==1)throw Error('내담자 배정 정보를 확인하지 못했습니다.');
-    S.user=records[0];S.step=0;S.view=S.user.status==='submitted'?'home':'wizard';
+    S.user=records[0];S.step=0;S.view=S.user.status==='submitted'?'home':'wizard';mobileSurvey.reset();
   }else S.view='cns';
   saveMessage='서버에서 조회한 응답입니다.';
 }
@@ -114,7 +116,7 @@ async function changePassword(){
   try{
     hydrate(await api.changePassword(password));
     if(mustChangePassword||records.length!==1)throw Error('변경 후 참여자 정보를 확인하지 못했습니다. 다시 로그인해 주세요.');
-    S.user=records[0];S.step=0;S.view=S.user.status==='submitted'?'home':'wizard';
+    S.user=records[0];S.step=0;S.view=S.user.status==='submitted'?'home':'wizard';mobileSurvey.reset();
   }catch(error){S.err=error.message}finally{busy=false;render()}
 }
 async function logout(){
@@ -124,7 +126,7 @@ async function logout(){
 }
 async function refresh(){
   if(busy)return;busy=true;render();
-  try{if(dirty)await flushDraft();const id=S.user?.id;hydrate(await api.read());if(id)S.user=byId(id);S.err=''}catch(e){S.err=e.message}finally{busy=false;render()}
+  try{if(dirty)await flushDraft();const id=S.user?.id;hydrate(await api.read());if(id)S.user=byId(id);mobileSurvey.reset();S.err=''}catch(e){S.err=e.message}finally{busy=false;render()}
 }
 async function saveAssessmentUrl(){
   if(busy||profile?.role!=='admin')return;
@@ -152,6 +154,7 @@ function filterCounselor(clear=false){
   render();
 }
 function render(){
+  mobileSurvey.capture();mobileSurvey.prepare();
   unmountRegistration?.();unmountRegistration=null;
   if(!profile){registrationContext=null;mustChangePassword=false}
   $('.seg')?.remove();
@@ -169,6 +172,7 @@ function render(){
     :`<div class="narrow" style="padding-top:34px"><div class="card"><h2>설문 작성 중</h2><p class="sub">${esc(saveMessage)}</p><div class="acts"><button class="btn" onclick="nav('wizard')">이어서 작성</button><button class="btn ghost" onclick="logout()">로그아웃</button></div></div></div>`;
   if(profile&&S.err)html=`<div class="narrow err noprint" role="alert">${esc(S.err)}</div>`+html;
   $('#app').innerHTML=html;
+  mobileSurvey.mount();
   const registration=$('#live-registration');
   if(registration&&registrationContext&&!busy){const run=epoch;unmountRegistration=mountParticipantRegistration(registration,{context:registrationContext,resultState:registrationResults,register:body=>api.register(body),onBusy:value=>{if(run===epoch)busy=value}})}
   if(busy)$('#app').querySelectorAll('input,button,select,textarea').forEach(e=>e.disabled=true);
@@ -183,6 +187,9 @@ const handlers={doLogin,changePassword,logout,refresh,saveAssessmentUrl,openRes,
   fmtDate:view.fmtDate,fmtPhone:view.fmtPhone,a2Hint:view.a2Hint
 };
 for(const name of ['setF','setCareer','toggleChip','answer','goStep','goQ','nextFrom','setConsent','setBirth'])handlers[name]=(...args)=>{if(editable())return survey[name](...args)};
+for(const name of ['goStep','goQ','nextFrom'])handlers[name]=(...args)=>{if(editable())return mobileSurvey[name](...args)};
+handlers.mobilePrevious=()=>{if(editable())mobileSurvey.previous()};
+handlers.mobileNext=()=>{if(editable())mobileSurvey.next()};
 // Only UI handlers are global; tokens, records, roles and engines are not.
 Object.assign(window,handlers);
 $('#app').addEventListener('click',async event=>{
