@@ -67,7 +67,7 @@ async function setup(page,{pending=false,enabled=true}={}){
       }
       else{
         assessmentReads++;
-        result={status:200,data:{profile,participants:parts,assessments:parts.map(p=>assessments.get(p.id)).filter(Boolean),counselors:{[ids.counselor]:{code:ids.counselor,n:'상담사',tel:'',mail:''}}}};
+        result={status:200,data:{profile,participants:parts.map(p=>profile.role==='counselor'?{...p,login_id:h.state.tables.server_login_lookup.find(m=>m.user_id===p.auth_user_id)?.login_id||null}:p),assessments:parts.map(p=>assessments.get(p.id)).filter(Boolean),counselors:{[ids.counselor]:{code:ids.counselor,n:'상담사',tel:'',mail:''}}}};
       }
     }else if(url.pathname==='/auth/v1/logout'){await route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*'}});return}
     else throw Error('Unexpected API path: '+url.pathname);
@@ -241,7 +241,7 @@ test('issued results survive time, hidden tabs and rerenders until logout or pag
   const secret=page.getByLabel('시간검증 임시 비밀번호');
   await expect(secret).toHaveCount(1);const password=await secret.inputValue();
   await expect(page.getByRole('button',{name:'사전진단 안내문 복사'})).toBeDisabled();
-  await expect(page.getByText('진단 접속 주소 설정이 필요합니다')).toBeVisible();
+  await expect(page.getByRole('region',{name:'참여자 일괄 등록'}).getByText('진단 접속 주소 설정이 필요합니다')).toBeVisible();
   await page.clock.fastForward(5*60*1000+1);
   await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));render()});
   await expect(secret).toHaveValue(password);
@@ -300,6 +300,34 @@ test('admin saves organization URL and counselor copies it with issued credentia
   expect(copied).toContain('아이디: 12345678');expect(copied).toContain(`임시 비밀번호: ${password}`);
   expect(h.state.tables.organizations[0].assessment_url).toBe('https://example.invalid/assessment');
   await expect(page.getByRole('button',{name:'주소 저장'})).toHaveCount(0);
+});
+
+test('assigned list copies notices for all statuses and handles unavailable data and clipboard errors',async({page})=>{
+  const {h,assessments}=await setup(page);h.state.tables.organizations[0].assessment_url='https://example.invalid/assessment';
+  for(const [id,name,status] of [['new','미시작대상','new'],['draft','작성중대상','draft'],['done','완료대상','submitted'],['missing','아이디없음','new']]){
+    h.state.tables.participants.push({id,auth_user_id:id,counselor_user_id:ids.counselor,organization_id:ids.org,display_name:name});
+    if(id!=='missing')h.state.tables.server_login_lookup.push({user_id:id,login_id:'login-'+id});
+    if(status!=='new')assessments.set(id,{id:'a-'+id,participant_id:id,phase:'pre',status,answers:{reg:{name:'다른 보고서 이름'}},updated_at:'2026-01-01'});
+  }
+  await login(page,'consult01');await expect(page.locator('#plist')).toBeVisible();await page.reload();await expect(page.locator('#plist')).toBeVisible();
+  await page.evaluate(()=>{window.noticeText='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{window.noticeText=text}}})});
+  for(const [id,name] of [['new','미시작대상'],['draft','작성중대상'],['done','완료대상']]){
+    const row=page.locator(`[data-participant="${id}"]`);await row.getByRole('button',{name:'사전진단 안내 복사'}).click();
+    const text=await page.evaluate(()=>window.noticeText);
+    expect(text).toContain(`${name}님`);expect(text).toContain(`아이디: login-${id}`);
+    expect(text).toContain('접속 링크: https://example.invalid/assessment');expect(text).toContain('비밀번호: 발급받은 비밀번호를 입력해 주세요.');expect(text).not.toContain('임시 비밀번호');
+  }
+  const missing=page.locator('[data-participant="missing"]');await expect(missing.getByRole('button',{name:'사전진단 안내 복사'})).toBeDisabled();
+  await expect(missing).toContainText('로그인 ID가 없습니다');
+  const before=await page.evaluate(()=>window.noticeText);
+  await page.evaluate(()=>{const button=document.createElement('button');button.dataset.copyNotice='other-counselor-participant';document.querySelector('#app').append(button);button.click();button.remove()});
+  expect(await page.evaluate(()=>window.noticeText)).toBe(before);
+  await page.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async()=>{throw Error('denied')}}}));
+  await page.locator('[data-participant="new"]').getByRole('button',{name:'사전진단 안내 복사'}).click();
+  await expect(page.locator('#copy-notice-status')).toContainText('복사하지 못했습니다');
+  h.state.tables.organizations[0].assessment_url=null;await page.getByRole('button',{name:'새로 조회'}).click();
+  await expect(page.locator('[data-participant="new"]').getByRole('button',{name:'사전진단 안내 복사'})).toBeDisabled();
+  await expect(page.locator('[data-participant="new"]')).toContainText('진단 접속 주소 설정이 필요합니다');
 });
 
 test('registration input stays usable at desktop and mobile widths',async({page})=>{

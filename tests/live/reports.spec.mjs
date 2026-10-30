@@ -67,7 +67,7 @@ test('report switches request fresh HTML and the selector stays out of print',as
 
 test('draft and unknown assignments cannot request a report',async({page})=>{
   const h=await setup(page);
-  await expect(page.locator('[data-participant="draft"] button')).toHaveCount(0);
+  await expect(page.locator('[data-participant="draft"] button[onclick^="openRes"]')).toHaveCount(0);
   await page.evaluate(()=>openRes('draft','p'));await expect(page.getByRole('alert')).toContainText('최종 제출');
   await page.evaluate(()=>openRes('another-counselor-participant','c'));await expect(page.getByRole('alert')).toContainText('담당 내담자');
   expect(h.reportCalls()).toHaveLength(0);

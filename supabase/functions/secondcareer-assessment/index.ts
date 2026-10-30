@@ -121,7 +121,7 @@ Deno.serve(async(req)=>{
  const {data:me,error:meError}=await db.from('user_profiles').select('user_id,organization_id,role,display_name').eq('user_id',user.id).maybeSingle();
  if(meError)return out({error:'QUERY_FAILED'},500);
  if(!me||!['participant','counselor'].includes(me.role))return out({error:'FORBIDDEN'},403);
- let pq=db.from('participants').select('id,display_name,counselor_user_id,phone,company_name').eq('organization_id',me.organization_id);
+ let pq=db.from('participants').select('id,display_name,counselor_user_id,phone,company_name,auth_user_id').eq('organization_id',me.organization_id);
  pq=me.role==='participant'?pq.eq('auth_user_id',user.id):pq.eq('counselor_user_id',user.id);
  const {data:parts,error:partError}=await pq.limit(100);if(partError)return out({error:'QUERY_FAILED'},500);
  const ids=(parts||[]).map(p=>p.id);
@@ -142,7 +142,15 @@ Deno.serve(async(req)=>{
    if(!['p','c'].includes(kind))return out({error:'INVALID_REPORT_KIND'},400);
    return out({html:report(person(part,a),counselors,histories||[],kind)});
   }
-  return out({profile:{role:me.role,display_name:me.display_name},participants:parts,counselors,
+  let participantList=(parts||[]).map(({auth_user_id,...part})=>part);
+  if(me.role==='counselor'){
+   const userIds=[...new Set((parts||[]).map(p=>p.auth_user_id).filter(Boolean))];
+   let lookup=[];
+   if(userIds.length){const {data,error}=await db.from('server_login_lookup').select('user_id,login_id').in('user_id',userIds);if(error)return out({error:'QUERY_FAILED'},500);lookup=data||[]}
+   const loginIds=new Map(lookup.map(row=>[row.user_id,row.login_id]));
+   participantList=(parts||[]).map(({auth_user_id,...part})=>({...part,login_id:loginIds.get(auth_user_id)||null}));
+  }
+  return out({profile:{role:me.role,display_name:me.display_name},participants:participantList,counselors,
    assessments:assessments.map(a=>({id:a.id,participant_id:a.participant_id,phase:a.phase,status:a.status,
     answers:{reg:a.answers.reg||{careers:[{},{},{}]},goal:a.answers.goal||{},expect:a.answers.expect||{},done:a.answers.done||{},pre:a.answers.pre||Array(ITEM_COUNT).fill(null)},
     dateOfAssessment:a.answers.preDate||null,updated_at:a.updated_at,submitted_at:a.submitted_at}))});
