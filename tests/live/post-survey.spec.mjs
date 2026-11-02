@@ -8,7 +8,7 @@ test.beforeAll(async()=>{server=await serve('src')});
 test.afterAll(async()=>{await server.close()});
 
 async function setup(page,{gate=true,status='submitted',role='participant',pending=false}={}){
- const writes=[],requests=[];
+ const writes=[],requests=[],state={post:null,revision:0,saveStatus:200};
  await page.route('**/main.js',route=>route.fulfill({contentType:'text/javascript',body:"import './live/app.js';"}));
  if(gate)await page.route('**/live/post-test-gate.js',route=>route.fulfill({contentType:'text/javascript',body:'export const postTestGate=true;'}));
  await page.route('https://tafrbtqjlrokdnhudswb.supabase.co/**',async route=>{
@@ -18,9 +18,17 @@ async function setup(page,{gate=true,status='submitted',role='participant',pendi
   if(url.pathname.endsWith('secondcareer-login')||url.pathname==='/auth/v1/token')data={access_token:'fixture-access',refresh_token:'fixture-refresh',expires_in:3600};
   else if(url.pathname.endsWith('secondcareer-account'))data={profile:{role,display_name:'가상 사용자'},mustChangePassword:pending,registrationAvailable:false};
   else if(url.pathname.endsWith('secondcareer-assessment')){
-   if(req.method()==='POST'){writes.push(req.postDataJSON());data={status:'draft',updatedAt:'revision'}}
+   if(req.method()==='POST'){
+    const body=req.postDataJSON();writes.push(body);
+    if(body.action==='post-draft'){
+     if(state.saveStatus!==200)return route.fulfill({status:state.saveStatus,contentType:'application/json',body:JSON.stringify({error:'SAVE_FAILED'})});
+     state.revision++;state.post={status:'draft',answers:structuredClone(body.answers),updatedAt:new Date(Date.UTC(2026,9,29)+state.revision).toISOString()};data=state.post;
+    }else data={status:'draft',updatedAt:'revision'};
+   }
+   else if(url.searchParams.get('phase')==='post')data={assessment:state.post};
    else data={profile:{role},participants:[{id:'fixture',display_name:'가상 참여자',counselor_user_id:'counselor'}],counselors:{},assessments:[{id:'assessment',participant_id:'fixture',phase:'pre',status,answers:{reg:{name:'가상 참여자',careers:[{}]},goal:{},expect:{},done:{},pre:Array(15).fill(3)},updated_at:'revision'}]};
-  }else throw Error('unexpected request');
+  }else if(url.pathname==='/auth/v1/logout')return route.fulfill({status:204});
+  else throw Error('unexpected request');
   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
  });
  await page.goto(server.url);await page.locator('#lg-id').fill('client01');await page.locator('#lg-pw').fill('fixture-password');await page.getByRole('button',{name:'로그인',exact:true}).click();
@@ -28,7 +36,7 @@ async function setup(page,{gate=true,status='submitted',role='participant',pendi
  else if(role==='counselor')await expect(page.getByRole('heading',{name:'상담사 페이지'})).toBeVisible();
  else if(status==='submitted')await expect(page.getByRole('heading',{name:/제출이 완료되었습니다/})).toBeVisible();
  else await expect(page.locator('#live-save')).toBeVisible();
- return {writes,requests};
+ return {writes,requests,state};
 }
 
 test('only submitted participant can enter via the isolated test gate',async({page})=>{
@@ -64,16 +72,37 @@ test('question definitions, scale, validation and state separation',async({page}
  for(let i=0;i<5;i++)await expect(page.locator('#post-q-'+i).getByRole('radio').nth(i)).toHaveAttribute('aria-checked','true');
  for(let i=5;i<15;i++)await page.locator('#post-q-'+i).getByRole('radio').nth(2).click();
  await expect(page.getByRole('status').filter({hasText:'15 / 15 문항 응답'})).toBeVisible();
- expect(await page.evaluate(async()=>[...(await import('/shared/state.js')).S.user.pre])).toEqual(pre);expect(writes).toEqual([]);
+ expect(await page.evaluate(async()=>[...(await import('/shared/state.js')).S.user.pre])).toEqual(pre);expect(writes.every(w=>w.action==='post-draft')).toBe(true);
  await page.getByRole('button',{name:'다음 · 사후 만족도'}).click();await expect(page.getByText(/아직 준비 중입니다/)).toBeVisible();
- await expect(page.getByText(/저장되거나 제출되지 않았습니다/)).toBeVisible();await page.getByRole('button',{name:'사후 진단으로 돌아가기'}).click();
- await expect(page.getByRole('status').filter({hasText:'15 / 15 문항 응답'})).toBeVisible();expect(writes).toEqual([]);
+ await expect(page.getByText(/최종 제출은 아직 준비 중입니다/)).toBeVisible();await page.getByRole('button',{name:'사후 진단으로 돌아가기'}).click();
+ await expect(page.getByRole('status').filter({hasText:'15 / 15 문항 응답'})).toBeVisible();expect(writes.every(w=>w.action==='post-draft')).toBe(true);
 });
-test('reloading discards the unsaved post responses without changing the submitted pre data',async({page})=>{
+test('saved post draft is restored after reload without changing submitted pre data',async({page})=>{
  const {writes}=await setup(page);await page.getByRole('button',{name:'개발용 사후 진단'}).click();await page.locator('#post-q-0').getByRole('radio').last().click();
+ await page.getByRole('button',{name:'지금 임시저장'}).click();await expect(page.locator('#post-save-status')).toContainText('임시저장 완료');
  await page.reload();await page.getByRole('button',{name:'개발용 사후 진단'}).click();
- await expect(page.getByRole('status').filter({hasText:'0 / 15 문항 응답'})).toBeVisible();
- expect(await page.evaluate(async()=>[...(await import('/shared/state.js')).S.user.pre])).toEqual(Array(15).fill(3));expect(writes).toEqual([]);
+ await expect(page.getByRole('status').filter({hasText:'1 / 15 문항 응답'})).toBeVisible();await expect(page.locator('#post-q-0').getByRole('radio').last()).toHaveAttribute('aria-checked','true');
+ expect(await page.evaluate(async()=>[...(await import('/shared/state.js')).S.user.pre])).toEqual(Array(15).fill(3));expect(writes.every(w=>w.action==='post-draft')).toBe(true);
+});
+test('save failure is not reported as success and can be retried',async({page})=>{
+ const {state}=await setup(page);state.saveStatus=503;await page.getByRole('button',{name:'개발용 사후 진단'}).click();await page.locator('#post-q-0').getByRole('radio').first().click();
+ await page.getByRole('button',{name:'지금 임시저장'}).click();await expect(page.locator('#post-save-status')).toContainText('임시저장하지 못했습니다');expect(state.post).toBeNull();
+ state.saveStatus=200;await page.getByRole('button',{name:'지금 임시저장'}).click();await expect(page.locator('#post-save-status')).toContainText('임시저장 완료');expect(state.post.answers.post[0]).toBe(1);
+});
+test('version conflict is shown instead of a saved status',async({page})=>{
+ const {state}=await setup(page);state.saveStatus=409;await page.getByRole('button',{name:'개발용 사후 진단'}).click();await page.locator('#post-q-0').getByRole('radio').first().click();
+ await page.getByRole('button',{name:'지금 임시저장'}).click();await expect(page.locator('#post-save-status')).toContainText('다른 저장');await expect(page.locator('#post-save-status')).not.toContainText('임시저장 완료');
+});
+test('post draft is restored after logout and login',async({page})=>{
+ await setup(page);await page.getByRole('button',{name:'개발용 사후 진단'}).click();await page.locator('#post-q-0').getByRole('radio').last().click();
+ await page.getByRole('button',{name:'지금 임시저장'}).click();await expect(page.locator('#post-save-status')).toContainText('임시저장 완료');
+ await page.getByRole('button',{name:'나중에 하기'}).click();await page.getByRole('button',{name:'로그아웃'}).click();
+ await page.locator('#lg-id').fill('client01');await page.locator('#lg-pw').fill('fixture-password');await page.getByRole('button',{name:'로그인',exact:true}).click();
+ await page.getByRole('button',{name:'개발용 사후 진단'}).click();await expect(page.locator('#post-q-0').getByRole('radio').last()).toHaveAttribute('aria-checked','true');
+});
+test('session expiry during a save returns to login without a success indication',async({page})=>{
+ const {state}=await setup(page);state.saveStatus=401;await page.getByRole('button',{name:'개발용 사후 진단'}).click();await page.locator('#post-q-0').getByRole('radio').first().click();
+ await page.getByRole('button',{name:'지금 임시저장'}).click();await expect(page.locator('#lg-id')).toBeVisible();expect(state.post).toBeNull();await expect(page.locator('#post-save-status')).toHaveCount(0);
 });
 for(const width of [320,375,430])test(`mobile ${width}px: choices and navigation fit and survive rerender`,async({page})=>{
  await page.setViewportSize({width,height:800});await setup(page);await page.getByRole('button',{name:'개발용 사후 진단'}).click();

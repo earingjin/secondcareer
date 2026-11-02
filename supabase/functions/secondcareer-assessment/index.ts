@@ -121,6 +121,42 @@ async function readAll(makeQuery,key){
  }
 }
 function chunks(items,size=100){const result=[];for(let i=0;i<items.length;i+=size)result.push(items.slice(i,i+size));return result}
+const validPost=a=>Array.isArray(a)&&a.length===ITEM_COUNT&&a.every(v=>v===null||(Number.isInteger(v)&&v>=SCALE_MIN&&v<=SCALE_MAX));
+const validPostRecord=row=>row&&row.status==='draft'&&row.answers&&typeof row.answers==='object'&&!Array.isArray(row.answers)&&Object.keys(row.answers).length===1&&validPost(row.answers.post)&&typeof row.updated_at==='string'&&Number.isFinite(Date.parse(row.updated_at));
+async function readPostDraft(db,participantId){
+ return db.from('assessments').select('id,status,answers,updated_at').eq('participant_id',participantId).eq('phase','post').maybeSingle();
+}
+function postPayload(row){
+ if(!row)return null;
+ if(!validPostRecord(row))throw Error('POST_STATE');
+ return {status:'draft',answers:{post:row.answers.post},updatedAt:row.updated_at};
+}
+async function writePostDraft(db,part,pre,body){
+ if(!pre||pre.status!=='submitted')return out({error:'PRE_REQUIRED'},403);
+ if(Object.keys(body).some(k=>!['action','answers','expectedUpdatedAt'].includes(k))||!Object.hasOwn(body,'expectedUpdatedAt')||
+    !(body.expectedUpdatedAt===null||(typeof body.expectedUpdatedAt==='string'&&Number.isFinite(Date.parse(body.expectedUpdatedAt))))||
+    !body.answers||typeof body.answers!=='object'||Array.isArray(body.answers)||Object.keys(body.answers).length!==1||!validPost(body.answers.post))return out({error:'INVALID_INPUT'},400);
+ const {data:old,error:readError}=await readPostDraft(db,part.id);if(readError)return out({error:'QUERY_FAILED'},500);
+ if(old&&old.status!=='draft')return out({error:'LOCKED'},409);
+ if(old&&!validPostRecord(old))return out({error:'POST_STATE_INVALID'},500);
+ if(old&&JSON.stringify(old.answers.post)===JSON.stringify(body.answers.post))return out(postPayload(old));
+ if((old&&old.updated_at!==body.expectedUpdatedAt)||(!old&&body.expectedUpdatedAt!==null))return out({error:'CONFLICT'},409);
+ const now=new Date(Math.max(Date.now(),old?Date.parse(old.updated_at)+1:0)).toISOString();
+ const values={answers:{post:body.answers.post},updated_at:now};
+ let result;
+ if(old){
+  result=await db.from('assessments').update(values).eq('id',old.id).eq('participant_id',part.id).eq('phase','post').eq('status','draft').eq('updated_at',old.updated_at).select('id,status,answers,updated_at').maybeSingle();
+ }else{
+  result=await db.from('assessments').insert({participant_id:part.id,phase:'post',status:'draft',...values,schema_version:'sp-assessment-1'}).select('id,status,answers,updated_at').maybeSingle();
+ }
+ if(result.error&&result.error.code!=='23505')return out({error:'WRITE_FAILED'},500);
+ if(result.error||!result.data){
+  const latest=await readPostDraft(db,part.id);if(latest.error)return out({error:'QUERY_FAILED'},500);
+  if(validPostRecord(latest.data)&&JSON.stringify(latest.data.answers.post)===JSON.stringify(body.answers.post))return out(postPayload(latest.data));
+  return out({error:'CONFLICT'},409);
+ }
+ return out(postPayload(result.data));
+}
 Deno.serve(async(req)=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:h});
  if(!['GET','POST'].includes(req.method))return out({error:'METHOD_NOT_ALLOWED'},405);
@@ -161,6 +197,14 @@ Deno.serve(async(req)=>{
    if(!['p','c'].includes(kind))return out({error:'INVALID_REPORT_KIND'},400);
    return out({html:report(person(part,a),counselors,histories||[],kind)});
   }
+   if(new URL(req.url).searchParams.get('phase')==='post'){
+    if(me.role!=='participant'||parts.length!==1)return out({error:'FORBIDDEN'},403);
+    if(Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED')!=='true')return out({error:'POST_NOT_CONFIGURED'},503);
+    const pre=assessments.find(a=>a.participant_id===parts[0].id);
+    if(!pre||pre.status!=='submitted')return out({error:'PRE_REQUIRED'},403);
+    const {data,error}=await readPostDraft(db,parts[0].id);if(error)return out({error:'QUERY_FAILED'},500);
+    return out({assessment:postPayload(data)});
+   }
   let participantList=(parts||[]).map(({auth_user_id,...part})=>part);
   if(me.role==='counselor'){
    const userIds=[...new Set((parts||[]).map(p=>p.auth_user_id).filter(Boolean))];
@@ -175,6 +219,11 @@ Deno.serve(async(req)=>{
     dateOfAssessment:a.answers.preDate||null,updated_at:a.updated_at,submitted_at:a.submitted_at}))});
  }
  const body=await readBody(req),action=body.action;
+  if(action==='post-draft'){
+   if(me.role!=='participant'||parts.length!==1)return out({error:'FORBIDDEN'},403);
+   if(Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED')!=='true')return out({error:'POST_NOT_CONFIGURED'},503);
+   return await writePostDraft(db,parts[0],assessments.find(a=>a.participant_id===parts[0].id),body);
+  }
  if(!['draft','submit','edit'].includes(action))return out({error:'ACTION_INVALID'},400);
  if((action==='edit'&&me.role!=='counselor')||(action!=='edit'&&me.role!=='participant'))return out({error:'FORBIDDEN'},403);
  const part=me.role==='participant'?parts[0]:parts.find(p=>p.id===body.participantId);
