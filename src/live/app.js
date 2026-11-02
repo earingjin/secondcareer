@@ -10,6 +10,7 @@ import {loginView,passwordChangeView} from './login-view.js';
 import {mountParticipantRegistration} from './participant-registration.js';
 import {counselorView} from './counselor-view.js';
 import {assessmentNotice} from './assessment-notice.js';
+import {postTestGate} from './post-test-gate.js';
 import {esc,getPath,setPath} from './fields.js';
 import {$,toast} from '../browser/dom.js';
 
@@ -153,6 +154,23 @@ function filterCounselor(clear=false){
   counselorFilter=clear?{name:'',status:'all'}:{name:$('#cns-name').value.trim(),status:$('#cns-status').value};
   render();
 }
+function postAllowed(){return postTestGate&&!busy&&!mustChangePassword&&profile?.role==='participant'&&S.user?.status==='submitted'}
+function startPost(){
+  if(!postAllowed())return;
+  if(!Array.isArray(S.user.post)||S.user.post.length!==ITEM_COUNT)S.user.post=Array(ITEM_COUNT).fill(null);
+  S.mode2='post';S.pstep=1;S.view='post';S.err='';render();window.scrollTo(0,0);
+}
+function answerPost(i,v){
+  if(!postAllowed()||S.view!=='post'||S.pstep!==1||!Number.isInteger(i)||i<0||i>=ITEM_COUNT||!Number.isInteger(v)||v<SCALE_MIN||v>SCALE_MAX)return;
+  S.user.post[i]=v;S.err='';render();
+}
+function nextPost(){
+  if(!postAllowed()||S.view!=='post'||S.pstep!==1)return;
+  const count=Array.from({length:ITEM_COUNT},(_,i)=>S.user.post?.[i]).filter(v=>!Number.isInteger(v)||v<SCALE_MIN||v>SCALE_MAX).length;
+  if(count){S.err='아직 답하지 않은 문항이 '+count+'개 있습니다.';render();return}
+  S.err='';S.pstep=2;render();window.scrollTo(0,0);
+}
+function leavePost(){if(!postAllowed()||S.view!=='post')return;S.mode2='pre';S.view='home';S.err='';render();window.scrollTo(0,0)}
 function render(){
   mobileSurvey.capture();mobileSurvey.prepare();
   unmountRegistration?.();unmountRegistration=null;
@@ -164,11 +182,12 @@ function render(){
   else if(!profile)html=loginView();
   else if(mustChangePassword)html=passwordChangeView();
   else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 참여자 등록</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><div id="live-registration"></div></div>`;
+  else if(S.view==='post'&&postAllowed())html=S.pstep===1?view.vPost():`<div class="narrow mobile-survey" style="padding-top:20px"><div class="card"><h2>사후 만족도</h2><p class="sub">사후 만족도 화면은 아직 준비 중입니다. 사후 진단 응답은 저장되거나 제출되지 않았습니다.</p><div class="acts"><button class="btn ghost" onclick="backPost()">사후 진단으로 돌아가기</button><button class="btn ghost" onclick="leavePost()">처음 화면으로</button></div></div></div>`;
   else if(S.view==='wizard')html=`<div class="narrow noprint"><p id="live-save" role="status">${esc(saveMessage)}</p>${profile.role==='participant'?'<div class="acts"><button class="btn ghost sm" onclick="retrySave()">지금 임시저장</button><button class="btn ghost sm" onclick="logout()">로그아웃</button></div>':''}</div>`+view.vWizard();
   else if(profile.role==='counselor'&&S.view==='result')html=`<div class="narrow noprint"><div class="toolbar" id="live-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openRes('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openRes('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('cns')">담당 내담자 목록</button></div></div></div>`+reportHTML;
   else if(profile.role==='counselor')html=counselorView({profile,records,counselorFilter,pname,assessmentUrl});
   else html=S.user.status==='submitted'
-    ?`<div class="narrow" style="padding-top:34px"><div class="card"><h2>${esc(pname(S.user))}님, 제출이 완료되었습니다</h2><p class="sub">전체 응답과 진단 결과가 저장되었습니다. 결과는 담당 상담사가 안내합니다.</p><button class="btn ghost" onclick="logout()">로그아웃</button></div></div>`
+    ?`<div class="narrow" style="padding-top:34px"><div class="card"><h2>${esc(pname(S.user))}님, 제출이 완료되었습니다</h2><p class="sub">전체 응답과 진단 결과가 저장되었습니다. 결과는 담당 상담사가 안내합니다.</p>${postTestGate?'<button class="btn mint" onclick="startPost()">개발용 사후 진단</button> ':''}<button class="btn ghost" onclick="logout()">로그아웃</button></div></div>`
     :`<div class="narrow" style="padding-top:34px"><div class="card"><h2>설문 작성 중</h2><p class="sub">${esc(saveMessage)}</p><div class="acts"><button class="btn" onclick="nav('wizard')">이어서 작성</button><button class="btn ghost" onclick="logout()">로그아웃</button></div></div></div>`;
   if(profile&&S.err)html=`<div class="narrow err noprint" role="alert">${esc(S.err)}</div>`+html;
   $('#app').innerHTML=html;
@@ -179,6 +198,7 @@ function render(){
 }
 function editable(){return !busy&&!mustChangePassword&&profile&&(profile.role==='participant'?S.user?.status!=='submitted':!!S.cedit)}
 const handlers={doLogin,changePassword,logout,refresh,saveAssessmentUrl,openRes,render,nav,filterCounselor,goHome:()=>nav(profile?.role==='counselor'?'cns':'home'),
+  startPost,answerPost,nextPost,leavePost,backPost:()=>{if(postAllowed()&&S.view==='post'){S.pstep=1;S.err='';render()}},
   retrySave:async()=>{if(!busy){dirty=true;try{await flushDraft()}catch{}}},
   startEdit:id=>{if(!busy&&profile?.role==='counselor'&&byId(id)?.status==='submitted')edits.startEdit(id)},
   cancelEdit:()=>{if(!busy&&S.cedit){S.err='';edits.cancelEdit()}},

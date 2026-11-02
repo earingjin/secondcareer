@@ -1,7 +1,7 @@
 import {S} from '../shared/state.js';
 import {COUNSELORS,OPT,LIM} from '../js/03-options.js';
-import {AREAS} from '../js/01-areas.js';
-import {ITEM_COUNT,ITEMS_PER_AREA} from '../js/02-eval-config.js';
+import {AREAS,FACTORS} from '../js/01-areas.js';
+import {ITEM_COUNT,ITEMS_PER_AREA,SCALE,SCALE_MIN,SCALE_MAX} from '../js/02-eval-config.js';
 import {QUESTION_STEPS,qdText,qdOptions,qdRequired,qdStepCodes} from '../js/00-question-defs-module.js';
 import {esc,getPath} from './fields.js';
 export function createSurveyView({missing,pname}){
@@ -171,7 +171,18 @@ function wReview(){
   return h+`<div class="acts" style="justify-content:space-between;margin-top:14px"><button class="btn ghost" onclick="goStep(4)">이전</button>${S.cedit?`<button class="btn ghost" onclick="cancelEdit()">수정 취소</button><button class="btn" onclick="saveEdit()">수정 저장·재계산</button>`:`<button class="btn" onclick="submitPre()">최종 제출</button>`}</div>`;
 }
 
-// 사후 진단 화면 (본부장님 원본 유지)
+function vPost(){
+  const arr=S.user.post||[],valid=v=>Number.isInteger(v)&&v>=SCALE_MIN&&v<=SCALE_MAX;
+  const n=Array.from({length:ITEM_COUNT},(_,i)=>arr[i]).filter(valid).length;
+  let h=`<div class="narrow mobile-survey" style="padding-top:20px"><div class="card"><h2>사후 진단</h2><p class="sub">상담을 마친 지금의 생각으로 같은 ${ITEM_COUNT}문항에 다시 답해 주세요. 사전 결과와 비교됩니다.</p><p class="hintline">개발용 화면입니다. 응답은 저장되지 않으며 새로고침하거나 로그아웃하면 사라집니다.</p><div class="stick"><div class="progressbar"><span style="width:${n/ITEM_COUNT*100}%"></span></div><div class="hintline" role="status">${n} / ${ITEM_COUNT} 문항 응답</div></div>`;
+  AREAS.forEach((area,ai)=>{
+    h+=`<div class="area-head"><span class="badge">${esc(area.k)}</span><span class="hintline">${esc(area.en)}</span></div>`;
+    Array.from({length:ITEMS_PER_AREA},(_,j)=>ai*ITEMS_PER_AREA+j).forEach(i=>{
+      h+=`<div class="q" id="post-q-${i}"><div class="qt"><small>${i+1} · ${esc(FACTORS[i][0])}</small>${esc(FACTORS[i][1])}</div><div class="scale lk" role="radiogroup" aria-label="문항 ${i+1}">${Array.from({length:SCALE_MAX-SCALE_MIN+1},(_,j)=>j+SCALE_MIN).map(v=>`<button type="button" role="radio" aria-checked="${arr[i]===v}" class="${arr[i]===v?'on':''}" onclick="answerPost(${i},${v})"><b>${v}</b><span>${esc(SCALE[v-SCALE_MIN])}</span></button>`).join('')}</div></div>`;
+    });
+  });
+  return h+`<div class="acts" style="justify-content:space-between;margin-top:10px"><button class="btn ghost" onclick="leavePost()">나중에 하기</button><button class="btn mint" onclick="nextPost()">다음 · 사후 만족도</button></div></div></div>`;
+}
 
-return {vWizard,ansText,parseBirth,PHONE_RE,EMAIL_RE,agreed,ageMsg,fmtDate,fmtPhone,a2Hint,REQUIRED,C_CODES,stepOf,WSTEPS,isSubmitted};
+return {vWizard,vPost,ansText,parseBirth,PHONE_RE,EMAIL_RE,agreed,ageMsg,fmtDate,fmtPhone,a2Hint,REQUIRED,C_CODES,stepOf,WSTEPS,isSubmitted};
 }
