@@ -107,6 +107,20 @@ function report(p,counselors,histories=[],kind='c'){
  etcOf:(r,k)=>r[k]==='기타'&&r[k+'Etc']?r[k+'Etc']:(r[k]||''),agreed,bandCells,chartLegend:()=>'',barsSVG:()=>''});
  return renderer.vResult(p,kind);
 }
+// Use a unique, immutable key rather than offsets so page boundaries do not
+// shift when unrelated rows are inserted or removed during a read.
+async function readAll(makeQuery,key){
+ const rows=[];let cursor=null;
+ for(;;){
+  let query=makeQuery().order(key,{ascending:true}).limit(100);
+  if(cursor!==null)query=query.gt(key,cursor);
+  const {data,error}=await query;
+  if(error||!Array.isArray(data))return {data:null,error:error||true};
+  if(!data.length)return {data:rows,error:null};
+  for(const row of data){if(typeof row[key]!=='string'||(cursor!==null&&row[key]<=cursor))return {data:null,error:true};cursor=row[key];rows.push(row)}
+ }
+}
+function chunks(items,size=100){const result=[];for(let i=0;i<items.length;i+=size)result.push(items.slice(i,i+size));return result}
 Deno.serve(async(req)=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:h});
  if(!['GET','POST'].includes(req.method))return out({error:'METHOD_NOT_ALLOWED'},405);
@@ -121,12 +135,17 @@ Deno.serve(async(req)=>{
  const {data:me,error:meError}=await db.from('user_profiles').select('user_id,organization_id,role,display_name').eq('user_id',user.id).maybeSingle();
  if(meError)return out({error:'QUERY_FAILED'},500);
  if(!me||!['participant','counselor'].includes(me.role))return out({error:'FORBIDDEN'},403);
- let pq=db.from('participants').select('id,display_name,counselor_user_id,phone,company_name,auth_user_id').eq('organization_id',me.organization_id);
- pq=me.role==='participant'?pq.eq('auth_user_id',user.id):pq.eq('counselor_user_id',user.id);
- const {data:parts,error:partError}=await pq.limit(100);if(partError)return out({error:'QUERY_FAILED'},500);
+ const reportId=req.method==='GET'?new URL(req.url).searchParams.get('id'):null;
+ if(reportId&&me.role!=='counselor')return out({error:'FORBIDDEN'},403);
+ const participantQuery=()=>{
+  let q=db.from('participants').select('id,display_name,counselor_user_id,phone,company_name,auth_user_id').eq('organization_id',me.organization_id);
+  q=me.role==='participant'?q.eq('auth_user_id',user.id):q.eq('counselor_user_id',user.id);
+  return reportId?q.eq('id',reportId):q;
+ };
+ const {data:parts,error:partError}=await readAll(participantQuery,'id');if(partError)return reportId&&partError.code==='22P02'?out({error:'NOT_AVAILABLE'},403):out({error:'QUERY_FAILED'},500);
  const ids=(parts||[]).map(p=>p.id);
  let assessments=[];
- if(ids.length){const {data,error}=await db.from('assessments').select('id,participant_id,phase,status,answers,result,updated_at,submitted_at').in('participant_id',ids).eq('phase','pre');if(error)return out({error:'QUERY_FAILED'},500);assessments=data||[]}
+ for(const group of chunks(ids)){const {data,error}=await readAll(()=>db.from('assessments').select('id,participant_id,phase,status,answers,result,updated_at,submitted_at').in('participant_id',group).eq('phase','pre'),'id');if(error)return out({error:'QUERY_FAILED'},500);assessments.push(...data)}
  const counselorIds=[...new Set((parts||[]).map(p=>p.counselor_user_id).filter(Boolean))];
  const counselors={};
  if(counselorIds.length){const {data,error}=await db.from('user_profiles').select('user_id,display_name').eq('organization_id',me.organization_id).eq('role','counselor').in('user_id',counselorIds);if(error)return out({error:'QUERY_FAILED'},500);for(const c of data||[])counselors[c.user_id]={code:c.user_id,n:c.display_name||'담당 상담사',mail:'',tel:''}}
@@ -146,7 +165,7 @@ Deno.serve(async(req)=>{
   if(me.role==='counselor'){
    const userIds=[...new Set((parts||[]).map(p=>p.auth_user_id).filter(Boolean))];
    let lookup=[];
-   if(userIds.length){const {data,error}=await db.from('server_login_lookup').select('user_id,login_id').in('user_id',userIds);if(error)return out({error:'QUERY_FAILED'},500);lookup=data||[]}
+    for(const group of chunks(userIds)){const {data,error}=await readAll(()=>db.from('server_login_lookup').select('user_id,login_id').in('user_id',group),'user_id');if(error)return out({error:'QUERY_FAILED'},500);lookup.push(...data)}
    const loginIds=new Map(lookup.map(row=>[row.user_id,row.login_id]));
    participantList=(parts||[]).map(({auth_user_id,...part})=>({...part,login_id:loginIds.get(auth_user_id)||null}));
   }
