@@ -8,7 +8,7 @@ test.beforeAll(async()=>{server=await serve('src')});
 test.afterAll(async()=>{await server.close()});
 
 async function setup(page,{gate=true,status='submitted',role='participant',pending=false}={}){
- const writes=[],requests=[],state={post:null,revision:0,saveStatus:200};
+ const writes=[],requests=[],state={post:null,revision:0,saveStatus:200,submitStatus:200,submitDelay:0,submits:0};
  await page.route('**/main.js',route=>route.fulfill({contentType:'text/javascript',body:"import './live/app.js';"}));
  if(gate)await page.route('**/live/post-test-gate.js',route=>route.fulfill({contentType:'text/javascript',body:'export const postTestGate=true;'}));
  await page.route('https://tafrbtqjlrokdnhudswb.supabase.co/**',async route=>{
@@ -21,8 +21,13 @@ async function setup(page,{gate=true,status='submitted',role='participant',pendi
    if(req.method()==='POST'){
     const body=req.postDataJSON();writes.push(body);
     if(body.action==='post-draft'){
+     if(state.post?.status==='submitted')return route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({error:'LOCKED'})});
      if(state.saveStatus!==200)return route.fulfill({status:state.saveStatus,contentType:'application/json',body:JSON.stringify({error:'SAVE_FAILED'})});
      state.revision++;state.post={status:'draft',answers:structuredClone(body.answers),updatedAt:new Date(Date.UTC(2026,9,29)+state.revision).toISOString()};data=state.post;
+    }else if(body.action==='post-submit'){
+     state.submits++;if(state.submitDelay)await new Promise(r=>setTimeout(r,state.submitDelay));
+     if(state.submitStatus!==200)return route.fulfill({status:state.submitStatus,contentType:'application/json',body:JSON.stringify({error:'SUBMIT_FAILED'})});
+     state.revision++;const at=new Date(Date.UTC(2026,9,29)+state.revision).toISOString();state.post={status:'submitted',answers:structuredClone(body.answers),updatedAt:at,submittedAt:at};data=state.post;
     }else data={status:'draft',updatedAt:'revision'};
    }
    else if(url.searchParams.get('phase')==='post')data={assessment:state.post};
@@ -105,14 +110,59 @@ test('satisfaction questions, validation, order and session-only state',async({p
  await page.evaluate(async()=>{const {S}=await import('/shared/state.js');const {OPT}=await import('/js/03-options.js');S.user.sat.q1=6;S.user.sat.d35=OPT['sat.d35'].slice(0,3);S.user.sat.q7txt='가'.repeat(201)});
  await page.getByRole('button',{name:'응답 확인'}).click();await expect(page.getByRole('alert')).toContainText('3개');
  await page.evaluate(async()=>{const {S}=await import('/shared/state.js');S.user.sat.q1=5;S.user.sat.d35=S.user.sat.d35.slice(0,2);S.user.sat.q7txt='가'.repeat(200)});
- await page.getByRole('button',{name:'응답 확인'}).click();await expect(page.getByText(/최종 제출 기능은 준비 중/)).toBeVisible();
+ await page.getByRole('button',{name:'응답 확인'}).click();await expect(page.getByRole('heading',{name:'최종 제출 확인'})).toBeVisible();
  await page.getByRole('button',{name:'만족도 응답으로 돌아가기'}).click();await expect(page.locator('#q7t')).toHaveValue('가'.repeat(200));
  expect(await page.evaluate(async()=>{const {S}=await import('/shared/state.js');return {pre:S.user.pre,post:S.user.post}})).toEqual(before);
- expect(writes.every(w=>w.action==='post-draft'&&!('sat' in w.answers))).toBe(true);
+ expect(writes.every(w=>w.action==='post-draft')).toBe(true);
 });
 for(const width of [320,375,430])test(`satisfaction fits mobile ${width}px`,async({page})=>{
  await page.setViewportSize({width,height:800});await setup(page);await page.getByRole('button',{name:'개발용 사후 진단'}).click();await expect(page.getByRole('heading',{name:'사후 진단',exact:true})).toBeVisible();await page.evaluate(()=>{for(let i=0;i<15;i++)answerPost(i,3)});await page.getByRole('button',{name:'다음 · 사후 만족도'}).click();await expect(page.getByRole('heading',{name:'사후 만족도 설문'})).toBeVisible();
  const overflow=await page.locator('.mobile-survey').evaluate(root=>[...root.querySelectorAll('*')].filter(el=>{const r=el.getBoundingClientRect();return r.width&&r.height&&(r.left< -1||r.right>innerWidth+1||el.scrollWidth>el.clientWidth+2)}).map(el=>el.id||el.className));expect(overflow).toEqual([]);
+});
+// ---- DEV-007B: save/restore, final submit, failure and duplicate handling --------------------
+async function fillSurvey(page){
+ await page.getByRole('button',{name:'개발용 사후 진단'}).click();await expect(page.getByRole('heading',{name:'사후 진단',exact:true})).toBeVisible();
+ await page.evaluate(()=>{for(let i=0;i<15;i++)answerPost(i,3)});await page.getByRole('button',{name:'다음 · 사후 만족도'}).click();
+ for(const key of ['q1','q2','q3a','q3b','q3c','q5fit'])await page.locator('#sat-'+key+' [role=radio]').nth(4).click();
+ for(const [key,count] of [['d32',1],['d34',1],['d33',3],['d35',2],['q7',1]])for(let i=0;i<count;i++)await page.locator('#sat-'+key+' .chip').nth(i).click();
+ await page.locator('#q7t').fill('의견 가나다');
+}
+test('satisfaction draft is saved to the server and restored after reload',async({page})=>{
+ const {state,writes}=await setup(page);await fillSurvey(page);
+ await expect(page.locator('#post-save-status')).toContainText('임시저장 완료');
+ expect(state.post.status).toBe('draft');expect(state.post.answers.sat.q1).toBe(5);expect(state.post.answers.sat.d33).toHaveLength(3);expect(state.post.answers.sat.q7txt).toBe('의견 가나다');
+ expect(writes.some(w=>w.action==='post-submit')).toBe(false);
+ await page.reload();await page.getByRole('button',{name:'개발용 사후 진단'}).click();await page.getByRole('button',{name:'다음 · 사후 만족도'}).click();
+ await expect(page.locator('#sat-q1 [role=radio]').nth(4)).toHaveAttribute('aria-checked','true');
+ await expect(page.locator('#sat-d33 .chip b')).toHaveText(['1','2','3']);await expect(page.locator('#q7t')).toHaveValue('의견 가나다');
+});
+test('final submit shows completion only after the server confirms, once, and locks edits',async({page})=>{
+ const {state,writes}=await setup(page);state.submitDelay=300;await fillSurvey(page);
+ await page.getByRole('button',{name:'응답 확인'}).click();await expect(page.getByRole('heading',{name:'최종 제출 확인'})).toBeVisible();
+ const submit=page.getByRole('button',{name:'최종 제출'});await submit.dblclick();
+ await expect(page.getByRole('heading',{name:'사후 진단 제출이 완료되었습니다'})).toBeVisible();
+ expect(state.submits).toBe(1);expect(state.post.status).toBe('submitted');expect(state.post.answers.post).toEqual(Array(15).fill(3));expect(state.post.answers.sat.q1).toBe(5);
+ expect(await page.evaluate(async()=>[...(await import('/shared/state.js')).S.user.pre])).toEqual(Array(15).fill(3));
+ await page.reload();await page.getByRole('button',{name:'개발용 사후 진단'}).click();
+ await expect(page.getByRole('heading',{name:'사후 진단 제출이 완료되었습니다'})).toBeVisible();await expect(page.getByRole('radio')).toHaveCount(0);
+ const count=writes.length,snapshot=structuredClone(state.post);
+ await page.evaluate(()=>{answerPost(0,5);setSatScore('q1',1);submitPost()});await page.waitForTimeout(1000);
+ expect(writes.length).toBe(count);expect(state.post).toEqual(snapshot);
+});
+test('submit failure and conflict show no completion, then retry succeeds once',async({page})=>{
+ const {state}=await setup(page);await fillSurvey(page);await page.getByRole('button',{name:'응답 확인'}).click();
+ for(const [status,text] of [[503,'제출하지 못했습니다'],[409,'다른 저장 또는 제출']]){
+  state.submitStatus=status;await page.getByRole('button',{name:/최종 제출|다시 제출/}).click();
+  await expect(page.getByRole('alert')).toContainText(text);await expect(page.getByRole('heading',{name:'사후 진단 제출이 완료되었습니다'})).toHaveCount(0);expect(state.post.status).toBe('draft');
+ }
+ state.submitStatus=200;await page.getByRole('button',{name:'다시 제출'}).click();
+ await expect(page.getByRole('heading',{name:'사후 진단 제출이 완료되었습니다'})).toBeVisible();expect(state.post.status).toBe('submitted');
+});
+test('incomplete satisfaction answers cannot reach final submit',async({page})=>{
+ const {state}=await setup(page);await page.getByRole('button',{name:'개발용 사후 진단'}).click();await expect(page.getByRole('heading',{name:'사후 진단',exact:true})).toBeVisible();
+ await page.evaluate(()=>{for(let i=0;i<15;i++)answerPost(i,3)});await page.getByRole('button',{name:'다음 · 사후 만족도'}).click();
+ await page.getByRole('button',{name:'응답 확인'}).click();await expect(page.getByRole('alert')).toBeVisible();
+ await page.evaluate(()=>submitPost());await page.waitForTimeout(300);expect(state.submits).toBe(0);
 });
 test('saved post draft is restored after reload without changing submitted pre data',async({page})=>{
  const {writes}=await setup(page);await page.getByRole('button',{name:'개발용 사후 진단'}).click();await page.locator('#post-q-0').getByRole('radio').last().click();

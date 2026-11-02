@@ -17,7 +17,7 @@ import {$,toast} from '../browser/dom.js';
 let profile=null,records=[],participants=[],reportHTML='',busy=false,dirty=false,restoring=true;
 let saveTimer=null,saving=null,epoch=0,saveMessage='응답을 불러왔습니다.';
 let postTimer=null,postSaving=null,postDirty=false,postUpdatedAt=null,postMessage='';
-let satIssues=[];
+let satIssues=[],postLocked=false,postSubmitting=false;
 let counselorFilter={name:'',status:'all'};
 let registrationContext=null,unmountRegistration=null,mustChangePassword=false;
 let assessmentUrl='',assessmentUrlMessage='',assessmentUrlInput='';
@@ -32,7 +32,7 @@ const survey=createSurvey({save,render,nav,toast,getPath,setPath,OPT,LIM,ITEM_CO
 const mobileSurvey=createMobileSurvey({getProfile:()=>profile,steps:view.WSTEPS,missing:survey.missing,goStep:survey.goStep,goQ:survey.goQ,nextFrom:survey.nextFrom,render,toast});
 const edits=createCounselorEdit({byId,getDB:()=>records,save:()=>{},nav,render,toast,missing:survey.missing,ansText:view.ansText,getWSTEPS:()=>view.WSTEPS,getCounselors:()=>COUNSELORS,persistEdit, EVAL_VERSION:'',toAssessment:()=>null});
 
-function reset(){mobileSurvey.reset();clearRegistrationResults();assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
+function reset(){mobileSurvey.reset();clearRegistrationResults();assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
 function hydrate(data){
   if(!data.profile||!['participant','counselor','admin'].includes(data.profile.role)||!Array.isArray(data.participants)||!Array.isArray(data.assessments))throw Error('권한 또는 조회 응답이 올바르지 않습니다.');
   profile=data.profile;mustChangePassword=data.mustChangePassword===true;participants=data.participants;setCounselors(data.assessmentCounselors||{});
@@ -158,6 +158,23 @@ function filterCounselor(clear=false){
 }
 function postAllowed(){return postTestGate&&!busy&&!mustChangePassword&&profile?.role==='participant'&&S.user?.status==='submitted'}
 const validPost=a=>Array.isArray(a)&&a.length===ITEM_COUNT&&a.every(v=>v===null||(Number.isInteger(v)&&v>=SCALE_MIN&&v<=SCALE_MAX));
+const SAT_SCORES=['q1','q2','q3a','q3b','q3c','q5fit'],SAT_CHOICES=['d32','d33','d34','d35','q7'];
+// Shape check for a satisfaction object; partial drafts are allowed unless complete is requested.
+function validSat(t,complete){
+  if(t===undefined)return !complete;
+  if(!t||typeof t!=='object'||Array.isArray(t)||Object.keys(t).some(k=>![...SAT_SCORES,...SAT_CHOICES,'q7txt'].includes(k)))return false;
+  const scoreOk=k=>Number.isInteger(t[k])&&t[k]>=SCALE_MIN&&t[k]<=SCALE_MAX;
+  for(const k of SAT_SCORES)if(Object.hasOwn(t,k)?!scoreOk(k):complete)return false;
+  for(const k of SAT_CHOICES){
+    const path='sat.'+k,v=t[k];
+    if(!Object.hasOwn(t,k)){if(complete)return false;continue}
+    if(!Array.isArray(v)||v.length>LIM[path]||new Set(v).size!==v.length||v.some(x=>!OPT[path].includes(x))||(complete&&v.length<(k==='d33'?LIM[path]:1)))return false;
+  }
+  return !Object.hasOwn(t,'q7txt')||(typeof t.q7txt==='string'&&t.q7txt.length<=200);
+}
+const satPayload=()=>Object.keys(S.user.sat||{}).length?{sat:structuredClone(S.user.sat)}:{};
+// Key order is not significant; arrays (Q4 rank order) are.
+const sameSat=(a,b)=>!!a&&!!b&&[...SAT_SCORES,...SAT_CHOICES,'q7txt'].every(k=>JSON.stringify(a[k])===JSON.stringify(b[k]));
 function postBadge(){const e=$('#post-save-status');if(e)e.textContent=postMessage}
 async function startPost(){
   if(!postAllowed())return;
@@ -167,23 +184,23 @@ async function startPost(){
     try{
       const data=await api.postDraft();if(run!==epoch)return;
       const a=data.assessment;
-      if(a!==null&&(!a||a.status!=='draft'||!validPost(a.answers?.post)||typeof a.updatedAt!=='string'||!Number.isFinite(Date.parse(a.updatedAt))))throw Error('사후 임시저장 내용을 확인하지 못했습니다.');
-      S.user.post=a?[...a.answers.post]:Array(ITEM_COUNT).fill(null);postUpdatedAt=a?.updatedAt||null;postMessage=a?'사후 임시저장 내용을 불러왔습니다.':'사후 임시저장 내용이 없습니다.';
+      if(a!==null&&(!a||!['draft','submitted'].includes(a.status)||!validPost(a.answers?.post)||!validSat(a.answers?.sat,a.status==='submitted')||typeof a.updatedAt!=='string'||!Number.isFinite(Date.parse(a.updatedAt))||(a.status==='submitted'&&(!a.answers.post.every(v=>v!==null)||typeof a.submittedAt!=='string'||!Number.isFinite(Date.parse(a.submittedAt))))))throw Error('사후 임시저장 내용을 확인하지 못했습니다.');
+      S.user.post=a?[...a.answers.post]:Array(ITEM_COUNT).fill(null);S.user.sat=a?.answers.sat?structuredClone(a.answers.sat):{};postUpdatedAt=a?.updatedAt||null;postLocked=a?.status==='submitted';satIssues=[];postMessage=postLocked?'사후 진단이 제출되었습니다.':a?'사후 임시저장 내용을 불러왔습니다.':'사후 임시저장 내용이 없습니다.';
     }catch(error){if(run===epoch)S.err=error.message;return}
     finally{if(run===epoch){busy=false;render()}}
   }
-  if(run!==epoch)return;S.mode2='post';S.pstep=1;S.view='post';S.err='';render();window.scrollTo(0,0);
+  if(run!==epoch)return;S.mode2='post';S.pstep=postLocked?3:1;S.view='post';S.err='';render();window.scrollTo(0,0);
 }
 async function flushPost(){
   clearTimeout(postTimer);
   if(postSaving){await postSaving;if(postDirty)return flushPost();return}
   if(!postDirty||!S.user||profile?.role!=='participant'||mustChangePassword)return;
-  const p=S.user,run=epoch,payload=[...p.post],expected=postUpdatedAt;
+  const p=S.user,run=epoch,payload=[...p.post],expected=postUpdatedAt,satSnapshot=satPayload();
   postDirty=false;postMessage='사후 응답을 임시저장하고 있습니다…';postBadge();
   postSaving=(async()=>{
     try{
-      const data=await api.write('post-draft',{answers:{post:payload},expectedUpdatedAt:expected});if(run!==epoch)return;
-      if(data.status!=='draft'||!validPost(data.answers?.post)||typeof data.updatedAt!=='string'||!Number.isFinite(Date.parse(data.updatedAt))||JSON.stringify(data.answers.post)!==JSON.stringify(payload))throw Error('사후 임시저장 결과를 확인하지 못했습니다.');
+      const sent={post:payload,...satSnapshot},data=await api.write('post-draft',{answers:sent,expectedUpdatedAt:expected});if(run!==epoch)return;
+      if(data.status!=='draft'||!validPost(data.answers?.post)||!validSat(data.answers?.sat)||typeof data.updatedAt!=='string'||!Number.isFinite(Date.parse(data.updatedAt))||JSON.stringify(data.answers.post)!==JSON.stringify(payload)||(satSnapshot.sat&&!sameSat(data.answers.sat,satSnapshot.sat)))throw Error('사후 임시저장 결과를 확인하지 못했습니다.');
       postUpdatedAt=data.updatedAt;postMessage=postDirty?'새 사후 응답 저장 대기 중':'사후 응답 임시저장 완료';postBadge();
     }catch(error){if(run===epoch){postDirty=true;postMessage=error.message;postBadge()}throw error}
     finally{if(run===epoch)postSaving=null}
@@ -191,21 +208,22 @@ async function flushPost(){
   await postSaving;
 }
 function answerPost(i,v){
-  if(!postAllowed()||S.view!=='post'||S.pstep!==1||!Number.isInteger(i)||i<0||i>=ITEM_COUNT||!Number.isInteger(v)||v<SCALE_MIN||v>SCALE_MAX)return;
+  if(!postAllowed()||postLocked||S.view!=='post'||S.pstep!==1||!Number.isInteger(i)||i<0||i>=ITEM_COUNT||!Number.isInteger(v)||v<SCALE_MIN||v>SCALE_MAX)return;
   S.user.post[i]=v;postDirty=true;postMessage='사후 응답 저장 대기 중';clearTimeout(postTimer);postTimer=setTimeout(()=>flushPost().catch(()=>{}),700);S.err='';render();
 }
 function nextPost(){
-  if(!postAllowed()||S.view!=='post'||S.pstep!==1)return;
+  if(!postAllowed()||postLocked||S.view!=='post'||S.pstep!==1)return;
   const count=Array.from({length:ITEM_COUNT},(_,i)=>S.user.post?.[i]).filter(v=>!Number.isInteger(v)||v<SCALE_MIN||v>SCALE_MAX).length;
   if(count){S.err='아직 답하지 않은 문항이 '+count+'개 있습니다.';render();return}
   S.user.sat ||= {};satIssues=[];S.err='';S.pstep=2;render();window.scrollTo(0,0);
 }
 const satScores=['q1','q2','q3a','q3b','q3c','q5fit'];
 const satChoices=['d32','d33','d34','d35','q7'];
-function satActive(){return postAllowed()&&S.view==='post'&&S.pstep===2&&full(S.user.post)}
+function satActive(){return postAllowed()&&!postLocked&&!postSubmitting&&S.view==='post'&&S.pstep===2&&full(S.user.post)}
+function touchSat(){postDirty=true;postMessage='사후 응답 저장 대기 중';clearTimeout(postTimer);postTimer=setTimeout(()=>flushPost().catch(()=>{}),700)}
 function setSatScore(key,value){
   if(!satActive()||!satScores.includes(key)||!Number.isInteger(value)||value<SCALE_MIN||value>SCALE_MAX)return;
-  S.user.sat[key]=value;satIssues=satIssues.filter(k=>k!==key);S.err='';render();
+  S.user.sat[key]=value;satIssues=satIssues.filter(k=>k!==key);S.err='';touchSat();render();
 }
 function toggleSat(key,index){
   const path='sat.'+key;
@@ -215,9 +233,9 @@ function toggleSat(key,index){
   else if(LIM[path]===1)selected.splice(0,selected.length,value);
   else if(selected.length<LIM[path])selected.push(value);
   else {toast('선택 가능한 개수를 초과했습니다.');return}
-  S.user.sat[key]=selected;satIssues=satIssues.filter(k=>k!==key);S.err='';render();
+  S.user.sat[key]=selected;satIssues=satIssues.filter(k=>k!==key);S.err='';touchSat();render();
 }
-function setSatText(value){if(satActive()&&typeof value==='string'&&value.length<=200)S.user.sat.q7txt=value}
+function setSatText(value){if(satActive()&&typeof value==='string'&&value.length<=200){S.user.sat.q7txt=value;touchSat();postBadge()}}
 function checkSat(){
   if(!satActive())return;
   const t=S.user.sat;
@@ -230,7 +248,25 @@ function checkSat(){
   if(satIssues.length){S.err='응답하지 않았거나 확인이 필요한 문항이 '+satIssues.length+'개 있습니다.';render();document.getElementById('sat-'+satIssues[0])?.focus();return}
   S.err='';S.pstep=3;render();window.scrollTo(0,0);
 }
-function backSat(){if(postAllowed()&&S.view==='post'&&S.pstep===3&&full(S.user.post)){S.pstep=2;S.err='';render()}}
+function backSat(){if(postAllowed()&&!postLocked&&!postSubmitting&&S.view==='post'&&S.pstep===3&&full(S.user.post)){S.pstep=2;S.err='';render()}}
+async function submitPost(){
+  if(!postAllowed()||postLocked||postSubmitting||S.view!=='post'||S.pstep!==3||!full(S.user.post)||!validSat(S.user.sat,true))return;
+  const run=epoch;postSubmitting=true;S.err='';render();
+  try{
+    // The submitted answers must be the ones the server holds; save first and stop on any failure.
+    postDirty=true;await flushPost();if(run!==epoch)return;
+    const answers={post:[...S.user.post],sat:structuredClone(S.user.sat)};
+    const data=await api.write('post-submit',{answers,expectedUpdatedAt:postUpdatedAt});if(run!==epoch)return;
+    if(data.status!=='submitted'||!validPost(data.answers?.post)||JSON.stringify(data.answers.post)!==JSON.stringify(answers.post)||!validSat(data.answers?.sat,true)||!sameSat(data.answers.sat,answers.sat)||
+       typeof data.updatedAt!=='string'||!Number.isFinite(Date.parse(data.updatedAt))||typeof data.submittedAt!=='string'||!Number.isFinite(Date.parse(data.submittedAt)))throw Error('제출 결과를 확인하지 못했습니다. 제출되었는지 확인하려면 다시 접속해 주세요.');
+    postUpdatedAt=data.updatedAt;postLocked=true;postDirty=false;postMessage='사후 진단이 제출되었습니다.';
+  }catch(error){if(run===epoch)S.err=error.message||'제출하지 못했습니다. 다시 시도해 주세요.'}
+  finally{if(run===epoch){postSubmitting=false;render();window.scrollTo(0,0)}}
+}
+function postConfirmView(){
+  if(postLocked)return `<div class="narrow mobile-survey" style="padding-top:20px"><div class="card"><h2>사후 진단 제출이 완료되었습니다</h2><p class="sub">사후 진단과 만족도 응답이 제출되었습니다. 제출한 응답은 수정할 수 없습니다.</p><div class="acts"><button class="btn ghost" onclick="leavePost()">처음 화면으로</button></div></div></div>`;
+  return `<div class="narrow mobile-survey" style="padding-top:20px"><div class="card"><h2>최종 제출 확인</h2><p>사후 진단 15문항과 만족도 응답을 모두 확인했습니다. 제출하면 응답을 수정할 수 없습니다.</p><p>임시저장 상태</p><p id="post-save-status" role="status">${esc(postMessage)}</p><div class="acts"><button class="btn ghost" onclick="backSat()" ${postSubmitting?'disabled':''}>만족도 응답으로 돌아가기</button><button class="btn ghost" onclick="backPost()" ${postSubmitting?'disabled':''}>사후 진단으로 돌아가기</button><button class="btn mint" onclick="submitPost()" ${postSubmitting?'disabled aria-busy="true"':''}>${postSubmitting?'제출 중…':S.err?'다시 제출':'최종 제출'}</button></div></div></div>`;
+}
 function leavePost(){if(!postAllowed()||S.view!=='post')return;S.mode2='pre';S.view='home';S.err='';render();window.scrollTo(0,0)}
 function render(){
   mobileSurvey.capture();mobileSurvey.prepare();
@@ -243,7 +279,7 @@ function render(){
   else if(!profile)html=loginView();
   else if(mustChangePassword)html=passwordChangeView();
   else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 참여자 등록</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><div id="live-registration"></div></div>`;
-  else if(S.view==='post'&&postAllowed())html=S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):`<div class="narrow mobile-survey" style="padding-top:20px"><div class="card"><h2>응답 확인</h2><p>만족도 응답을 확인했습니다. 최종 제출 기능은 준비 중이며 만족도 응답은 저장되지 않았습니다.</p><p>사후 진단 임시저장 상태</p><p id="post-save-status" role="status">${esc(postMessage)}</p><div class="acts"><button class="btn ghost" onclick="backSat()">만족도 응답으로 돌아가기</button><button class="btn ghost" onclick="backPost()">사후 진단으로 돌아가기</button></div></div></div>`;
+  else if(S.view==='post'&&postAllowed())html=postLocked?postConfirmView():S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):postConfirmView();
   else if(S.view==='wizard')html=`<div class="narrow noprint"><p id="live-save" role="status">${esc(saveMessage)}</p>${profile.role==='participant'?'<div class="acts"><button class="btn ghost sm" onclick="retrySave()">지금 임시저장</button><button class="btn ghost sm" onclick="logout()">로그아웃</button></div>':''}</div>`+view.vWizard();
   else if(profile.role==='counselor'&&S.view==='result')html=`<div class="narrow noprint"><div class="toolbar" id="live-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openRes('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openRes('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('cns')">담당 내담자 목록</button></div></div></div>`+reportHTML;
   else if(profile.role==='counselor')html=counselorView({profile,records,counselorFilter,pname,assessmentUrl});
@@ -259,7 +295,7 @@ function render(){
 }
 function editable(){return !busy&&!mustChangePassword&&profile&&(profile.role==='participant'?S.user?.status!=='submitted':!!S.cedit)}
 const handlers={doLogin,changePassword,logout,refresh,saveAssessmentUrl,openRes,render,nav,filterCounselor,goHome:()=>nav(profile?.role==='counselor'?'cns':'home'),
-  startPost,answerPost,nextPost,leavePost,setSatScore,toggleSat,setSatText,checkSat,backSat,savePost:async()=>{if(postAllowed()&&S.view==='post')try{await flushPost()}catch{}},backPost:()=>{if(postAllowed()&&S.view==='post'){S.pstep=1;S.err='';render()}},
+  startPost,answerPost,nextPost,leavePost,submitPost,setSatScore,toggleSat,setSatText,checkSat,backSat,savePost:async()=>{if(postAllowed()&&S.view==='post')try{await flushPost()}catch{}},backPost:()=>{if(postAllowed()&&!postLocked&&!postSubmitting&&S.view==='post'){S.pstep=1;S.err='';render()}},
   retrySave:async()=>{if(!busy){dirty=true;try{await flushDraft()}catch{}}},
   startEdit:id=>{if(!busy&&profile?.role==='counselor'&&byId(id)?.status==='submitted')edits.startEdit(id)},
   cancelEdit:()=>{if(!busy&&S.cedit){S.err='';edits.cancelEdit()}},
