@@ -1,9 +1,13 @@
-const URL='https://tafrbtqjlrokdnhudswb.supabase.co';
-const KEY='sb_publishable_va6hVj1FwfrxMiD6IQb81Q_AWE5m0-8';
+import {resolveConfig,requestTarget} from './config.js';
 
 // Only the rotating refresh token is kept for the lifetime of this browser tab.
-const SESSION_KEY='sp-live-refresh-token';
-export function createAPI(onExpired){
+function runtimeEnv(){
+  try{return {MODE:import.meta.env.MODE,VITE_SP_ENV:import.meta.env.VITE_SP_ENV,VITE_SP_TEST_PROJECT_ID:import.meta.env.VITE_SP_TEST_PROJECT_ID,VITE_SP_TEST_SUPABASE_URL:import.meta.env.VITE_SP_TEST_SUPABASE_URL,VITE_SP_TEST_PUBLISHABLE_KEY:import.meta.env.VITE_SP_TEST_PUBLISHABLE_KEY}}
+  catch{return {}}
+}
+export function createAPI(onExpired,env=runtimeEnv()){
+  const config=resolveConfig(env);
+  const SESSION_KEY=config.mode==='test'?'sp-live-refresh-token-test-'+env.VITE_SP_TEST_PROJECT_ID:'sp-live-refresh-token';
   let session=null,timer=null,generation=0,passwordChangeRequired=false,refreshing=null;
   function clear(){session=null;clearTimeout(timer);generation++;passwordChangeRequired=false;refreshing=null;try{sessionStorage.removeItem(SESSION_KEY)}catch{}}
   function saveSession(data){
@@ -36,7 +40,8 @@ export function createAPI(onExpired){
     if(!anonymous&&session&&Date.now()>=session.expires_at*1000)await refresh();
     if(!anonymous&&!session){clear();onExpired();throw Error('세션이 만료되었습니다. 다시 로그인해 주세요.')}
     let response;
-    try{response=await fetch(URL+path,{method,headers:{apikey:KEY,...(!anonymous?{Authorization:'Bearer '+session.access_token}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(20000)})}
+    const target=requestTarget(config,path);
+    try{response=await fetch(target,{method,headers:{apikey:config.key,...(!anonymous?{Authorization:'Bearer '+session.access_token}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store',credentials:'omit',...(config.mode==='test'?{redirect:'error'}:{}),signal:AbortSignal.timeout(20000)})}
     catch{if(accountRead)throw unavailable();throw Error('서비스에 연결하지 못했습니다. 저장 여부를 확인한 뒤 다시 시도해 주세요.')}
     if(epoch!==generation)throw Error('세션이 변경되어 요청을 취소했습니다.');
     let data;try{data=await response.json()}catch{if(accountRead&&(response.status===404||response.status>=500))throw unavailable();throw Error('처리 결과를 확인할 수 없습니다.')}
