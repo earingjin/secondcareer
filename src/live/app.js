@@ -17,6 +17,7 @@ import {$,toast} from '../browser/dom.js';
 let profile=null,records=[],participants=[],reportHTML='',busy=false,dirty=false,restoring=true;
 let saveTimer=null,saving=null,epoch=0,saveMessage='응답을 불러왔습니다.';
 let postTimer=null,postSaving=null,postDirty=false,postUpdatedAt=null,postMessage='';
+let satIssues=[];
 let counselorFilter={name:'',status:'all'};
 let registrationContext=null,unmountRegistration=null,mustChangePassword=false;
 let assessmentUrl='',assessmentUrlMessage='',assessmentUrlInput='';
@@ -197,8 +198,39 @@ function nextPost(){
   if(!postAllowed()||S.view!=='post'||S.pstep!==1)return;
   const count=Array.from({length:ITEM_COUNT},(_,i)=>S.user.post?.[i]).filter(v=>!Number.isInteger(v)||v<SCALE_MIN||v>SCALE_MAX).length;
   if(count){S.err='아직 답하지 않은 문항이 '+count+'개 있습니다.';render();return}
-  S.err='';S.pstep=2;render();window.scrollTo(0,0);
+  S.user.sat ||= {};satIssues=[];S.err='';S.pstep=2;render();window.scrollTo(0,0);
 }
+const satScores=['q1','q2','q3a','q3b','q3c','q5fit'];
+const satChoices=['d32','d33','d34','d35','q7'];
+function satActive(){return postAllowed()&&S.view==='post'&&S.pstep===2&&full(S.user.post)}
+function setSatScore(key,value){
+  if(!satActive()||!satScores.includes(key)||!Number.isInteger(value)||value<SCALE_MIN||value>SCALE_MAX)return;
+  S.user.sat[key]=value;satIssues=satIssues.filter(k=>k!==key);S.err='';render();
+}
+function toggleSat(key,index){
+  const path='sat.'+key;
+  if(!satActive()||!satChoices.includes(key)||!Number.isInteger(index)||index<0||index>=OPT[path].length)return;
+  const value=OPT[path][index],selected=Array.isArray(S.user.sat[key])?[...S.user.sat[key]]:[],at=selected.indexOf(value);
+  if(at>=0)selected.splice(at,1);
+  else if(LIM[path]===1)selected.splice(0,selected.length,value);
+  else if(selected.length<LIM[path])selected.push(value);
+  else {toast('선택 가능한 개수를 초과했습니다.');return}
+  S.user.sat[key]=selected;satIssues=satIssues.filter(k=>k!==key);S.err='';render();
+}
+function setSatText(value){if(satActive()&&typeof value==='string'&&value.length<=200)S.user.sat.q7txt=value}
+function checkSat(){
+  if(!satActive())return;
+  const t=S.user.sat;
+  satIssues=satScores.filter(k=>!Number.isInteger(t[k])||t[k]<SCALE_MIN||t[k]>SCALE_MAX);
+  for(const key of satChoices){
+    const path='sat.'+key,values=t[key],min=key==='d33'?LIM[path]:1;
+    if(!Array.isArray(values)||values.length<min||values.length>LIM[path]||new Set(values).size!==values.length||values.some(v=>!OPT[path].includes(v)))satIssues.push(key);
+  }
+  if(t.q7txt!==undefined&&(typeof t.q7txt!=='string'||t.q7txt.length>200)&&!satIssues.includes('q7'))satIssues.push('q7');
+  if(satIssues.length){S.err='응답하지 않았거나 확인이 필요한 문항이 '+satIssues.length+'개 있습니다.';render();document.getElementById('sat-'+satIssues[0])?.focus();return}
+  S.err='';S.pstep=3;render();window.scrollTo(0,0);
+}
+function backSat(){if(postAllowed()&&S.view==='post'&&S.pstep===3&&full(S.user.post)){S.pstep=2;S.err='';render()}}
 function leavePost(){if(!postAllowed()||S.view!=='post')return;S.mode2='pre';S.view='home';S.err='';render();window.scrollTo(0,0)}
 function render(){
   mobileSurvey.capture();mobileSurvey.prepare();
@@ -211,7 +243,7 @@ function render(){
   else if(!profile)html=loginView();
   else if(mustChangePassword)html=passwordChangeView();
   else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 참여자 등록</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><div id="live-registration"></div></div>`;
-  else if(S.view==='post'&&postAllowed())html=S.pstep===1?view.vPost(postMessage):`<div class="narrow mobile-survey" style="padding-top:20px"><div class="card"><h2>사후 만족도</h2><p class="sub">사후 만족도 화면과 사후 진단 최종 제출은 아직 준비 중입니다.</p><p id="post-save-status" class="hintline" role="status">${esc(postMessage)}</p><div class="acts"><button class="btn ghost" onclick="backPost()">사후 진단으로 돌아가기</button><button class="btn ghost" onclick="leavePost()">처음 화면으로</button></div></div></div>`;
+  else if(S.view==='post'&&postAllowed())html=S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):`<div class="narrow mobile-survey" style="padding-top:20px"><div class="card"><h2>응답 확인</h2><p>만족도 응답을 확인했습니다. 최종 제출 기능은 준비 중이며 만족도 응답은 저장되지 않았습니다.</p><p>사후 진단 임시저장 상태</p><p id="post-save-status" role="status">${esc(postMessage)}</p><div class="acts"><button class="btn ghost" onclick="backSat()">만족도 응답으로 돌아가기</button><button class="btn ghost" onclick="backPost()">사후 진단으로 돌아가기</button></div></div></div>`;
   else if(S.view==='wizard')html=`<div class="narrow noprint"><p id="live-save" role="status">${esc(saveMessage)}</p>${profile.role==='participant'?'<div class="acts"><button class="btn ghost sm" onclick="retrySave()">지금 임시저장</button><button class="btn ghost sm" onclick="logout()">로그아웃</button></div>':''}</div>`+view.vWizard();
   else if(profile.role==='counselor'&&S.view==='result')html=`<div class="narrow noprint"><div class="toolbar" id="live-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openRes('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openRes('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('cns')">담당 내담자 목록</button></div></div></div>`+reportHTML;
   else if(profile.role==='counselor')html=counselorView({profile,records,counselorFilter,pname,assessmentUrl});
@@ -227,7 +259,7 @@ function render(){
 }
 function editable(){return !busy&&!mustChangePassword&&profile&&(profile.role==='participant'?S.user?.status!=='submitted':!!S.cedit)}
 const handlers={doLogin,changePassword,logout,refresh,saveAssessmentUrl,openRes,render,nav,filterCounselor,goHome:()=>nav(profile?.role==='counselor'?'cns':'home'),
-  startPost,answerPost,nextPost,leavePost,savePost:async()=>{if(postAllowed()&&S.view==='post')try{await flushPost()}catch{}},backPost:()=>{if(postAllowed()&&S.view==='post'){S.pstep=1;S.err='';render()}},
+  startPost,answerPost,nextPost,leavePost,setSatScore,toggleSat,setSatText,checkSat,backSat,savePost:async()=>{if(postAllowed()&&S.view==='post')try{await flushPost()}catch{}},backPost:()=>{if(postAllowed()&&S.view==='post'){S.pstep=1;S.err='';render()}},
   retrySave:async()=>{if(!busy){dirty=true;try{await flushDraft()}catch{}}},
   startEdit:id=>{if(!busy&&profile?.role==='counselor'&&byId(id)?.status==='submitted')edits.startEdit(id)},
   cancelEdit:()=>{if(!busy&&S.cedit){S.err='';edits.cancelEdit()}},
