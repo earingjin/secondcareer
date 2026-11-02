@@ -35,17 +35,25 @@ declare
   now_ts timestamptz;
   before_answers jsonb;
 begin
-  if actor is null or target is null or pg_catalog.jsonb_typeof(answers) is distinct from 'object'
-     or exists (select 1 from pg_catalog.jsonb_object_keys(answers) as t(k) where t.k not in ('post', 'sat'))
-     or pg_catalog.jsonb_typeof(answers->'post') is distinct from 'array'
-     or pg_catalog.jsonb_array_length(answers->'post') is distinct from 15
-     or exists (
+  -- 입력 형식. 단계별 IF 로 나눈다: SQL 의 OR 는 평가 순서가 보장되지 않아, 형식 확인 전에
+  -- jsonb_array_length·jsonb_object_keys 가 배열·객체가 아닌 값에 실행되어 다른 오류가 날 수 있다.
+  -- NULL 은 모두 거부한다(is distinct from).
+  if actor is null or target is null or pg_catalog.jsonb_typeof(answers) is distinct from 'object' then
+    raise exception 'INVALID_ANSWERS' using errcode = '22023';
+  end if;
+  if exists (select 1 from pg_catalog.jsonb_object_keys(answers) as t(k) where t.k not in ('post', 'sat'))
+     or pg_catalog.jsonb_typeof(answers->'post') is distinct from 'array' then
+    raise exception 'INVALID_ANSWERS' using errcode = '22023';
+  end if;
+  if pg_catalog.jsonb_array_length(answers->'post') is distinct from 15 then
+    raise exception 'INVALID_ANSWERS' using errcode = '22023';
+  end if;
+  if exists (
        select 1 from pg_catalog.jsonb_array_elements(answers->'post') as e(v)
        where pg_catalog.jsonb_typeof(e.v) is distinct from 'null'
          and (pg_catalog.jsonb_typeof(e.v) is distinct from 'number' or (e.v #>> '{}') !~ '^[1-5]$')
      )
-     or (answers ? 'sat' and pg_catalog.jsonb_typeof(answers->'sat') is distinct from 'object')
-  then
+     or (answers ? 'sat' and pg_catalog.jsonb_typeof(answers->'sat') is distinct from 'object') then
     raise exception 'INVALID_ANSWERS' using errcode = '22023';
   end if;
   begin
@@ -110,6 +118,8 @@ $$;
 
 revoke all on function public.secondcareer_post_draft_v1(uuid, uuid, jsonb, text) from public, anon, authenticated;
 grant execute on function public.secondcareer_post_draft_v1(uuid, uuid, jsonb, text) to service_role;
+-- Data API(PostgREST) 가 새 RPC 를 인식하도록 스키마 캐시를 갱신한다(커밋 시 전달).
+notify pgrst, 'reload schema';
 
 commit;
 
