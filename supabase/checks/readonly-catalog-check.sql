@@ -4,6 +4,9 @@
 -- 성격: 시스템 카탈로그만 조회한다. 응용 테이블의 행(고객·응답 데이터)은 읽지 않는다.
 --       읽기 전용 트랜잭션 안에서 실행하고 rollback 으로 끝난다. 쓰기·DDL 은 시도해도 실패한다.
 -- 실행: Supabase 대시보드 SQL Editor 또는 psql 에서 사람이 직접 실행한다.
+-- 안전 기준(정적 확인): 실행되는 문장은 SELECT 와 BEGIN/ROLLBACK 뿐이다. 응용 테이블의 행을 읽는 문장은 없다
+--       (12번은 주석). 카탈로그 함수 has_*_privilege·pg_get_* 는 권한·정의만 반환한다.
+--       단, pg_policies·pg_get_constraintdef 는 정책·제약의 정의(규칙 문장)를 반환한다 — 고객 데이터는 아니다.
 -- 결과 취급: 결과에는 운영 정책·함수 정의 정보가 포함되므로 공개 저장소·이슈·채팅에 붙이지 않는다.
 --           로컬 비공개 파일(docs/dev-009b/*.local.md)에만 저장한다.
 
@@ -78,8 +81,16 @@ from pg_roles r where r.rolname in ('anon', 'authenticated');
 -- 10. service_role 이 RLS 를 우회하는지(초안·제출 RPC 는 SECURITY INVOKER 로 service_role 권한에 의존)
 select rolname, rolbypassrls from pg_roles where rolname in ('service_role', 'authenticated', 'anon');
 select has_table_privilege('service_role', 'public.assessments', 'insert,update,select') as service_role_assessments,
-       has_table_privilege('service_role', 'public.assessment_history', 'insert') as service_role_history,
-       has_sequence_privilege('service_role', 'public.assessment_history_id_seq', 'usage') as service_role_history_seq;
+       has_table_privilege('service_role', 'public.assessment_history', 'insert') as service_role_history;
+
+-- 10-1. assessment_history.id 에 실제로 연결된 시퀀스(이름을 가정하지 않는다. identity 열도 조회된다).
+--       이력 INSERT 는 이 시퀀스 권한이 필요하다. seq_name 이 NULL 이면 id 열에 연결된 시퀀스가 없다는 뜻이다.
+with s as (select pg_get_serial_sequence('public.assessment_history', 'id') as seq_name)
+select s.seq_name,
+       case when s.seq_name is null then null else has_sequence_privilege('service_role', s.seq_name, 'usage') end as service_role_usage,
+       case when s.seq_name is null then null else has_sequence_privilege('authenticated', s.seq_name, 'usage') end as authenticated_usage,
+       case when s.seq_name is null then null else has_sequence_privilege('anon', s.seq_name, 'usage') end as anon_usage
+from s;
 
 -- 11. Data API 노출 스키마(authenticator 설정; 대시보드 설정과 다를 수 있음)
 select rolname, rolconfig from pg_roles where rolname = 'authenticator';
