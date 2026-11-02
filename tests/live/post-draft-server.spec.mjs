@@ -5,14 +5,33 @@ import vm from 'node:vm';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url),{transformSync}=require('esbuild');
 
+// Synthetic JavaScript model of supabase/proposals/post-draft.sql (the draft RPC).
+// It is NOT PostgreSQL: locks, transactions, RLS and privileges are unverified here.
+function modelDraftRpc(state){
+ return async({actor,target,answers,expected_updated_at})=>{
+  if(state.failWrite)return {data:null,error:{code:'XX000'}};
+  const me=state.profiles.find(p=>p.user_id===actor),part=state.participants.find(p=>p.id===target);
+  if(!me||!part||me.role!=='participant'||part.auth_user_id!==actor||me.organization_id!==part.organization_id)return {data:null,error:{code:'42501'}};
+  const pre=state.assessments.find(a=>a.participant_id===target&&a.phase==='pre');if(pre?.status!=='submitted')return {data:null,error:{code:'42501'}};
+  const row=state.assessments.find(a=>a.participant_id===target&&a.phase==='post');
+  const view=r=>({status:r.status,answers:structuredClone(r.answers),updated_at:r.updated_at,submitted_at:r.submitted_at??null});
+  if(row&&row.status!=='draft')return {data:null,error:{code:'55006'}};
+  if(row&&JSON.stringify(row.answers)===JSON.stringify(answers))return {data:view(row),error:null};
+  if((row&&row.updated_at!==expected_updated_at)||(!row&&expected_updated_at!==null))return {data:null,error:{code:'40001'}};
+  const now=new Date(Math.max(Date.now(),row?Date.parse(row.updated_at)+1:0)).toISOString();
+  (state.history||=[]).push({actor,action:'post-draft',before:row?structuredClone(row.answers):null});
+  if(row){Object.assign(row,{answers:structuredClone(answers),updated_at:now});return {data:view(row),error:null}}
+  const created={id:'post-'+(++state.revision),participant_id:target,phase:'post',status:'draft',answers:structuredClone(answers),updated_at:now,submitted_at:null};state.assessments.push(created);return {data:view(created),error:null};
+ };
+}
 // Synthetic database protocol model. It is not a Postgres or Auth integration test.
 function setup(){
  const profiles=[{user_id:'alice',organization_id:'org1',role:'participant'},{user_id:'bob',organization_id:'org1',role:'participant'},{user_id:'counselor',organization_id:'org1',role:'counselor'},{user_id:'other',organization_id:'org2',role:'participant'}];
  const participants=[{id:'alice-p',auth_user_id:'alice',organization_id:'org1',counselor_user_id:'counselor',display_name:'가상 A'},{id:'bob-p',auth_user_id:'bob',organization_id:'org1',counselor_user_id:'counselor',display_name:'가상 B'},{id:'other-p',auth_user_id:'other',organization_id:'org2',counselor_user_id:'other-c',display_name:'가상 C'}];
  const pre={id:'pre-a',participant_id:'alice-p',phase:'pre',status:'submitted',answers:{pre:[1,2,3],reg:{},goal:{},expect:{},done:{}},result:{value:'unchanged'},updated_at:'2026-01-01T00:00:00.000Z',submitted_at:'2026-01-01T00:00:00.000Z'};
  const assessments=[pre,{...structuredClone(pre),id:'pre-b',participant_id:'bob-p',status:'draft'},{...structuredClone(pre),id:'pre-o',participant_id:'other-p'}];
- const state={profiles,participants,assessments,failWrite:false,rpcCalls:0,pending:false,enabled:true,revision:0};let handler;
- const db={auth:{getUser:async token=>({data:{user:profiles.some(p=>p.user_id===token)?{id:token,app_metadata:state.pending?{must_change_password:true}:{}}:null},error:null})},rpc:async(name,args)=>{state.rpcCalls++;if(name==='secondcareer_post_submit_v1'&&state.submitRpc)return state.submitRpc(args);throw Error('unexpected RPC '+name)},from(name){
+ const state={profiles,participants,assessments,failWrite:false,rpcCalls:0,rpcLog:[],pending:false,enabled:true,revision:0};let handler;
+ const db={auth:{getUser:async token=>({data:{user:profiles.some(p=>p.user_id===token)?{id:token,app_metadata:state.pending?{must_change_password:true}:{}}:null},error:null})},rpc:async(name,args)=>{state.rpcLog.push(name);if(name==='secondcareer_post_draft_v1')return (state.draftRpc||modelDraftRpc(state))(args);state.rpcCalls++;if(name==='secondcareer_post_submit_v1'&&state.submitRpc)return state.submitRpc(args);throw Error('unexpected RPC '+name)},from(name){
   let rows=({user_profiles:profiles,participants,assessments,server_login_lookup:[],assessment_history:[]})[name]||[],filters=[],inserts=null,updates=null,limit=Infinity,order=null,columns='*';
   const q={select(c){columns=c;return q},eq(k,v){filters.push(r=>r[k]===v);return q},gt(k,v){filters.push(r=>r[k]>v);return q},in(k,vs){filters.push(r=>vs.includes(r[k]));return q},order(k){order=k;return q},limit(n){limit=n;return q},insert(v){inserts=v;return q},update(v){updates=v;return q},maybeSingle:async()=>run(true),then(resolve,reject){return run(false).then(resolve,reject)}};
   async function run(single){
@@ -45,7 +64,7 @@ test('post endpoints fail closed when the server flag is absent',async()=>{
 test('saves and restores a separate draft without changing pre or its result',async()=>{
  const h=setup(),before=structuredClone(h.pre),answers=Array(h.ITEM_COUNT).fill(null);answers[0]=5;
  expect((await h.request('alice')).data.assessment).toBeNull();const saved=await h.request('alice',h.payload(answers));expect(saved.status).toBe(200);expect(saved.data.answers.post).toEqual(answers);
- expect((await h.request('alice')).data.assessment).toEqual(saved.data);expect(h.pre).toEqual(before);expect(h.state.rpcCalls).toBe(0);
+ expect((await h.request('alice')).data.assessment).toEqual(saved.data);expect(h.pre).toEqual(before);expect(h.state.rpcLog).not.toContain('secondcareer_write_v1');
  expect((await h.request('other')).data.assessment).toBeNull();expect((await h.request('other',null,'?phase=post&id=alice-p')).status).toBe(403);expect((await h.request('other', {...h.payload(),participantId:'alice-p'})).status).toBe(400);
 });
 test('rejects missing, malformed and out-of-range post responses',async()=>{
@@ -82,7 +101,8 @@ test('an unexpected existing post format or finalized status is never overwritte
 const goodSat=OPT=>({q1:5,q2:4,q3a:3,q3b:2,q3c:1,q5fit:5,d32:[OPT['sat.d32'][0]],d33:[OPT['sat.d33'][2],OPT['sat.d33'][0],OPT['sat.d33'][1]],d34:[OPT['sat.d34'][1]],d35:[OPT['sat.d35'][0],OPT['sat.d35'][3]],q7:[OPT['sat.q7'][1]],q7txt:'가'.repeat(200)});
 function modelRpc(h){
  return async({actor,target,answers,expected_updated_at})=>{
-  const part=h.state.participants.find(p=>p.id===target&&p.auth_user_id===actor);if(!part)return {data:null,error:{code:'42501'}};
+  const me=h.state.profiles.find(p=>p.user_id===actor),part=h.state.participants.find(p=>p.id===target&&p.auth_user_id===actor);
+  if(!me||!part||me.role!=='participant'||me.organization_id!==part.organization_id)return {data:null,error:{code:'42501'}};
   const pre=h.state.assessments.find(a=>a.participant_id===part.id&&a.phase==='pre');if(!pre||pre.status!=='submitted')return {data:null,error:{code:'42501'}};
   const row=h.state.assessments.find(a=>a.participant_id===part.id&&a.phase==='post'),now=new Date(Math.max(Date.now(),row?Date.parse(row.updated_at)+1:0)).toISOString();
   const view=r=>({status:r.status,answers:r.answers,updated_at:r.updated_at,submitted_at:r.submitted_at});
@@ -105,7 +125,7 @@ test('satisfaction draft is saved with the post draft, restored, and old clients
  // jsonb may reorder keys when it stores objects; the same content must stay idempotent.
  const row=h.state.assessments.find(x=>x.phase==='post');row.answers.sat=Object.fromEntries(Object.entries(row.answers.sat).reverse());
  expect((await h.request('alice',{...h.payload(post,old.data.updatedAt),answers:{post,sat}})).data.updatedAt).toBe(old.data.updatedAt);
- expect(h.pre).toEqual(before);expect(h.state.rpcCalls).toBe(0);
+ expect(h.pre).toEqual(before);expect(h.state.rpcLog).not.toContain('secondcareer_write_v1');
 });
 test('malformed satisfaction answers are rejected without writing',async()=>{
  const h=setup(),O=h.OPT,post=Array(h.ITEM_COUNT).fill(null);
@@ -150,7 +170,7 @@ test('submit failures never report success or change data',async()=>{
  const h=setup();
  const saved=await h.request('alice',{action:'post-draft',answers:{post:Array(h.ITEM_COUNT).fill(3)},expectedUpdatedAt:null});const draft=structuredClone(h.state.assessments.find(x=>x.phase==='post'));
  const stale=await h.request('alice',submitBody(h,undefined,'2020-01-01T00:00:00.000Z'));expect(stale.status).toBe(409);expect(h.state.rpcCalls).toBe(0);
- for(const [error,status] of [[{code:'40001'},409],[{code:'55006'},409],[{code:'42501'},403],[{code:'XX000'},500]]){
+ for(const [error,status] of [[{code:'40001'},409],[{code:'55006'},409],[{code:'42501'},403],[{code:'22023'},400],[{code:'23505'},409],[{code:'XX000'},500]]){
   h.state.submitRpc=async()=>({data:null,error});const r=await h.request('alice',submitBody(h,undefined,saved.data.updatedAt));expect(r.status).toBe(status);expect(r.data.status).toBeUndefined();
  }
  for(const data of [null,{status:'draft'},{status:'submitted',answers:{post:Array(h.ITEM_COUNT).fill(3),sat:{...goodSat(h.OPT),q1:1}},updated_at:'2026-11-01T00:00:00.000Z',submitted_at:'2026-11-01T00:00:00.000Z'}]){
@@ -193,4 +213,32 @@ test('unsubmitted post answers are never exposed to the counselor',async()=>{
  const r=await h.request('counselor',null,'?compare=alice-p');expect(r.status).toBe(403);expect(JSON.stringify(r.data)).not.toContain('초안 의견');
  const list=await h.request('counselor',null,'');expect(list.data.postAssessments).toEqual([{participant_id:'alice-p',status:'draft',submitted_at:null}]);
  expect(JSON.stringify(list.data)).not.toContain('초안 의견');
+});
+
+// ---- DEV-009B-1: draft writes go through one database function ------------------------------
+test('draft saves call the draft RPC with the authenticated actor and record history',async()=>{
+ const h=setup(),a=Array(h.ITEM_COUNT).fill(null);a[0]=3;
+ const saved=await h.request('alice',h.payload(a));expect(saved.status).toBe(200);
+ expect(h.state.rpcLog).toEqual(['secondcareer_post_draft_v1']);expect(h.state.history).toEqual([{actor:'alice',action:'post-draft',before:null}]);
+ a[1]=4;expect((await h.request('alice',h.payload(a,saved.data.updatedAt))).status).toBe(200);expect(h.state.history[1].before.post[1]).toBeNull();
+ // The database re-checks ownership even if the Edge Function were bypassed.
+ expect((await modelDraftRpc(h.state)({actor:'bob',target:'alice-p',answers:{post:a},expected_updated_at:null})).error.code).toBe('42501');
+});
+test('draft RPC errors and unconfirmed results never report a saved draft',async()=>{
+ const h=setup(),a=Array(h.ITEM_COUNT).fill(null);
+ for(const [code,status] of [['22023',400],['42501',403],['40001',409],['55006',409],['23505',409],['XX000',500]]){
+  h.state.draftRpc=async()=>({data:null,error:{code}});const r=await h.request('alice',h.payload(a));expect(r.status).toBe(status);expect(r.data.status).toBeUndefined();
+ }
+ for(const data of [null,{status:'submitted',answers:{post:a},updated_at:'2026-11-01T00:00:00.000Z'},{status:'draft',answers:{post:Array(h.ITEM_COUNT).fill(5)},updated_at:'2026-11-01T00:00:00.000Z'},{status:'draft',answers:{post:a},updated_at:'not a time'}]){
+  h.state.draftRpc=async()=>({data,error:null});const r=await h.request('alice',h.payload(a));expect(r.status).toBe(500);expect(r.data.status).toBeUndefined();
+ }
+ expect(h.state.assessments.filter(x=>x.phase==='post')).toHaveLength(0);
+});
+test('a version string formatted differently by the database still matches the same instant',async()=>{
+ const h=setup(),a=Array(h.ITEM_COUNT).fill(null);a[0]=1;const saved=await h.request('alice',h.payload(a));
+ const row=h.state.assessments.find(x=>x.phase==='post');row.updated_at=row.updated_at.replace('Z','+00:00');
+ let sent;h.state.draftRpc=async args=>{sent=args.expected_updated_at;return modelDraftRpc(h.state)(args)};
+ a[0]=2;const next=await h.request('alice',h.payload(a,saved.data.updatedAt));expect(next.status).toBe(200);
+ expect(sent.endsWith('+00:00')).toBe(true);
+ expect((await h.request('alice',h.payload([5,...a.slice(1)],'2020-01-01T00:00:00.000Z'))).status).toBe(409);
 });

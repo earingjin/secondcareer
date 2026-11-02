@@ -156,7 +156,14 @@ function postPayload(row){
  if(!validPostRecord(row))throw Error('POST_STATE');
  return {status:row.status,answers:cleanAnswers(row.answers,row.status==='submitted'),updatedAt:row.updated_at,...(row.status==='submitted'?{submittedAt:row.submitted_at}:{})};
 }
-async function writePostDraft(db,part,pre,body){
+// Database error codes raised by the post RPCs (supabase/proposals/post-draft.sql, post-submit.sql).
+const RPC_ERRORS={'22023':[400,'INVALID_INPUT'],'42501':[403,'FORBIDDEN'],'40001':[409,'CONFLICT'],'55006':[409,'LOCKED'],'23505':[409,'CONFLICT']};
+const rpcError=error=>{const [status,code]=RPC_ERRORS[error?.code]||[500,'WRITE_FAILED'];return out({error:code},status)};
+// Versions are compared by instant: the database and the Data API may format the same timestamptz differently.
+const sameTime=(a,b)=>a===b||(validTime(a)&&validTime(b)&&Date.parse(a)===Date.parse(b));
+// Ownership, the submitted-pre check, the version check, the write and its history entry run in one
+// database function. The checks here only fail fast; the database decides.
+async function writePostDraft(db,actor,part,pre,body){
  if(!pre||pre.status!=='submitted')return out({error:'PRE_REQUIRED'},403);
  if(Object.keys(body).some(k=>!['action','answers','expectedUpdatedAt'].includes(k))||!Object.hasOwn(body,'expectedUpdatedAt')||
     !(body.expectedUpdatedAt===null||validTime(body.expectedUpdatedAt))||
@@ -167,22 +174,11 @@ async function writePostDraft(db,part,pre,body){
  // A client that sends only `post` keeps the saved satisfaction answers.
  const next=cleanAnswers(Object.hasOwn(body.answers,'sat')||!old?.answers?.sat?body.answers:{...body.answers,sat:old.answers.sat});
  if(old&&sameAnswers(old.answers,next))return out(postPayload(old));
- if((old&&old.updated_at!==body.expectedUpdatedAt)||(!old&&body.expectedUpdatedAt!==null))return out({error:'CONFLICT'},409);
- const now=new Date(Math.max(Date.now(),old?Date.parse(old.updated_at)+1:0)).toISOString();
- const values={answers:next,updated_at:now};
- let result;
- if(old){
-  result=await db.from('assessments').update(values).eq('id',old.id).eq('participant_id',part.id).eq('phase','post').eq('status','draft').eq('updated_at',old.updated_at).select('id,status,answers,updated_at,submitted_at').maybeSingle();
- }else{
-  result=await db.from('assessments').insert({participant_id:part.id,phase:'post',status:'draft',...values,schema_version:'sp-assessment-1'}).select('id,status,answers,updated_at,submitted_at').maybeSingle();
- }
- if(result.error&&result.error.code!=='23505')return out({error:'WRITE_FAILED'},500);
- if(result.error||!result.data){
-  const latest=await readPostDraft(db,part.id);if(latest.error)return out({error:'QUERY_FAILED'},500);
-  if(latest.data?.status==='draft'&&validPostRecord(latest.data)&&sameAnswers(latest.data.answers,next))return out(postPayload(latest.data));
-  return out({error:'CONFLICT'},409);
- }
- return out(postPayload(result.data));
+ if((old&&!sameTime(old.updated_at,body.expectedUpdatedAt))||(!old&&body.expectedUpdatedAt!==null))return out({error:'CONFLICT'},409);
+ const {data,error}=await db.rpc('secondcareer_post_draft_v1',{actor:actor.id,target:part.id,answers:next,expected_updated_at:old?old.updated_at:null});
+ if(error)return rpcError(error);
+ if(!data||data.status!=='draft'||!validTime(data.updated_at)||!sameAnswers(data.answers,next))return out({error:'SAVE_UNCONFIRMED'},500);
+ return out(postPayload({status:'draft',answers:data.answers,updated_at:data.updated_at}));
 }
 // Final submission. Ownership, the submitted-pre check, validation and the state change are
 // re-checked inside one database function (supabase/proposals/post-submit.sql) so they run in
@@ -195,14 +191,9 @@ async function writePostSubmit(db,actor,part,pre,body){
  const {data:old,error:readError}=await readPostDraft(db,part.id);if(readError)return out({error:'QUERY_FAILED'},500);
  if(old&&!validPostRecord(old))return out({error:'POST_STATE_INVALID'},500);
  if(old?.status==='submitted')return sameAnswers(old.answers,answers)?out(postPayload(old)):out({error:'LOCKED'},409);
- if((old&&old.updated_at!==body.expectedUpdatedAt)||(!old&&body.expectedUpdatedAt!==null))return out({error:'CONFLICT'},409);
- const {data,error}=await db.rpc('secondcareer_post_submit_v1',{actor:actor.id,target:part.id,answers,expected_updated_at:body.expectedUpdatedAt});
- if(error){
-  if(error.code==='40001')return out({error:'CONFLICT'},409);
-  if(error.code==='55006')return out({error:'LOCKED'},409);
-  if(error.code==='42501')return out({error:'FORBIDDEN'},403);
-  return out({error:'WRITE_FAILED'},500);
- }
+ if((old&&!sameTime(old.updated_at,body.expectedUpdatedAt))||(!old&&body.expectedUpdatedAt!==null))return out({error:'CONFLICT'},409);
+ const {data,error}=await db.rpc('secondcareer_post_submit_v1',{actor:actor.id,target:part.id,answers,expected_updated_at:old?old.updated_at:null});
+ if(error)return rpcError(error);
  if(!data||data.status!=='submitted'||!validTime(data.updated_at)||!validTime(data.submitted_at)||!sameAnswers(data.answers,answers))return out({error:'SUBMIT_UNCONFIRMED'},500);
  return out({status:'submitted',answers,updatedAt:data.updated_at,submittedAt:data.submitted_at});
 }
@@ -294,7 +285,7 @@ Deno.serve(async(req)=>{
   if(action==='post-draft'){
    if(me.role!=='participant'||parts.length!==1)return out({error:'FORBIDDEN'},403);
    if(Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED')!=='true')return out({error:'POST_NOT_CONFIGURED'},503);
-   return await writePostDraft(db,parts[0],assessments.find(a=>a.participant_id===parts[0].id),body);
+   return await writePostDraft(db,user,parts[0],assessments.find(a=>a.participant_id===parts[0].id),body);
   }
   if(action==='post-submit'){
    if(me.role!=='participant'||parts.length!==1)return out({error:'FORBIDDEN'},403);
