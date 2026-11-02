@@ -7,8 +7,8 @@ let server;
 test.beforeAll(async()=>{server=await serve('src')});
 test.afterAll(async()=>{await server.close()});
 
-async function setup(page,{gate=true,status='submitted',role='participant',pending=false}={}){
- const writes=[],requests=[],state={post:null,revision:0,saveStatus:200,submitStatus:200,submitDelay:0,submits:0};
+async function setup(page,{gate=true,status='submitted',role='participant',pending=false,postAssessments,compare}={}){
+ const writes=[],requests=[],state={postAssessments,compare,compareRequests:0,post:null,revision:0,saveStatus:200,submitStatus:200,submitDelay:0,submits:0};
  await page.route('**/main.js',route=>route.fulfill({contentType:'text/javascript',body:"import './live/app.js';"}));
  if(gate)await page.route('**/live/post-test-gate.js',route=>route.fulfill({contentType:'text/javascript',body:'export const postTestGate=true;'}));
  await page.route('https://tafrbtqjlrokdnhudswb.supabase.co/**',async route=>{
@@ -31,7 +31,8 @@ async function setup(page,{gate=true,status='submitted',role='participant',pendi
     }else data={status:'draft',updatedAt:'revision'};
    }
    else if(url.searchParams.get('phase')==='post')data={assessment:state.post};
-   else data={profile:{role},participants:[{id:'fixture',display_name:'가상 참여자',counselor_user_id:'counselor'}],counselors:{},assessments:[{id:'assessment',participant_id:'fixture',phase:'pre',status,answers:{reg:{name:'가상 참여자',careers:[{}]},goal:{},expect:{},done:{},pre:Array(15).fill(3)},updated_at:'revision'}]};
+   else if(url.searchParams.has('compare')){state.compareRequests++;if(!state.compare)return route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({error:'NOT_AVAILABLE'})});data=state.compare}
+   else data={profile:{role},participants:[{id:'fixture',display_name:'가상 참여자',counselor_user_id:'counselor'}],counselors:{},assessments:[{id:'assessment',participant_id:'fixture',phase:'pre',status,answers:{reg:{name:'가상 참여자',careers:[{}]},goal:{},expect:{},done:{},pre:Array(15).fill(3)},updated_at:'revision'}],...(state.postAssessments?{postAssessments:state.postAssessments}:{})};
   }else if(url.pathname==='/auth/v1/logout')return route.fulfill({status:204});
   else throw Error('unexpected request');
   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
@@ -198,4 +199,49 @@ for(const width of [320,375,430])test(`mobile ${width}px: choices and navigation
  const overflow=await page.locator('.mobile-survey').evaluate(root=>[...root.querySelectorAll('*')].filter(el=>{const r=el.getBoundingClientRect();return r.width&&r.height&&(r.left< -1||r.right>innerWidth+1||el.scrollWidth>el.clientWidth+2)}).map(el=>el.id||el.className));
  expect(overflow).toEqual([]);await page.getByRole('button',{name:'나중에 하기'}).click();await page.getByRole('button',{name:'개발용 사후 진단'}).click();
  await expect(page.locator('#post-q-0').getByRole('radio').nth(4)).toHaveAttribute('aria-checked','true');
+});
+
+// ---- DEV-008: counselor pre/post comparison (server responses are fixtures) -------------------
+const COMPARE_POST=[5,5,5,4,4,4,3,3,3,2,2,2,1,1,1];
+async function compareFixture(page){
+ const OPT=await page.evaluate(async()=>{const {OPT}=await import('/js/03-options.js');return Object.fromEntries(['d32','d33','d34','d35','q7'].map(k=>[k,OPT['sat.'+k]]))});
+ return {participantId:'fixture',preDate:'2026-10-01',preSubmittedAt:'2026-10-01T00:00:00.000Z',postSubmittedAt:'2026-10-20T00:00:00.000Z',evaluationVersion:'macro-chart-v1-unverified',
+  areas:[100,75,50,25,0].map(post=>({pre:50,post,diff:post-50})),items:{pre:Array(15).fill(3),post:COMPARE_POST},
+  sat:{q1:5,q2:4,q3a:3,q3b:2,q3c:1,q5fit:4,d32:[OPT.d32[1]],d33:[OPT.d33[2],OPT.d33[0],OPT.d33[1]],d34:[OPT.d34[0]],d35:[OPT.d35[0],OPT.d35[2]],q7:[OPT.q7[3]],q7txt:'상담 의견 <b>원문</b>'}};
+}
+test('counselor list shows post status and opens the submitted comparison',async({page})=>{
+ const {state}=await setup(page,{role:'counselor',postAssessments:[{participant_id:'fixture',status:'submitted',submitted_at:'2026-10-20T00:00:00.000Z'}]});
+ state.compare=await compareFixture(page);const data=state.compare;
+ const row=page.locator('tr[data-participant="fixture"]');await expect(row.locator('[data-post-status]')).toHaveText('제출 완료');await expect(row).toContainText('2026-10-20');
+ await expect(row.getByRole('button',{name:'결과 리포트 · 상담사용 5쪽'})).toBeVisible();
+ await row.getByRole('button',{name:'비교 결과 보기'}).click();await expect(page.getByRole('heading',{name:'사전·사후 비교'})).toBeVisible();
+ const areas=await page.locator('#cmp-areas tbody tr').evaluateAll(rows=>rows.map(r=>[...r.cells].map(c=>c.textContent)));
+ expect(areas).toEqual([['자기인식','50.0','100.0','+50.0'],['직업탐색','50.0','75.0','+25.0'],['의사결정','50.0','50.0','0.0'],['커리어플랜','50.0','25.0','-25.0'],['목표실행','50.0','0.0','-50.0']]);
+ const items=await page.locator('#cmp-items tbody tr').evaluateAll(rows=>rows.map(r=>[r.cells[0].textContent,r.cells[3].textContent,r.cells[4].textContent,r.cells[5].textContent]));
+ expect(items).toEqual(COMPARE_POST.map((v,i)=>[String(i+1),'3',String(v),v>3?'+'+(v-3):String(v-3)]));
+ const sat=page.locator('#cmp-sat');
+ for(const k of ['q1','q2','q3a','q3b','q3c','q5fit'])await expect(sat.locator('[data-sat="'+k+'"] dd')).toContainText(data.sat[k]+'점 / 5점');
+ await expect(sat.locator('[data-sat="d33"] dd')).toHaveText(data.sat.d33.map((v,i)=>(i+1)+'순위 '+v).join(', '));
+ for(const k of ['d32','d34','d35','q7'])await expect(sat.locator('[data-sat="'+k+'"] dd')).toHaveText(data.sat[k].join(', '));
+ await expect(sat.locator('[data-sat="q7txt"] dd')).toHaveText(data.sat.q7txt);
+ await page.getByRole('button',{name:'담당 내담자 목록으로 돌아가기'}).click();await expect(page.getByRole('heading',{name:'상담사 페이지'})).toBeVisible();
+});
+test('comparison stays closed for unsubmitted post and when the browser gate is off',async({page})=>{
+ const {state}=await setup(page,{role:'counselor',postAssessments:[{participant_id:'fixture',status:'draft',submitted_at:null}]});
+ const row=page.locator('tr[data-participant="fixture"]');await expect(row.locator('[data-post-status]')).toHaveText('작성 중');
+ await expect(row.getByRole('button',{name:'비교 결과 보기'})).toBeDisabled();
+ await page.evaluate(()=>openCompare('fixture'));await expect(page.getByRole('alert')).toBeVisible();expect(state.compareRequests).toBe(0);
+
+});
+test('gate off hides post columns even if the server sends post status',async({page})=>{
+ const {state}=await setup(page,{gate:false,role:'counselor',postAssessments:[{participant_id:'fixture',status:'submitted',submitted_at:'2026-10-20T00:00:00.000Z'}]});
+ await expect(page.locator('[data-post-status]')).toHaveCount(0);await expect(page.getByRole('button',{name:'비교 결과 보기'})).toHaveCount(0);
+ await page.evaluate(()=>openCompare('fixture'));expect(state.compareRequests).toBe(0);
+});
+test('comparison fits a 375px mobile screen without page overflow',async({page})=>{
+ await page.setViewportSize({width:375,height:800});
+ const {state}=await setup(page,{role:'counselor',postAssessments:[{participant_id:'fixture',status:'submitted',submitted_at:'2026-10-20T00:00:00.000Z'}]});
+ state.compare=await compareFixture(page);await page.locator('tr[data-participant="fixture"]').getByRole('button',{name:'비교 결과 보기'}).click();
+ await expect(page.getByRole('heading',{name:'사전·사후 비교'})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
 });

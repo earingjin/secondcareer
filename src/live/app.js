@@ -1,6 +1,6 @@
 import {S} from '../shared/state.js';
 import {OPT,LIM,COUNSELORS,setCounselors} from '../js/03-options.js';
-import {ITEM_COUNT,SCALE_MIN,SCALE_MAX} from '../js/02-eval-config.js';
+import {ITEM_COUNT,SCALE_MIN,SCALE_MAX,AREA_COUNT} from '../js/02-eval-config.js';
 import {createSurvey} from '../roles/participant/survey.js';
 import {createCounselorEdit} from '../shared/counselor-edit.js';
 import {createSurveyView} from './survey-view.js';
@@ -9,6 +9,7 @@ import {createAPI} from './api.js';
 import {loginView,passwordChangeView} from './login-view.js';
 import {mountParticipantRegistration} from './participant-registration.js';
 import {counselorView} from './counselor-view.js';
+import {compareView} from './compare-view.js';
 import {assessmentNotice} from './assessment-notice.js';
 import {postTestGate} from './post-test-gate.js';
 import {esc,getPath,setPath} from './fields.js';
@@ -17,7 +18,7 @@ import {$,toast} from '../browser/dom.js';
 let profile=null,records=[],participants=[],reportHTML='',busy=false,dirty=false,restoring=true;
 let saveTimer=null,saving=null,epoch=0,saveMessage='응답을 불러왔습니다.';
 let postTimer=null,postSaving=null,postDirty=false,postUpdatedAt=null,postMessage='';
-let satIssues=[],postLocked=false,postSubmitting=false;
+let satIssues=[],postLocked=false,postSubmitting=false,postAvailable=false,compareData=null;
 let counselorFilter={name:'',status:'all'};
 let registrationContext=null,unmountRegistration=null,mustChangePassword=false;
 let assessmentUrl='',assessmentUrlMessage='',assessmentUrlInput='';
@@ -32,7 +33,7 @@ const survey=createSurvey({save,render,nav,toast,getPath,setPath,OPT,LIM,ITEM_CO
 const mobileSurvey=createMobileSurvey({getProfile:()=>profile,steps:view.WSTEPS,missing:survey.missing,goStep:survey.goStep,goQ:survey.goQ,nextFrom:survey.nextFrom,render,toast});
 const edits=createCounselorEdit({byId,getDB:()=>records,save:()=>{},nav,render,toast,missing:survey.missing,ansText:view.ansText,getWSTEPS:()=>view.WSTEPS,getCounselors:()=>COUNSELORS,persistEdit, EVAL_VERSION:'',toAssessment:()=>null});
 
-function reset(){mobileSurvey.reset();clearRegistrationResults();assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
+function reset(){mobileSurvey.reset();clearRegistrationResults();assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];postAvailable=false;compareData=null;profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
 function hydrate(data){
   if(!data.profile||!['participant','counselor','admin'].includes(data.profile.role)||!Array.isArray(data.participants)||!Array.isArray(data.assessments))throw Error('권한 또는 조회 응답이 올바르지 않습니다.');
   profile=data.profile;mustChangePassword=data.mustChangePassword===true;participants=data.participants;setCounselors(data.assessmentCounselors||{});
@@ -42,6 +43,9 @@ function hydrate(data){
     const a=data.assessments.find(a=>a.participant_id===p.id&&a.phase==='pre');
     return {id:p.id,nick:p.display_name,company:p.company_name||a?.answers?.reg?.careers?.[0]?.co||'',reg:{careers:[{co:p.company_name||''},{},{}],phone:view.fmtPhone(p.phone||''),consent:false},goal:{},expect:{},pre:Array(ITEM_COUNT).fill(null),post:null,done:{reg:false,goal:false,expect:false},...a?.answers,counselor:p.counselor_user_id,status:a?.status||'draft',submittedAt:a?.submitted_at||null,preDate:a?.dateOfAssessment||null,_updatedAt:a?.updated_at||null,_assessmentId:a?.id||null,loginId:typeof p.login_id==='string'?p.login_id:null};
   });
+  // Post status is shown only when both the browser gate and the server flag allow it.
+  postAvailable=postTestGate&&profile.role==='counselor'&&Array.isArray(data.postAssessments);compareData=null;
+  if(postAvailable)for(const r of records){const a=data.postAssessments.find(x=>x.participant_id===r.id);r.postStatus=a?.status==='submitted'?'submitted':a?'draft':'new';r.postSubmittedAt=a?.status==='submitted'?a.submitted_at:null}
   S.mode=profile.role;S.mode2='pre';
 }
 function badge(){const e=$('#live-save');if(e)e.textContent=saveMessage}
@@ -142,6 +146,19 @@ async function saveAssessmentUrl(){
     assessmentUrlMessage='진단 접속 주소를 저장했습니다.';
   }catch(error){assessmentUrlMessage=error.message}
   finally{busy=false;render()}
+}
+const validScores=a=>Array.isArray(a)&&a.length===AREA_COUNT&&a.every(r=>r&&[r.pre,r.post,r.diff].every(Number.isFinite));
+async function openCompare(id){
+  if(busy||profile?.role!=='counselor'||!postAvailable)return;
+  if(S.cedit){S.err='수정 중인 응답이 있습니다. 수정 저장 또는 취소 후 조회해 주세요.';render();return}
+  const r=byId(id);
+  if(!r||r.status!=='submitted'||r.postStatus!=='submitted'){S.err='사전·사후 진단을 모두 제출한 내담자만 비교 결과를 조회할 수 있습니다.';render();return}
+  busy=true;compareData=null;render();
+  try{
+    const data=await api.compare(id);
+    if(data?.participantId!==id||!validScores(data.areas)||!validPost(data.items?.pre)||!validPost(data.items?.post)||[...data.items.pre,...data.items.post].includes(null)||!validSat(data.sat,true))throw Error('비교 결과를 확인하지 못했습니다.');
+    compareData=data;S.view='compare';S.err='';
+  }catch(e){S.err=e.message}finally{busy=false;render();window.scrollTo(0,0)}
 }
 async function openRes(id,kind='c'){
   if(busy||profile?.role!=='counselor')return;
@@ -282,7 +299,8 @@ function render(){
   else if(S.view==='post'&&postAllowed())html=postLocked?postConfirmView():S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):postConfirmView();
   else if(S.view==='wizard')html=`<div class="narrow noprint"><p id="live-save" role="status">${esc(saveMessage)}</p>${profile.role==='participant'?'<div class="acts"><button class="btn ghost sm" onclick="retrySave()">지금 임시저장</button><button class="btn ghost sm" onclick="logout()">로그아웃</button></div>':''}</div>`+view.vWizard();
   else if(profile.role==='counselor'&&S.view==='result')html=`<div class="narrow noprint"><div class="toolbar" id="live-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openRes('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openRes('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('cns')">담당 내담자 목록</button></div></div></div>`+reportHTML;
-  else if(profile.role==='counselor')html=counselorView({profile,records,counselorFilter,pname,assessmentUrl});
+  else if(profile.role==='counselor'&&S.view==='compare'&&compareData)html=compareView({record:byId(compareData.participantId),data:compareData,pname});
+  else if(profile.role==='counselor')html=counselorView({profile,records,counselorFilter,pname,assessmentUrl,postAvailable});
   else html=S.user.status==='submitted'
     ?`<div class="narrow" style="padding-top:34px"><div class="card"><h2>${esc(pname(S.user))}님, 제출이 완료되었습니다</h2><p class="sub">전체 응답과 진단 결과가 저장되었습니다. 결과는 담당 상담사가 안내합니다.</p>${postTestGate?'<button class="btn mint" onclick="startPost()">개발용 사후 진단</button> ':''}<button class="btn ghost" onclick="logout()">로그아웃</button></div></div>`
     :`<div class="narrow" style="padding-top:34px"><div class="card"><h2>설문 작성 중</h2><p class="sub">${esc(saveMessage)}</p><div class="acts"><button class="btn" onclick="nav('wizard')">이어서 작성</button><button class="btn ghost" onclick="logout()">로그아웃</button></div></div></div>`;
@@ -294,7 +312,7 @@ function render(){
   if(busy)$('#app').querySelectorAll('input,button,select,textarea').forEach(e=>e.disabled=true);
 }
 function editable(){return !busy&&!mustChangePassword&&profile&&(profile.role==='participant'?S.user?.status!=='submitted':!!S.cedit)}
-const handlers={doLogin,changePassword,logout,refresh,saveAssessmentUrl,openRes,render,nav,filterCounselor,goHome:()=>nav(profile?.role==='counselor'?'cns':'home'),
+const handlers={doLogin,changePassword,logout,refresh,saveAssessmentUrl,openRes,openCompare,render,nav,filterCounselor,goHome:()=>nav(profile?.role==='counselor'?'cns':'home'),
   startPost,answerPost,nextPost,leavePost,submitPost,setSatScore,toggleSat,setSatText,checkSat,backSat,savePost:async()=>{if(postAllowed()&&S.view==='post')try{await flushPost()}catch{}},backPost:()=>{if(postAllowed()&&!postLocked&&!postSubmitting&&S.view==='post'){S.pstep=1;S.err='';render()}},
   retrySave:async()=>{if(!busy){dirty=true;try{await flushDraft()}catch{}}},
   startEdit:id=>{if(!busy&&profile?.role==='counselor'&&byId(id)?.status==='submitted')edits.startEdit(id)},

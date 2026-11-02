@@ -109,6 +109,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
     updateAssessmentUrl:assessmentUrl=>request('/functions/v1/secondcareer-account',{body:{action:'update-assessment-url',assessmentUrl}}),
     register:body=>request('/functions/v1/secondcareer-register-participant',{body}),
     postDraft:()=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?phase=post')},
+    compare:id=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?compare='+encodeURIComponent(id))},
     write:(action,body)=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment',{body:{action,...body}})},
     report:(id,kind='c')=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');if(!['c','p'].includes(kind))throw Error('보고서 종류를 확인해 주세요.');return request('/functions/v1/secondcareer-assessment?id='+encodeURIComponent(id)+'&kind='+kind)},
     async logout(){try{if(session)await request('/auth/v1/logout',{method:'POST'})}finally{clear()}},

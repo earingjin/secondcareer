@@ -222,12 +222,16 @@ Deno.serve(async(req)=>{
  if(!me||!['participant','counselor'].includes(me.role))return out({error:'FORBIDDEN'},403);
  const reportId=req.method==='GET'?new URL(req.url).searchParams.get('id'):null;
  if(reportId&&me.role!=='counselor')return out({error:'FORBIDDEN'},403);
+ const compareId=req.method==='GET'&&!reportId?new URL(req.url).searchParams.get('compare'):null;
+ if(compareId!==null&&me.role!=='counselor')return out({error:'FORBIDDEN'},403);
+ const postEnabled=Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED')==='true';
+ if(compareId!==null&&!postEnabled)return out({error:'POST_NOT_CONFIGURED'},503);
  const participantQuery=()=>{
   let q=db.from('participants').select('id,display_name,counselor_user_id,phone,company_name,auth_user_id').eq('organization_id',me.organization_id);
   q=me.role==='participant'?q.eq('auth_user_id',user.id):q.eq('counselor_user_id',user.id);
-  return reportId?q.eq('id',reportId):q;
+  return reportId?q.eq('id',reportId):compareId!==null?q.eq('id',compareId):q;
  };
- const {data:parts,error:partError}=await readAll(participantQuery,'id');if(partError)return reportId&&partError.code==='22P02'?out({error:'NOT_AVAILABLE'},403):out({error:'QUERY_FAILED'},500);
+ const {data:parts,error:partError}=await readAll(participantQuery,'id');if(partError)return (reportId||compareId!==null)&&partError.code==='22P02'?out({error:'NOT_AVAILABLE'},403):out({error:'QUERY_FAILED'},500);
  const ids=(parts||[]).map(p=>p.id);
  let assessments=[];
  for(const group of chunks(ids)){const {data,error}=await readAll(()=>db.from('assessments').select('id,participant_id,phase,status,answers,result,updated_at,submitted_at').in('participant_id',group).eq('phase','pre'),'id');if(error)return out({error:'QUERY_FAILED'},500);assessments.push(...data)}
@@ -246,6 +250,19 @@ Deno.serve(async(req)=>{
    if(!['p','c'].includes(kind))return out({error:'INVALID_REPORT_KIND'},400);
    return out({html:report(person(part,a),counselors,histories||[],kind)});
   }
+  if(compareId!==null){
+   // Assignment and organization are re-checked by participantQuery; only submitted pre and
+   // post data is returned, without personal details or draft answers.
+   const part=parts.find(p=>p.id===compareId),pre=assessments.find(a=>a.participant_id===compareId);
+   if(!part||pre?.status!=='submitted'||!validPost(pre.answers?.pre,true))return out({error:'NOT_AVAILABLE'},403);
+   const {data:post,error}=await readPostDraft(db,part.id);if(error)return out({error:'QUERY_FAILED'},500);
+   if(post?.status!=='submitted')return out({error:'NOT_AVAILABLE'},403);
+   if(!validPostRecord(post))return out({error:'POST_STATE_INVALID'},500);
+   const answers=cleanAnswers(post.answers,true),preScores=areaScores(pre.answers.pre),postScores=areaScores(answers.post);
+   return out({participantId:part.id,preDate:pre.answers.preDate||null,preSubmittedAt:pre.submitted_at||null,postSubmittedAt:post.submitted_at,evaluationVersion:EVAL_VERSION,
+    areas:preScores.map((v,i)=>({pre:v,post:postScores[i],diff:Math.round((postScores[i]-v)*10)/10})),
+    items:{pre:[...pre.answers.pre],post:answers.post},sat:answers.sat});
+  }
    if(new URL(req.url).searchParams.get('phase')==='post'){
     if(me.role!=='participant'||parts.length!==1)return out({error:'FORBIDDEN'},403);
     if(Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED')!=='true')return out({error:'POST_NOT_CONFIGURED'},503);
@@ -262,7 +279,13 @@ Deno.serve(async(req)=>{
    const loginIds=new Map(lookup.map(row=>[row.user_id,row.login_id]));
    participantList=(parts||[]).map(({auth_user_id,...part})=>({...part,login_id:loginIds.get(auth_user_id)||null}));
   }
-  return out({profile:{role:me.role,display_name:me.display_name},participants:participantList,counselors,
+  // Counselors see only post status and submission date here; answers come from ?compare= after submission.
+  let postStatus;
+  if(me.role==='counselor'&&postEnabled){
+   postStatus=[];
+   for(const group of chunks(ids)){const {data,error}=await readAll(()=>db.from('assessments').select('id,participant_id,status,submitted_at').in('participant_id',group).eq('phase','post'),'id');if(error)return out({error:'QUERY_FAILED'},500);postStatus.push(...data.map(a=>({participant_id:a.participant_id,status:a.status==='submitted'?'submitted':'draft',submitted_at:a.status==='submitted'?a.submitted_at:null})))}
+  }
+  return out({profile:{role:me.role,display_name:me.display_name},participants:participantList,counselors,...(postStatus?{postAssessments:postStatus}:{}),
    assessments:assessments.map(a=>({id:a.id,participant_id:a.participant_id,phase:a.phase,status:a.status,
     answers:{reg:a.answers.reg||{careers:[{},{},{}]},goal:a.answers.goal||{},expect:a.answers.expect||{},done:a.answers.done||{},pre:a.answers.pre||Array(ITEM_COUNT).fill(null)},
     dateOfAssessment:a.answers.preDate||null,updated_at:a.updated_at,submitted_at:a.submitted_at}))});

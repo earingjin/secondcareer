@@ -28,10 +28,10 @@ function setup(){
  const context=vm.createContext({Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,Date,Math,Deno:{env:{get:key=>key==='SECONDCAREER_POST_DRAFT_ENABLED'?(state.enabled?'true':undefined):'fixture'},serve:f=>{handler=f}}});
  const cache=new Map(),root=path.resolve('supabase/functions/secondcareer-assessment');
  function load(file){file=path.resolve(file);if(cache.has(file))return cache.get(file).exports;const module={exports:{}};cache.set(file,module);const code=transformSync(fs.readFileSync(file,'utf8'),{loader:file.endsWith('.ts')?'ts':'js',format:'cjs',target:'es2022'}).code;vm.runInContext('(function(require,module,exports){'+code+'\n})',context,{filename:file})(s=>s.startsWith('npm:')?{createClient:()=>db}:load(path.resolve(path.dirname(file),s)),module,module.exports);return module.exports}
- load(path.join(root,'index.ts'));const {ITEM_COUNT}=load(path.join(root,'js/02-eval-config.js')),{OPT}=load(path.join(root,'js/03-options.js'));
+ load(path.join(root,'index.ts'));const evalConfig=load(path.join(root,'js/02-eval-config.js')),{ITEM_COUNT}=evalConfig,{OPT}=load(path.join(root,'js/03-options.js'));
  async function request(user,body,query='?phase=post'){const response=await handler(new Request('https://fixture.invalid/'+query,{method:body?'POST':'GET',headers:user?{authorization:'Bearer '+user}:{},...(body?{body:JSON.stringify(body)}:{})}));return {status:response.status,data:await response.json()}}
  const payload=(post=Array(ITEM_COUNT).fill(null),expectedUpdatedAt=null)=>({action:'post-draft',answers:{post},expectedUpdatedAt});
- return {state,pre,request,payload,ITEM_COUNT,OPT};
+ return {state,pre,request,payload,ITEM_COUNT,OPT,evalConfig};
 }
 
 test('requires submitted pre and authenticated participant ownership',async()=>{
@@ -157,4 +157,40 @@ test('submit failures never report success or change data',async()=>{
   h.state.submitRpc=async()=>({data,error:null});const r=await h.request('alice',submitBody(h,undefined,saved.data.updatedAt));expect(r.status).toBe(500);expect(r.data.status).toBeUndefined();
  }
  expect(h.state.assessments.find(x=>x.phase==='post')).toEqual(draft);
+});
+
+// ---- DEV-008: counselor pre/post comparison -------------------------------------------------
+function compareSetup(){
+ const h=setup();h.state.submitRpc=modelRpc(h);
+ h.state.profiles.push({user_id:'counselor2',organization_id:'org1',role:'counselor'},{user_id:'other-c',organization_id:'org2',role:'counselor'});
+ h.pre.answers.pre=[1,2,3,4,5,5,4,3,2,1,3,3,3,1,5];return h;
+}
+const POST_ITEMS=[5,5,5,4,4,4,3,3,3,2,2,2,1,1,1];
+test('assigned counselor reads submitted pre/post comparison and satisfaction exactly',async()=>{
+ const h=compareSetup(),{toScore,ITEMS_PER_AREA}=h.evalConfig;
+ expect((await h.request('alice',submitBody(h,undefined,null,POST_ITEMS))).status).toBe(200);
+ const r=await h.request('counselor',null,'?compare=alice-p');expect(r.status).toBe(200);
+ expect(Object.keys(r.data).sort()).toEqual(['areas','evaluationVersion','items','participantId','postSubmittedAt','preDate','preSubmittedAt','sat']);
+ const area=(a,i)=>toScore(a.slice(i*ITEMS_PER_AREA,(i+1)*ITEMS_PER_AREA).reduce((x,y)=>x+y,0));
+ expect(r.data.areas).toEqual([0,1,2,3,4].map(i=>({pre:area(h.pre.answers.pre,i),post:area(POST_ITEMS,i),diff:Math.round((area(POST_ITEMS,i)-area(h.pre.answers.pre,i))*10)/10})));
+ expect(r.data.areas[0]).toEqual({pre:area([1,2,3],0),post:100,diff:Math.round((100-area([1,2,3],0))*10)/10});
+ expect(r.data.items).toEqual({pre:h.pre.answers.pre,post:POST_ITEMS});expect(r.data.sat).toEqual(goodSat(h.OPT));expect(r.data.evaluationVersion).toBe('macro-chart-v1-unverified');
+ const list=await h.request('counselor',null,'');expect(list.data.postAssessments).toEqual([{participant_id:'alice-p',status:'submitted',submitted_at:r.data.postSubmittedAt}]);
+});
+test('comparison is denied to other counselors, other organizations, participants and closed gates',async()=>{
+ const h=compareSetup();expect((await h.request('alice',submitBody(h,undefined,null,POST_ITEMS))).status).toBe(200);
+ for(const user of ['counselor2','other-c','alice','bob'])expect((await h.request(user,null,'?compare=alice-p')).status).toBe(403);
+ for(const id of ['other-p','bob-p','missing',''])expect((await h.request('counselor',null,'?compare='+id)).status).toBe(403);
+ expect((await h.request(null,null,'?compare=alice-p')).status).toBe(401);
+ h.state.pending=true;expect((await h.request('counselor',null,'?compare=alice-p')).status).toBe(403);h.state.pending=false;
+ h.state.enabled=false;expect((await h.request('counselor',null,'?compare=alice-p')).status).toBe(503);
+ expect('postAssessments' in (await h.request('counselor',null,'')).data).toBe(false);
+ h.state.enabled=true;expect((await h.request('counselor2',null,'')).data.postAssessments).toEqual([]);
+});
+test('unsubmitted post answers are never exposed to the counselor',async()=>{
+ const h=compareSetup();
+ expect((await h.request('alice',{action:'post-draft',answers:{post:POST_ITEMS,sat:{q1:5,q7txt:'초안 의견'}},expectedUpdatedAt:null})).status).toBe(200);
+ const r=await h.request('counselor',null,'?compare=alice-p');expect(r.status).toBe(403);expect(JSON.stringify(r.data)).not.toContain('초안 의견');
+ const list=await h.request('counselor',null,'');expect(list.data.postAssessments).toEqual([{participant_id:'alice-p',status:'draft',submitted_at:null}]);
+ expect(JSON.stringify(list.data)).not.toContain('초안 의견');
 });

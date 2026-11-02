@@ -4,6 +4,7 @@ import {AREAS,FACTORS} from '../js/01-areas.js';
 import {ITEM_COUNT,ITEMS_PER_AREA,SCALE,SCALE_MIN,SCALE_MAX} from '../js/02-eval-config.js';
 import {QUESTION_STEPS,qdText,qdOptions,qdRequired,qdStepCodes} from '../js/00-question-defs-module.js';
 import {esc,getPath} from './fields.js';
+import {SAT_QUESTIONS,SAT_COMMENT_LABEL} from './sat-defs.js';
 export function createSurveyView({missing,pname}){
 const QT=qdText();
 // [문항] 시트 보기 문구 (설문 화면 표시용). 없는 항목은 OPT 문구를 그대로 표시
@@ -189,17 +190,7 @@ function vSat(issues,saveStatus){
   const scale=(key,low,high)=>`<div class="scale" role="radiogroup" aria-label="${key}">${Array.from({length:SCALE_MAX-SCALE_MIN+1},(_,i)=>i+SCALE_MIN).map(v=>`<button type="button" role="radio" aria-checked="${t[key]===v}" class="${t[key]===v?'on':''}" onclick="setSatScore('${key}',${v})">${v}</button>`).join('')}</div><div class="scale-legend"><span>${low}</span><span></span><span>${high}</span></div>`;
   const chips=key=>{const path='sat.'+key,selected=t[key]||[],max=LIM[path];return `<div class="chips">${OPT[path].map((value,i)=>{const rank=selected.indexOf(value);return `<button type="button" class="chip ${rank>=0?'on':''}" aria-pressed="${rank>=0}" onclick="toggleSat('${key}',${i})">${max>1&&rank>=0?'<b>'+(rank+1)+'</b>':''}${esc(value)}</button>`}).join('')}</div>`};
   let h=`<div class="narrow mobile-survey" style="padding-top:20px"><div class="card"><h2>사후 만족도 설문</h2><p class="sub">상담을 마친 지금의 생각을 알려 주세요.</p><p class="hintline">응답은 자동으로 임시저장되며 최종 제출 전까지 수정할 수 있습니다.</p><p>사후 진단 임시저장 상태</p><p id="post-save-status" class="hintline" role="status">${esc(saveStatus)}</p>`;
-  h+=block('q1','Q1','세컨플래닝 서비스에 대한 전반적인 만족도',scale('q1','매우 불만족','매우 만족'));
-  h+=block('q2','Q2','새로운 경력을 만들어 가는 데 유익했습니까?',scale('q2','전혀 아니다','매우 그렇다'));
-  h+=block('q3a','Q3-1','상담 이후 막연한 불안이 줄었다',scale('q3a','전혀 아니다','매우 그렇다'));
-  h+=block('q3b','Q3-2','미래에 대한 자신감이 높아졌다',scale('q3b','전혀 아니다','매우 그렇다'));
-  h+=block('q3c','Q3-3','마음이 이전보다 안정되었다',scale('q3c','전혀 아니다','매우 그렇다'));
-  h+=block('d32','Q3-4','서비스 이후 현재의 마음 상태는 어떠하십니까?',chips('d32'));
-  h+=block('d33','Q4','서비스 이후 가장 고민되는 부분 3가지를 순서대로 선택해 주세요.',chips('d33'));
-  h+=block('d34','Q5-1','컨설팅에서 가장 도움이 된 부분 한 가지를 선택해 주세요.',chips('d34'));
-  h+=block('q5fit','Q5-2','컨설팅 전에 기대했던 부분이 충족되었습니까?',scale('q5fit','전혀 아니다','매우 그렇다'));
-  h+=block('d35','Q6','가장 크게 극복된 경력준비 장애요인 (최대 2가지)',chips('d35'));
-  h+=block('q7','Q7','서비스에서 개선이 필요하다고 느낀 점 (최대 2가지)',chips('q7')+`<div class="field" style="margin-top:12px"><label for="q7t">더 나은 서비스를 위한 의견·담당 컨설턴트에게 보내는 메시지 (선택)</label><textarea class="in" id="q7t" maxlength="200" oninput="setSatText(this.value)">${esc(t.q7txt||'')}</textarea></div>`);
+  for(const q of SAT_QUESTIONS)h+=block(q.key,q.no,q.text,q.scale?scale(q.key,...q.scale):chips(q.key)+(q.key==='q7'?`<div class="field" style="margin-top:12px"><label for="q7t">${SAT_COMMENT_LABEL}</label><textarea class="in" id="q7t" maxlength="200" oninput="setSatText(this.value)">${esc(t.q7txt||'')}</textarea></div>`:''));
   return h+`<div class="acts" style="justify-content:space-between;margin-top:10px"><button class="btn ghost" onclick="backPost()">이전</button><button class="btn mint" onclick="checkSat()">응답 확인</button></div></div></div>`;
 }
 
