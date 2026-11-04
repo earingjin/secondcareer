@@ -19,6 +19,8 @@ let profile=null,records=[],participants=[],reportHTML='',busy=false,dirty=false
 let saveTimer=null,saving=null,epoch=0,saveMessage='응답을 불러왔습니다.';
 let postTimer=null,postSaving=null,postDirty=false,postUpdatedAt=null,postMessage='';
 let satIssues=[],postLocked=false,postSubmitting=false,postAvailable=false,compareData=null;
+// DEV-014: participant-side post approval from the server (the server still checks every request).
+let postApproved=false;
 let counselorFilter={name:'',status:'all'};
 let registrationContext=null,unmountRegistration=null,mustChangePassword=false;
 let assessmentUrl='',assessmentUrlMessage='',assessmentUrlInput='';
@@ -34,6 +36,7 @@ async function enterPostFromLink(){
   if(!postEntry||!profile||mustChangePassword||busy)return;
   if(profile.role!=='participant'||!postTestGate){clearPostEntry();return}
   if(S.user?.status!=='submitted'){clearPostEntry();S.err='사전진단을 최종 제출한 뒤 사후진단에 참여할 수 있습니다. 사전진단을 먼저 완료해 주세요.';render();return}
+  if(!postApproved){clearPostEntry();S.err='담당 상담사가 사후진단을 허용한 뒤 참여할 수 있습니다. 허용 안내를 받은 뒤 다시 접속해 주세요.';render();return}
   await startPost();
   // Server refusals (no submitted pre, no permission, feature off) keep the existing checks; only the message is added.
   if(profile&&S.view!=='post'){clearPostEntry();S.err='사후진단을 시작하지 못했습니다. '+(S.err||'')+' 문제가 계속되면 담당 상담사에게 문의해 주세요.';render()}
@@ -48,7 +51,7 @@ const survey=createSurvey({save,render,nav,toast,getPath,setPath,OPT,LIM,ITEM_CO
 const mobileSurvey=createMobileSurvey({getProfile:()=>profile,steps:view.WSTEPS,missing:survey.missing,goStep:survey.goStep,goQ:survey.goQ,nextFrom:survey.nextFrom,render,toast});
 const edits=createCounselorEdit({byId,getDB:()=>records,save:()=>{},nav,render,toast,missing:survey.missing,ansText:view.ansText,getWSTEPS:()=>view.WSTEPS,getCounselors:()=>COUNSELORS,persistEdit, EVAL_VERSION:'',toAssessment:()=>null});
 
-function reset(){mobileSurvey.reset();clearRegistrationResults();assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];postAvailable=false;compareData=null;profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
+function reset(){mobileSurvey.reset();clearRegistrationResults();assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];postAvailable=false;postApproved=false;compareData=null;profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
 function hydrate(data){
   if(!data.profile||!['participant','counselor','admin'].includes(data.profile.role)||!Array.isArray(data.participants)||!Array.isArray(data.assessments))throw Error('권한 또는 조회 응답이 올바르지 않습니다.');
   profile=data.profile;mustChangePassword=data.mustChangePassword===true;participants=data.participants;setCounselors(data.assessmentCounselors||{});
@@ -61,6 +64,8 @@ function hydrate(data){
   // Post status is shown only when both the browser gate and the server flag allow it.
   postAvailable=postTestGate&&profile.role==='counselor'&&Array.isArray(data.postAssessments);compareData=null;
   if(postAvailable)for(const r of records){const a=data.postAssessments.find(x=>x.participant_id===r.id);r.postStatus=a?.status==='submitted'?'submitted':a?'draft':'new';r.postSubmittedAt=a?.status==='submitted'?a.submitted_at:null}
+  if(postAvailable)for(const r of records){const a=Array.isArray(data.postApprovals)?data.postApprovals.find(x=>x.participant_id===r.id):null;r.postApproved=!!a;r.postApprovedAt=a?.approved_at||null;r.postApprovalSource=a?.source==='backfill'?'backfill':a?'counselor':null}
+  postApproved=postTestGate&&profile.role==='participant'&&data.postApproved===true;
   S.mode=profile.role;S.mode2='pre';
 }
 function badge(){const e=$('#live-save');if(e)e.textContent=saveMessage}
@@ -189,7 +194,7 @@ function filterCounselor(clear=false){
   counselorFilter=clear?{name:'',status:'all'}:{name:$('#cns-name').value.trim(),status:$('#cns-status').value};
   render();
 }
-function postAllowed(){return postTestGate&&!busy&&!mustChangePassword&&profile?.role==='participant'&&S.user?.status==='submitted'}
+function postAllowed(){return postTestGate&&postApproved&&!busy&&!mustChangePassword&&profile?.role==='participant'&&S.user?.status==='submitted'}
 const validPost=a=>Array.isArray(a)&&a.length===ITEM_COUNT&&a.every(v=>v===null||(Number.isInteger(v)&&v>=SCALE_MIN&&v<=SCALE_MAX));
 const SAT_SCORES=['q1','q2','q3a','q3b','q3c','q5fit'],SAT_CHOICES=['d32','d33','d34','d35','q7'];
 // Shape check for a satisfaction object; partial drafts are allowed unless complete is requested.
@@ -318,7 +323,7 @@ function render(){
   else if(profile.role==='counselor'&&S.view==='compare'&&compareData)html=compareView({record:byId(compareData.participantId),data:compareData,pname});
   else if(profile.role==='counselor')html=counselorView({profile,records,counselorFilter,pname,assessmentUrl,postAvailable});
   else html=S.user.status==='submitted'
-    ?`<div class="narrow" style="padding-top:34px"><div class="card"><h2>${esc(pname(S.user))}님, 제출이 완료되었습니다</h2><p class="sub">전체 응답과 진단 결과가 저장되었습니다. 결과는 담당 상담사가 안내합니다.</p>${postTestGate?'<button class="btn mint" onclick="startPost()">사후진단 실시</button> ':''}<button class="btn ghost" onclick="logout()">로그아웃</button></div></div>`
+    ?`<div class="narrow" style="padding-top:34px"><div class="card"><h2>${esc(pname(S.user))}님, 제출이 완료되었습니다</h2><p class="sub">전체 응답과 진단 결과가 저장되었습니다. 결과는 담당 상담사가 안내합니다.</p>${postTestGate?`<button class="btn mint" onclick="startPost()" ${postApproved?'':'disabled'}>사후진단 실시</button> `:''}${postTestGate&&!postApproved?'<p class="hintline" id="post-approval-hint">담당 상담사가 사후진단을 허용하면 참여할 수 있습니다.</p>':''}<button class="btn ghost" onclick="logout()">로그아웃</button></div></div>`
     :`<div class="narrow" style="padding-top:34px"><div class="card"><h2>설문 작성 중</h2><p class="sub">${esc(saveMessage)}</p><div class="acts"><button class="btn" onclick="nav('wizard')">이어서 작성</button><button class="btn ghost" onclick="logout()">로그아웃</button></div></div></div>`;
   if(profile&&S.err)html=`<div class="narrow err noprint" role="alert">${esc(S.err)}</div>`+html;
   $('#app').innerHTML=html;
@@ -356,9 +361,24 @@ $('#app').addEventListener('click',async event=>{
   if(!button||button.disabled||busy||profile?.role!=='counselor'||S.view!=='cns'||!postAvailable)return;
   const participant=byId(button.dataset.copyPostNotice),status=$('#copy-notice-status'),postUrl=postEntryUrl(assessmentUrl);
   if(!status)return;
-  if(!participant||participant.status!=='submitted'||participant.postStatus==='submitted'||!participant.nick||!participant.loginId||!postUrl){status.textContent='사후진단 안내문을 복사할 수 없는 상태입니다.';return}
+  if(!participant||participant.status!=='submitted'||participant.postStatus==='submitted'||!participant.postApproved||!participant.nick||!participant.loginId||!postUrl){status.textContent='사후진단 안내문을 복사할 수 없는 상태입니다.';return}
   try{await navigator.clipboard.writeText(postAssessmentNotice({displayName:participant.nick,loginId:participant.loginId},postUrl,ITEM_COUNT));status.textContent='사후진단 안내문을 복사했습니다.'}
   catch{status.textContent='사후진단 안내문을 복사하지 못했습니다. 클립보드 권한을 확인해 주세요.'}
+});
+// DEV-014: the assigned counselor allows the post assessment once. There is no undo, so confirm first.
+$('#app').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-approve-post]');
+  if(!button||button.disabled||busy||profile?.role!=='counselor'||S.view!=='cns'||!postAvailable||S.cedit)return;
+  const participant=byId(button.dataset.approvePost);
+  if(!participant||participant.status!=='submitted'||participant.postStatus==='submitted'||participant.postApproved)return;
+  if(!window.confirm(`${pname(participant)||'내담자'}님의 사후진단을 허용할까요?\n허용하면 내담자가 사후진단에 참여할 수 있으며, 허용은 취소할 수 없습니다.`))return;
+  const run=epoch;let done=false;busy=true;S.err='';render();
+  try{
+    const data=await api.write('post-approve',{participantId:participant.id});if(run!==epoch)return;
+    if(data?.participantId!==participant.id||typeof data.approvedAt!=='string'||!Number.isFinite(Date.parse(data.approvedAt)))throw Error('사후진단 허용 여부를 확인하지 못했습니다. 새로 조회해 상태를 확인해 주세요.');
+    hydrate(await api.read());if(run!==epoch)return;done=true;
+  }catch(error){if(run===epoch&&profile)S.err=error.message}
+  finally{if(run===epoch){busy=false;render();const status=$('#copy-notice-status');if(done&&status)status.textContent='사후진단을 허용했습니다. 이제 사후진단 안내문을 복사할 수 있습니다.'}}
 });
 function fitSheets(on){document.querySelectorAll('.sheet').forEach(el=>{el.style.zoom='';el.style.width='';el.style.maxWidth='';if(!on||el.classList.contains('noprintpage'))return;const W=733,H=1000;el.style.maxWidth='none';el.style.width=W+'px';let z=Math.min(1,H/el.scrollHeight);for(let k=0;k<3&&z<1;k++){el.style.width=(W/z)+'px';z=Math.min(1,H/el.scrollHeight)}if(z<1){el.style.width=(W/z)+'px';z=Math.min(z,H/el.scrollHeight);el.style.zoom=String(z)}else el.style.width=''})}
 window.addEventListener('beforeprint',()=>fitSheets(true));window.addEventListener('afterprint',()=>fitSheets(false));

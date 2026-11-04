@@ -2,6 +2,7 @@
 --
 -- 상태: 적용·실행·검증하지 않았다. 마이그레이션이 아니다. 격리 테스트 DB 에서만 먼저 적용한다.
 -- 함께 적용: supabase/proposals/post-submit.sql
+-- DEV-014: post_approvals 테이블이 필요하다. post-approval.sql 을 먼저 적용한다(적용 순서는 그 파일 머리말).
 --
 -- 목적: 기존 Edge Function 은 사전 제출 확인(조회)과 사후 쓰기를 별도 요청으로 했다(DEV-009A R-E1).
 -- 이 함수는 역할·조직·본인·사전 제출 확인, 버전 비교, 쓰기, 이력 기록을 한 트랜잭션에서 한다.
@@ -75,6 +76,10 @@ begin
     where participant_id = target and phase = 'pre' for share;
   if pre_status is distinct from 'submitted' then
     raise exception 'PRE_REQUIRED' using errcode = '42501';
+  end if;
+  -- DEV-014: 담당 상담사의 사후진단 허용(post-approval.sql) 이 있어야 한다. 허용은 취소되지 않는다.
+  if not exists (select 1 from public.post_approvals where participant_id = target) then
+    raise exception 'POST_NOT_APPROVED' using errcode = '42501';
   end if;
 
   select * into post_row from public.assessments

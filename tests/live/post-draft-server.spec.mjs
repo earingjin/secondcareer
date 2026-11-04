@@ -13,6 +13,7 @@ function modelDraftRpc(state){
   const me=state.profiles.find(p=>p.user_id===actor),part=state.participants.find(p=>p.id===target);
   if(!me||!part||me.role!=='participant'||part.auth_user_id!==actor||me.organization_id!==part.organization_id)return {data:null,error:{code:'42501'}};
   const pre=state.assessments.find(a=>a.participant_id===target&&a.phase==='pre');if(pre?.status!=='submitted')return {data:null,error:{code:'42501'}};
+  if(!state.approvals.some(a=>a.participant_id===target))return {data:null,error:{code:'42501'}};
   const row=state.assessments.find(a=>a.participant_id===target&&a.phase==='post');
   const view=r=>({status:r.status,answers:structuredClone(r.answers),updated_at:r.updated_at,submitted_at:r.submitted_at??null});
   if(row&&row.status!=='draft')return {data:null,error:{code:'55006'}};
@@ -24,15 +25,28 @@ function modelDraftRpc(state){
   const created={id:'post-'+(++state.revision),participant_id:target,phase:'post',status:'draft',answers:structuredClone(answers),updated_at:now,submitted_at:null};state.assessments.push(created);return {data:view(created),error:null};
  };
 }
+// Synthetic JavaScript model of secondcareer_post_approve_v1 (supabase/proposals/post-approval.sql). Not PostgreSQL.
+function modelApproveRpc(state){
+ return async({actor,target})=>{
+  const me=state.profiles.find(p=>p.user_id===actor),part=state.participants.find(p=>p.id===target);
+  if(!me||!part||me.role!=='counselor'||part.counselor_user_id!==actor||me.organization_id!==part.organization_id)return {data:null,error:{code:'42501'}};
+  const existing=state.approvals.find(a=>a.participant_id===target);if(existing)return {data:{approved_at:existing.approved_at,source:existing.source},error:null};
+  if(state.assessments.find(a=>a.participant_id===target&&a.phase==='pre')?.status!=='submitted')return {data:null,error:{code:'42501'}};
+  if(state.assessments.find(a=>a.participant_id===target&&a.phase==='post')?.status==='submitted')return {data:null,error:{code:'55006'}};
+  const row={participant_id:target,approved_by:actor,source:'counselor',approved_at:new Date().toISOString()};state.approvals.push(row);return {data:{approved_at:row.approved_at,source:row.source},error:null};
+ };
+}
 // Synthetic database protocol model. It is not a Postgres or Auth integration test.
 function setup(){
  const profiles=[{user_id:'alice',organization_id:'org1',role:'participant'},{user_id:'bob',organization_id:'org1',role:'participant'},{user_id:'counselor',organization_id:'org1',role:'counselor'},{user_id:'other',organization_id:'org2',role:'participant'}];
  const participants=[{id:'alice-p',auth_user_id:'alice',organization_id:'org1',counselor_user_id:'counselor',display_name:'가상 A'},{id:'bob-p',auth_user_id:'bob',organization_id:'org1',counselor_user_id:'counselor',display_name:'가상 B'},{id:'other-p',auth_user_id:'other',organization_id:'org2',counselor_user_id:'other-c',display_name:'가상 C'}];
  const pre={id:'pre-a',participant_id:'alice-p',phase:'pre',status:'submitted',answers:{pre:[1,2,3],reg:{},goal:{},expect:{},done:{}},result:{value:'unchanged'},updated_at:'2026-01-01T00:00:00.000Z',submitted_at:'2026-01-01T00:00:00.000Z'};
  const assessments=[pre,{...structuredClone(pre),id:'pre-b',participant_id:'bob-p',status:'draft'},{...structuredClone(pre),id:'pre-o',participant_id:'other-p'}];
- const state={profiles,participants,assessments,failWrite:false,rpcCalls:0,rpcLog:[],pending:false,enabled:true,revision:0};let handler;
- const db={auth:{getUser:async token=>({data:{user:profiles.some(p=>p.user_id===token)?{id:token,app_metadata:state.pending?{must_change_password:true}:{}}:null},error:null})},rpc:async(name,args)=>{state.rpcLog.push(name);if(name==='secondcareer_post_draft_v1')return (state.draftRpc||modelDraftRpc(state))(args);state.rpcCalls++;if(name==='secondcareer_post_submit_v1'&&state.submitRpc)return state.submitRpc(args);throw Error('unexpected RPC '+name)},from(name){
-  let rows=({user_profiles:profiles,participants,assessments,server_login_lookup:[],assessment_history:[]})[name]||[],filters=[],inserts=null,updates=null,limit=Infinity,order=null,columns='*';
+ // DEV-014: alice is approved by her counselor so the existing post tests keep their meaning.
+ const approvals=[{participant_id:'alice-p',approved_by:'counselor',source:'counselor',approved_at:'2026-01-02T00:00:00.000Z'}];
+ const state={profiles,participants,assessments,approvals,failWrite:false,rpcCalls:0,rpcLog:[],pending:false,enabled:true,revision:0};let handler;
+ const db={auth:{getUser:async token=>({data:{user:profiles.some(p=>p.user_id===token)?{id:token,app_metadata:state.pending?{must_change_password:true}:{}}:null},error:null})},rpc:async(name,args)=>{state.rpcLog.push(name);if(name==='secondcareer_post_draft_v1')return (state.draftRpc||modelDraftRpc(state))(args);if(name==='secondcareer_post_approve_v1')return (state.approveRpc||modelApproveRpc(state))(args);state.rpcCalls++;if(name==='secondcareer_post_submit_v1'&&state.submitRpc)return state.submitRpc(args);throw Error('unexpected RPC '+name)},from(name){
+  let rows=({user_profiles:profiles,participants,assessments,post_approvals:approvals,server_login_lookup:[],assessment_history:[]})[name]||[],filters=[],inserts=null,updates=null,limit=Infinity,order=null,columns='*';
   const q={select(c){columns=c;return q},eq(k,v){filters.push(r=>r[k]===v);return q},gt(k,v){filters.push(r=>r[k]>v);return q},in(k,vs){filters.push(r=>vs.includes(r[k]));return q},order(k){order=k;return q},limit(n){limit=n;return q},insert(v){inserts=v;return q},update(v){updates=v;return q},maybeSingle:async()=>run(true),then(resolve,reject){return run(false).then(resolve,reject)}};
   async function run(single){
    if((inserts||updates)&&state.failWrite)return {data:null,error:{code:'MOCK_FAILURE'}};
@@ -65,6 +79,7 @@ test('saves and restores a separate draft without changing pre or its result',as
  const h=setup(),before=structuredClone(h.pre),answers=Array(h.ITEM_COUNT).fill(null);answers[0]=5;
  expect((await h.request('alice')).data.assessment).toBeNull();const saved=await h.request('alice',h.payload(answers));expect(saved.status).toBe(200);expect(saved.data.answers.post).toEqual(answers);
  expect((await h.request('alice')).data.assessment).toEqual(saved.data);expect(h.pre).toEqual(before);expect(h.state.rpcLog).not.toContain('secondcareer_write_v1');
+ h.state.approvals.push({participant_id:'other-p',approved_by:'other-c',source:'counselor',approved_at:'2026-01-02T00:00:00.000Z'});
  expect((await h.request('other')).data.assessment).toBeNull();expect((await h.request('other',null,'?phase=post&id=alice-p')).status).toBe(403);expect((await h.request('other', {...h.payload(),participantId:'alice-p'})).status).toBe(400);
 });
 test('rejects missing, malformed and out-of-range post responses',async()=>{
@@ -104,6 +119,7 @@ function modelRpc(h){
   const me=h.state.profiles.find(p=>p.user_id===actor),part=h.state.participants.find(p=>p.id===target&&p.auth_user_id===actor);
   if(!me||!part||me.role!=='participant'||me.organization_id!==part.organization_id)return {data:null,error:{code:'42501'}};
   const pre=h.state.assessments.find(a=>a.participant_id===part.id&&a.phase==='pre');if(!pre||pre.status!=='submitted')return {data:null,error:{code:'42501'}};
+  if(!h.state.approvals.some(a=>a.participant_id===part.id))return {data:null,error:{code:'42501'}};
   const row=h.state.assessments.find(a=>a.participant_id===part.id&&a.phase==='post'),now=new Date(Math.max(Date.now(),row?Date.parse(row.updated_at)+1:0)).toISOString();
   const view=r=>({status:r.status,answers:r.answers,updated_at:r.updated_at,submitted_at:r.submitted_at});
   if(row){
@@ -241,4 +257,58 @@ test('a version string formatted differently by the database still matches the s
  a[0]=2;const next=await h.request('alice',h.payload(a,saved.data.updatedAt));expect(next.status).toBe(200);
  expect(sent.endsWith('+00:00')).toBe(true);
  expect((await h.request('alice',h.payload([5,...a.slice(1)],'2020-01-01T00:00:00.000Z'))).status).toBe(409);
+});
+
+// ---- DEV-014: counselor approval gates every post read and write ----------------------------
+const approve=(h,user,participantId='alice-p')=>h.request(user,{action:'post-approve',participantId},'');
+test('without approval the participant cannot read, save or submit post answers',async()=>{
+ const h=setup();h.state.submitRpc=modelRpc(h);h.state.approvals.length=0;const snapshot=structuredClone(h.state.assessments);
+ const read=await h.request('alice');expect(read.status).toBe(403);expect(read.data.error).toBe('POST_NOT_APPROVED');
+ expect((await h.request('alice',h.payload())).data.error).toBe('POST_NOT_APPROVED');
+ expect((await h.request('alice',submitBody(h))).data.error).toBe('POST_NOT_APPROVED');
+ expect(h.state.assessments).toEqual(snapshot);expect(h.state.rpcLog).toEqual([]);
+ // The database functions re-check approval even if the Edge Function were bypassed.
+ expect((await modelDraftRpc(h.state)({actor:'alice',target:'alice-p',answers:{post:Array(h.ITEM_COUNT).fill(null)},expected_updated_at:null})).error.code).toBe('42501');
+ expect((await h.state.submitRpc({actor:'alice',target:'alice-p',answers:submitBody(h).answers,expected_updated_at:null})).error.code).toBe('42501');
+ expect(h.state.assessments).toEqual(snapshot);
+});
+test('lists report approval to the participant and approval state, not the approver, to the counselor',async()=>{
+ const h=compareSetup();
+ expect((await h.request('alice',null,'')).data.postApproved).toBe(true);
+ const list=await h.request('counselor',null,'');expect(list.data.postApprovals).toEqual([{participant_id:'alice-p',approved_at:'2026-01-02T00:00:00.000Z',source:'counselor'}]);
+ expect(JSON.stringify(list.data)).not.toContain('approved_by');
+ h.state.approvals.length=0;expect((await h.request('alice',null,'')).data.postApproved).toBe(false);
+ h.state.enabled=false;expect('postApproved' in (await h.request('alice',null,'')).data).toBe(false);expect('postApprovals' in (await h.request('counselor',null,'')).data).toBe(false);
+});
+test('the assigned counselor approves once after pre submission, then the participant can write',async()=>{
+ const h=compareSetup();h.state.approvals.length=0;
+ const first=await approve(h,'counselor');expect(first.status).toBe(200);expect(first.data).toEqual({participantId:'alice-p',approvedAt:h.state.approvals[0].approved_at,source:'counselor'});
+ expect(h.state.approvals).toEqual([{participant_id:'alice-p',approved_by:'counselor',source:'counselor',approved_at:first.data.approvedAt}]);
+ const again=await approve(h,'counselor');expect(again.data).toEqual(first.data);expect(h.state.approvals).toHaveLength(1);
+ expect(h.state.rpcLog.filter(n=>n==='secondcareer_post_approve_v1')).toHaveLength(1);
+ expect((await h.request('alice',h.payload())).status).toBe(200);
+});
+test('approval is refused to others, before pre submission, after post submission and when closed',async()=>{
+ const h=compareSetup();h.state.approvals.length=0;
+ expect((await approve(h,'alice')).status).toBe(403);expect((await approve(h,'counselor2')).status).toBe(403);expect((await approve(h,'other-c')).status).toBe(403);
+ expect((await approve(h,'counselor','other-p')).status).toBe(403);expect((await approve(h,'counselor','missing')).status).toBe(403);
+ const pre=await approve(h,'counselor','bob-p');expect(pre.status).toBe(403);expect(pre.data.error).toBe('PRE_REQUIRED');
+ expect((await h.request('counselor',{action:'post-approve'},'')).status).toBe(400);expect((await h.request('counselor',{action:'post-approve',participantId:'alice-p',extra:1},'')).status).toBe(400);
+ expect((await approve(h,null)).status).toBe(401);h.state.pending=true;expect((await approve(h,'counselor')).status).toBe(403);h.state.pending=false;
+ h.state.enabled=false;expect((await approve(h,'counselor')).status).toBe(503);h.state.enabled=true;
+ h.state.assessments.push({id:'post-x',participant_id:'alice-p',phase:'post',status:'submitted',answers:{post:Array(h.ITEM_COUNT).fill(3),sat:goodSat(h.OPT)},updated_at:'2026-01-03T00:00:00.000Z',submitted_at:'2026-01-03T00:00:00.000Z'});
+ const locked=await approve(h,'counselor');expect(locked.status).toBe(409);expect(locked.data.error).toBe('LOCKED');
+ expect(h.state.approvals).toEqual([]);expect(h.state.rpcLog).not.toContain('secondcareer_post_approve_v1');
+ // The database function re-checks assignment and state itself.
+ expect((await modelApproveRpc(h.state)({actor:'counselor2',target:'alice-p'})).error.code).toBe('42501');
+ expect((await modelApproveRpc(h.state)({actor:'counselor',target:'alice-p'})).error.code).toBe('55006');
+ expect(h.state.approvals).toEqual([]);
+});
+test('backfilled approvals are reported as such and approval errors never report success',async()=>{
+ const h=compareSetup();h.state.approvals.splice(0,1,{participant_id:'alice-p',approved_by:null,source:'backfill',approved_at:'2026-01-02T00:00:00.000Z'});
+ expect((await h.request('counselor',null,'')).data.postApprovals[0].source).toBe('backfill');
+ expect((await approve(h,'counselor')).data).toEqual({participantId:'alice-p',approvedAt:'2026-01-02T00:00:00.000Z',source:'backfill'});
+ h.state.approvals.length=0;
+ for(const [code,status] of [['42501',403],['55006',409],['22023',400],['XX000',500]]){h.state.approveRpc=async()=>({data:null,error:{code}});expect((await approve(h,'counselor')).status).toBe(status)}
+ for(const data of [null,{approved_at:'not a time',source:'counselor'},{approved_at:'2026-01-02T00:00:00.000Z',source:'other'}]){h.state.approveRpc=async()=>({data,error:null});const r=await approve(h,'counselor');expect(r.status).toBe(500);expect(r.data.approvedAt).toBeUndefined()}
 });

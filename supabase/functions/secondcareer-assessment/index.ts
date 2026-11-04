@@ -151,6 +151,16 @@ const validPostRecord=row=>!!row&&validTime(row.updated_at)&&(row.status==='draf
 async function readPostDraft(db,participantId){
  return db.from('assessments').select('id,status,answers,updated_at,submitted_at').eq('participant_id',participantId).eq('phase','post').maybeSingle();
 }
+// DEV-014: the assigned counselor's post approval (supabase/proposals/post-approval.sql). Never revoked.
+async function readApproval(db,participantId){
+ return db.from('post_approvals').select('participant_id,approved_at,source').eq('participant_id',participantId).maybeSingle();
+}
+// Fails closed: no approval row, or a failed lookup, blocks every post read and write.
+async function approvalError(db,participantId){
+ const {data,error}=await readApproval(db,participantId);
+ if(error)return out({error:'QUERY_FAILED'},500);
+ return data?null:out({error:'POST_NOT_APPROVED'},403);
+}
 function postPayload(row){
  if(!row)return null;
  if(!validPostRecord(row))throw Error('POST_STATE');
@@ -165,6 +175,7 @@ const sameTime=(a,b)=>a===b||(validTime(a)&&validTime(b)&&Date.parse(a)===Date.p
 // database function. The checks here only fail fast; the database decides.
 async function writePostDraft(db,actor,part,pre,body){
  if(!pre||pre.status!=='submitted')return out({error:'PRE_REQUIRED'},403);
+ const notApproved=await approvalError(db,part.id);if(notApproved)return notApproved;
  if(Object.keys(body).some(k=>!['action','answers','expectedUpdatedAt'].includes(k))||!Object.hasOwn(body,'expectedUpdatedAt')||
     !(body.expectedUpdatedAt===null||validTime(body.expectedUpdatedAt))||
     !body.answers||typeof body.answers!=='object'||Array.isArray(body.answers)||!cleanAnswers(body.answers))return out({error:'INVALID_INPUT'},400);
@@ -185,6 +196,7 @@ async function writePostDraft(db,actor,part,pre,body){
 // a single transaction. Success is reported only from the row the database confirms.
 async function writePostSubmit(db,actor,part,pre,body){
  if(!pre||pre.status!=='submitted')return out({error:'PRE_REQUIRED'},403);
+ const notApproved=await approvalError(db,part.id);if(notApproved)return notApproved;
  if(Object.keys(body).length!==3||!['action','answers','expectedUpdatedAt'].every(k=>Object.hasOwn(body,k))||
     !(body.expectedUpdatedAt===null||validTime(body.expectedUpdatedAt)))return out({error:'INVALID_INPUT'},400);
  const answers=cleanAnswers(body.answers,true);if(!answers)return out({error:'ANSWERS_INCOMPLETE'},400);
@@ -259,6 +271,7 @@ Deno.serve(async(req)=>{
     if(Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED')!=='true')return out({error:'POST_NOT_CONFIGURED'},503);
     const pre=assessments.find(a=>a.participant_id===parts[0].id);
     if(!pre||pre.status!=='submitted')return out({error:'PRE_REQUIRED'},403);
+    const notApproved=await approvalError(db,parts[0].id);if(notApproved)return notApproved;
     const {data,error}=await readPostDraft(db,parts[0].id);if(error)return out({error:'QUERY_FAILED'},500);
     return out({assessment:postPayload(data)});
    }
@@ -271,12 +284,17 @@ Deno.serve(async(req)=>{
    participantList=(parts||[]).map(({auth_user_id,...part})=>({...part,login_id:loginIds.get(auth_user_id)||null}));
   }
   // Counselors see only post status and submission date here; answers come from ?compare= after submission.
-  let postStatus;
+  let postStatus,postApprovals,postApproved;
   if(me.role==='counselor'&&postEnabled){
-   postStatus=[];
+   postStatus=[];postApprovals=[];
    for(const group of chunks(ids)){const {data,error}=await readAll(()=>db.from('assessments').select('id,participant_id,status,submitted_at').in('participant_id',group).eq('phase','post'),'id');if(error)return out({error:'QUERY_FAILED'},500);postStatus.push(...data.map(a=>({participant_id:a.participant_id,status:a.status==='submitted'?'submitted':'draft',submitted_at:a.status==='submitted'?a.submitted_at:null})))}
+   // Approval state only: who approved is not returned.
+   for(const group of chunks(ids)){const {data,error}=await readAll(()=>db.from('post_approvals').select('participant_id,approved_at,source').in('participant_id',group),'participant_id');if(error)return out({error:'QUERY_FAILED'},500);postApprovals.push(...data.map(a=>({participant_id:a.participant_id,approved_at:a.approved_at,source:a.source==='backfill'?'backfill':'counselor'})))}
   }
-  return out({profile:{role:me.role,display_name:me.display_name},participants:participantList,counselors,...(postStatus?{postAssessments:postStatus}:{}),
+  if(me.role==='participant'&&postEnabled&&parts.length===1){
+   const {data,error}=await readApproval(db,parts[0].id);if(error)return out({error:'QUERY_FAILED'},500);postApproved=!!data;
+  }
+  return out({profile:{role:me.role,display_name:me.display_name},participants:participantList,counselors,...(postStatus?{postAssessments:postStatus,postApprovals}:{}),...(postApproved!==undefined?{postApproved}:{}),
    assessments:assessments.map(a=>({id:a.id,participant_id:a.participant_id,phase:a.phase,status:a.status,
     answers:{reg:a.answers.reg||{careers:[{},{},{}]},goal:a.answers.goal||{},expect:a.answers.expect||{},done:a.answers.done||{},pre:a.answers.pre||Array(ITEM_COUNT).fill(null)},
     dateOfAssessment:a.answers.preDate||null,updated_at:a.updated_at,submitted_at:a.submitted_at}))});
@@ -291,6 +309,23 @@ Deno.serve(async(req)=>{
    if(me.role!=='participant'||parts.length!==1)return out({error:'FORBIDDEN'},403);
    if(Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED')!=='true')return out({error:'POST_NOT_CONFIGURED'},503);
    return await writePostSubmit(db,user,parts[0],assessments.find(a=>a.participant_id===parts[0].id),body);
+  }
+  if(action==='post-approve'){
+   // The assigned counselor (participantQuery: same organization, counselor_user_id) allows one participant's
+   // post assessment. These checks fail fast; secondcareer_post_approve_v1 re-checks them in one transaction.
+   if(me.role!=='counselor')return out({error:'FORBIDDEN'},403);
+   if(!postEnabled)return out({error:'POST_NOT_CONFIGURED'},503);
+   if(Object.keys(body).length!==2||typeof body.participantId!=='string')return out({error:'INVALID_INPUT'},400);
+   const part=parts.find(p=>p.id===body.participantId);if(!part)return out({error:'FORBIDDEN'},403);
+   const pre=assessments.find(a=>a.participant_id===part.id);if(!pre||pre.status!=='submitted')return out({error:'PRE_REQUIRED'},403);
+   const {data:existing,error:approvalReadError}=await readApproval(db,part.id);if(approvalReadError)return out({error:'QUERY_FAILED'},500);
+   if(existing)return out({participantId:part.id,approvedAt:existing.approved_at,source:existing.source==='backfill'?'backfill':'counselor'});
+   const {data:post,error:postError}=await readPostDraft(db,part.id);if(postError)return out({error:'QUERY_FAILED'},500);
+   if(post?.status==='submitted')return out({error:'LOCKED'},409);
+   const {data,error}=await db.rpc('secondcareer_post_approve_v1',{actor:user.id,target:part.id});
+   if(error)return rpcError(error);
+   if(!data||!validTime(data.approved_at)||!['counselor','backfill'].includes(data.source))return out({error:'APPROVE_UNCONFIRMED'},500);
+   return out({participantId:part.id,approvedAt:data.approved_at,source:data.source});
   }
  if(!['draft','submit','edit'].includes(action))return out({error:'ACTION_INVALID'},400);
  if((action==='edit'&&me.role!=='counselor')||(action!=='edit'&&me.role!=='participant'))return out({error:'FORBIDDEN'},403);

@@ -2,6 +2,7 @@
 --
 -- 상태: 적용·실행·검증하지 않았다. 마이그레이션이 아니다. 격리 테스트 DB 에서만 먼저 적용한다.
 -- 함께 적용: supabase/proposals/post-draft.sql (같은 잠금 키·오류 코드 계약을 쓴다)
+-- DEV-014: post_approvals 테이블이 필요하다. post-approval.sql 을 먼저 적용한다(적용 순서는 그 파일 머리말).
 --
 -- 전제(DEV-009A 대조로 확인, 실제 DB 동작은 미검증):
 --   assessments(participant_id, phase) UNIQUE, status='submitted' 이면 submitted_at NOT NULL,
@@ -83,6 +84,10 @@ begin
     where participant_id = target and phase = 'pre' for share;
   if pre_status is distinct from 'submitted' then
     raise exception 'PRE_REQUIRED' using errcode = '42501';
+  end if;
+  -- DEV-014: 담당 상담사의 사후진단 허용(post-approval.sql) 이 있어야 한다. 허용은 취소되지 않는다.
+  if not exists (select 1 from public.post_approvals where participant_id = target) then
+    raise exception 'POST_NOT_APPROVED' using errcode = '42501';
   end if;
 
   select * into post_row from public.assessments
