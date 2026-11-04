@@ -293,6 +293,7 @@ const NOTICE_OPTIONS={role:'counselor',assessmentUrl:'https://example.invalid/di
 test('counselor copies the post notice with link, login ID and no password',async({page})=>{
  await setup(page,{...NOTICE_OPTIONS,postAssessments:[{participant_id:'fixture',status:'draft',submitted_at:null}]});await mockClipboard(page);
  const row=page.locator('tr[data-participant="fixture"]');await expect(row.getByRole('button',{name:'사전진단 안내 복사'})).toBeEnabled();
+ await expect(page.getByRole('columnheader',{name:'로그인 아이디'})).toBeVisible();await expect(row.locator('td').nth(1)).toHaveText('client01');
  await row.getByRole('button',{name:'사후진단 안내 복사'}).click();await expect(page.locator('#copy-notice-status')).toHaveText('사후진단 안내문을 복사했습니다.');
  const text=await page.evaluate(()=>window.__copied);
  expect(text).toContain('가상 참여자님, 사후진단 안내입니다.');expect(text).toContain('접속 링크: https://example.invalid/diagnosis?entry=post');
@@ -311,6 +312,7 @@ test('post notice copy is disabled before pre submission, after post submission 
   try{
    await setup(page,options);await mockClipboard(page);const row=page.locator('tr[data-participant="fixture"]');
    const button=row.getByRole('button',{name:'사후진단 안내 복사'});await expect(button).toBeDisabled();await expect(row).toContainText(reason);
+   await expect(row.locator('td').nth(1)).toHaveText(options.loginId===undefined&&reason==='로그인 ID가 없습니다'?'-':'client01');
    await page.evaluate(()=>document.querySelector('[data-copy-post-notice]').dispatchEvent(new MouseEvent('click',{bubbles:true})));
    expect(await page.evaluate(()=>window.__copied)).toBe('');
   }finally{await page.close()}
