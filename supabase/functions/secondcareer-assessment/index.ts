@@ -107,6 +107,96 @@ function report(p,counselors,histories=[],kind='c'){
  etcOf:(r,k)=>r[k]==='기타'&&r[k+'Etc']?r[k+'Etc']:(r[k]||''),agreed,bandCells,chartLegend:()=>'',barsSVG:()=>''});
  return renderer.vResult(p,kind);
 }
+// Use a unique, immutable key rather than offsets so page boundaries do not
+// shift when unrelated rows are inserted or removed during a read.
+async function readAll(makeQuery,key){
+ const rows=[];let cursor=null;
+ for(;;){
+  let query=makeQuery().order(key,{ascending:true}).limit(100);
+  if(cursor!==null)query=query.gt(key,cursor);
+  const {data,error}=await query;
+  if(error||!Array.isArray(data))return {data:null,error:error||true};
+  if(!data.length)return {data:rows,error:null};
+  for(const row of data){if(typeof row[key]!=='string'||(cursor!==null&&row[key]<=cursor))return {data:null,error:true};cursor=row[key];rows.push(row)}
+ }
+}
+function chunks(items,size=100){const result=[];for(let i=0;i<items.length;i+=size)result.push(items.slice(i,i+size));return result}
+const validScore=v=>Number.isInteger(v)&&v>=SCALE_MIN&&v<=SCALE_MAX;
+const validPost=(a,complete=false)=>Array.isArray(a)&&a.length===ITEM_COUNT&&a.every(v=>complete?validScore(v):(v===null||validScore(v)));
+const SAT_SCORES=['q1','q2','q3a','q3b','q3c','q5fit'],SAT_CHOICES=['d32','d33','d34','d35','q7'],SAT_TEXT_MAX=200;
+// Returns a canonical copy (fixed key order, so jsonb key reordering never matters) or null when invalid.
+// A draft may be partial; a final submission needs every question (Q4 needs all LIM picks, others at least one).
+function cleanSat(v,complete){
+ if(!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).some(k=>![...SAT_SCORES,...SAT_CHOICES,'q7txt'].includes(k)))return null;
+ const r:any={};
+ for(const k of SAT_SCORES){if(!Object.hasOwn(v,k)){if(complete)return null;continue}if(!validScore(v[k]))return null;r[k]=v[k]}
+ for(const k of SAT_CHOICES){
+  const path='sat.'+k;
+  if(!Object.hasOwn(v,k)){if(complete)return null;continue}
+  const a=v[k];if(!Array.isArray(a)||a.length>LIM[path]||new Set(a).size!==a.length||!a.every(x=>typeof x==='string'&&OPT[path].includes(x)))return null;
+  if(complete&&a.length<(k==='d33'?LIM[path]:1))return null;
+  r[k]=[...a];
+ }
+ if(Object.hasOwn(v,'q7txt')){if(typeof v.q7txt!=='string'||v.q7txt.length>SAT_TEXT_MAX)return null;r.q7txt=v.q7txt}
+ return r;
+}
+function cleanAnswers(a,complete=false){
+ if(!a||typeof a!=='object'||Array.isArray(a)||Object.keys(a).some(k=>!['post','sat'].includes(k))||!validPost(a.post,complete))return null;
+ if(!Object.hasOwn(a,'sat'))return complete?null:{post:[...a.post]};
+ const sat=cleanSat(a.sat,complete);return sat?{post:[...a.post],sat}:null;
+}
+const sameAnswers=(a,b)=>{const x=cleanAnswers(a),y=cleanAnswers(b);return !!x&&!!y&&JSON.stringify(x)===JSON.stringify(y)};
+const validTime=t=>typeof t==='string'&&Number.isFinite(Date.parse(t));
+const validPostRecord=row=>!!row&&validTime(row.updated_at)&&(row.status==='draft'?!!cleanAnswers(row.answers):row.status==='submitted'&&!!cleanAnswers(row.answers,true)&&validTime(row.submitted_at));
+async function readPostDraft(db,participantId){
+ return db.from('assessments').select('id,status,answers,updated_at,submitted_at').eq('participant_id',participantId).eq('phase','post').maybeSingle();
+}
+function postPayload(row){
+ if(!row)return null;
+ if(!validPostRecord(row))throw Error('POST_STATE');
+ return {status:row.status,answers:cleanAnswers(row.answers,row.status==='submitted'),updatedAt:row.updated_at,...(row.status==='submitted'?{submittedAt:row.submitted_at}:{})};
+}
+// Database error codes raised by the post RPCs (supabase/proposals/post-draft.sql, post-submit.sql).
+const RPC_ERRORS={'22023':[400,'INVALID_INPUT'],'42501':[403,'FORBIDDEN'],'40001':[409,'CONFLICT'],'55006':[409,'LOCKED'],'23505':[409,'CONFLICT']};
+const rpcError=error=>{const [status,code]=RPC_ERRORS[error?.code]||[500,'WRITE_FAILED'];return out({error:code},status)};
+// Versions are compared by instant: the database and the Data API may format the same timestamptz differently.
+const sameTime=(a,b)=>a===b||(validTime(a)&&validTime(b)&&Date.parse(a)===Date.parse(b));
+// Ownership, the submitted-pre check, the version check, the write and its history entry run in one
+// database function. The checks here only fail fast; the database decides.
+async function writePostDraft(db,actor,part,pre,body){
+ if(!pre||pre.status!=='submitted')return out({error:'PRE_REQUIRED'},403);
+ if(Object.keys(body).some(k=>!['action','answers','expectedUpdatedAt'].includes(k))||!Object.hasOwn(body,'expectedUpdatedAt')||
+    !(body.expectedUpdatedAt===null||validTime(body.expectedUpdatedAt))||
+    !body.answers||typeof body.answers!=='object'||Array.isArray(body.answers)||!cleanAnswers(body.answers))return out({error:'INVALID_INPUT'},400);
+ const {data:old,error:readError}=await readPostDraft(db,part.id);if(readError)return out({error:'QUERY_FAILED'},500);
+ if(old&&old.status!=='draft')return out({error:'LOCKED'},409);
+ if(old&&!validPostRecord(old))return out({error:'POST_STATE_INVALID'},500);
+ // A client that sends only `post` keeps the saved satisfaction answers.
+ const next=cleanAnswers(Object.hasOwn(body.answers,'sat')||!old?.answers?.sat?body.answers:{...body.answers,sat:old.answers.sat});
+ if(old&&sameAnswers(old.answers,next))return out(postPayload(old));
+ if((old&&!sameTime(old.updated_at,body.expectedUpdatedAt))||(!old&&body.expectedUpdatedAt!==null))return out({error:'CONFLICT'},409);
+ const {data,error}=await db.rpc('secondcareer_post_draft_v1',{actor:actor.id,target:part.id,answers:next,expected_updated_at:old?old.updated_at:null});
+ if(error)return rpcError(error);
+ if(!data||data.status!=='draft'||!validTime(data.updated_at)||!sameAnswers(data.answers,next))return out({error:'SAVE_UNCONFIRMED'},500);
+ return out(postPayload({status:'draft',answers:data.answers,updated_at:data.updated_at}));
+}
+// Final submission. Ownership, the submitted-pre check, validation and the state change are
+// re-checked inside one database function (supabase/proposals/post-submit.sql) so they run in
+// a single transaction. Success is reported only from the row the database confirms.
+async function writePostSubmit(db,actor,part,pre,body){
+ if(!pre||pre.status!=='submitted')return out({error:'PRE_REQUIRED'},403);
+ if(Object.keys(body).length!==3||!['action','answers','expectedUpdatedAt'].every(k=>Object.hasOwn(body,k))||
+    !(body.expectedUpdatedAt===null||validTime(body.expectedUpdatedAt)))return out({error:'INVALID_INPUT'},400);
+ const answers=cleanAnswers(body.answers,true);if(!answers)return out({error:'ANSWERS_INCOMPLETE'},400);
+ const {data:old,error:readError}=await readPostDraft(db,part.id);if(readError)return out({error:'QUERY_FAILED'},500);
+ if(old&&!validPostRecord(old))return out({error:'POST_STATE_INVALID'},500);
+ if(old?.status==='submitted')return sameAnswers(old.answers,answers)?out(postPayload(old)):out({error:'LOCKED'},409);
+ if((old&&!sameTime(old.updated_at,body.expectedUpdatedAt))||(!old&&body.expectedUpdatedAt!==null))return out({error:'CONFLICT'},409);
+ const {data,error}=await db.rpc('secondcareer_post_submit_v1',{actor:actor.id,target:part.id,answers,expected_updated_at:old?old.updated_at:null});
+ if(error)return rpcError(error);
+ if(!data||data.status!=='submitted'||!validTime(data.updated_at)||!validTime(data.submitted_at)||!sameAnswers(data.answers,answers))return out({error:'SUBMIT_UNCONFIRMED'},500);
+ return out({status:'submitted',answers,updatedAt:data.updated_at,submittedAt:data.submitted_at});
+}
 Deno.serve(async(req)=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:h});
  if(!['GET','POST'].includes(req.method))return out({error:'METHOD_NOT_ALLOWED'},405);
@@ -121,12 +211,21 @@ Deno.serve(async(req)=>{
  const {data:me,error:meError}=await db.from('user_profiles').select('user_id,organization_id,role,display_name').eq('user_id',user.id).maybeSingle();
  if(meError)return out({error:'QUERY_FAILED'},500);
  if(!me||!['participant','counselor'].includes(me.role))return out({error:'FORBIDDEN'},403);
- let pq=db.from('participants').select('id,display_name,counselor_user_id,phone,company_name,auth_user_id').eq('organization_id',me.organization_id);
- pq=me.role==='participant'?pq.eq('auth_user_id',user.id):pq.eq('counselor_user_id',user.id);
- const {data:parts,error:partError}=await pq.limit(100);if(partError)return out({error:'QUERY_FAILED'},500);
+ const reportId=req.method==='GET'?new URL(req.url).searchParams.get('id'):null;
+ if(reportId&&me.role!=='counselor')return out({error:'FORBIDDEN'},403);
+ const compareId=req.method==='GET'&&!reportId?new URL(req.url).searchParams.get('compare'):null;
+ if(compareId!==null&&me.role!=='counselor')return out({error:'FORBIDDEN'},403);
+ const postEnabled=Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED')==='true';
+ if(compareId!==null&&!postEnabled)return out({error:'POST_NOT_CONFIGURED'},503);
+ const participantQuery=()=>{
+  let q=db.from('participants').select('id,display_name,counselor_user_id,phone,company_name,auth_user_id').eq('organization_id',me.organization_id);
+  q=me.role==='participant'?q.eq('auth_user_id',user.id):q.eq('counselor_user_id',user.id);
+  return reportId?q.eq('id',reportId):compareId!==null?q.eq('id',compareId):q;
+ };
+ const {data:parts,error:partError}=await readAll(participantQuery,'id');if(partError)return (reportId||compareId!==null)&&partError.code==='22P02'?out({error:'NOT_AVAILABLE'},403):out({error:'QUERY_FAILED'},500);
  const ids=(parts||[]).map(p=>p.id);
  let assessments=[];
- if(ids.length){const {data,error}=await db.from('assessments').select('id,participant_id,phase,status,answers,result,updated_at,submitted_at').in('participant_id',ids).eq('phase','pre');if(error)return out({error:'QUERY_FAILED'},500);assessments=data||[]}
+ for(const group of chunks(ids)){const {data,error}=await readAll(()=>db.from('assessments').select('id,participant_id,phase,status,answers,result,updated_at,submitted_at').in('participant_id',group).eq('phase','pre'),'id');if(error)return out({error:'QUERY_FAILED'},500);assessments.push(...data)}
  const counselorIds=[...new Set((parts||[]).map(p=>p.counselor_user_id).filter(Boolean))];
  const counselors={};
  if(counselorIds.length){const {data,error}=await db.from('user_profiles').select('user_id,display_name').eq('organization_id',me.organization_id).eq('role','counselor').in('user_id',counselorIds);if(error)return out({error:'QUERY_FAILED'},500);for(const c of data||[])counselors[c.user_id]={code:c.user_id,n:c.display_name||'담당 상담사',mail:'',tel:''}}
@@ -142,20 +241,57 @@ Deno.serve(async(req)=>{
    if(!['p','c'].includes(kind))return out({error:'INVALID_REPORT_KIND'},400);
    return out({html:report(person(part,a),counselors,histories||[],kind)});
   }
+  if(compareId!==null){
+   // Assignment and organization are re-checked by participantQuery; only submitted pre and
+   // post data is returned, without personal details or draft answers.
+   const part=parts.find(p=>p.id===compareId),pre=assessments.find(a=>a.participant_id===compareId);
+   if(!part||pre?.status!=='submitted'||!validPost(pre.answers?.pre,true))return out({error:'NOT_AVAILABLE'},403);
+   const {data:post,error}=await readPostDraft(db,part.id);if(error)return out({error:'QUERY_FAILED'},500);
+   if(post?.status!=='submitted')return out({error:'NOT_AVAILABLE'},403);
+   if(!validPostRecord(post))return out({error:'POST_STATE_INVALID'},500);
+   const answers=cleanAnswers(post.answers,true),preScores=areaScores(pre.answers.pre),postScores=areaScores(answers.post);
+   return out({participantId:part.id,preDate:pre.answers.preDate||null,preSubmittedAt:pre.submitted_at||null,postSubmittedAt:post.submitted_at,evaluationVersion:EVAL_VERSION,
+    areas:preScores.map((v,i)=>({pre:v,post:postScores[i],diff:Math.round((postScores[i]-v)*10)/10})),
+    items:{pre:[...pre.answers.pre],post:answers.post},sat:answers.sat});
+  }
+   if(new URL(req.url).searchParams.get('phase')==='post'){
+    if(me.role!=='participant'||parts.length!==1)return out({error:'FORBIDDEN'},403);
+    if(Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED')!=='true')return out({error:'POST_NOT_CONFIGURED'},503);
+    const pre=assessments.find(a=>a.participant_id===parts[0].id);
+    if(!pre||pre.status!=='submitted')return out({error:'PRE_REQUIRED'},403);
+    const {data,error}=await readPostDraft(db,parts[0].id);if(error)return out({error:'QUERY_FAILED'},500);
+    return out({assessment:postPayload(data)});
+   }
   let participantList=(parts||[]).map(({auth_user_id,...part})=>part);
   if(me.role==='counselor'){
    const userIds=[...new Set((parts||[]).map(p=>p.auth_user_id).filter(Boolean))];
    let lookup=[];
-   if(userIds.length){const {data,error}=await db.from('server_login_lookup').select('user_id,login_id').in('user_id',userIds);if(error)return out({error:'QUERY_FAILED'},500);lookup=data||[]}
+    for(const group of chunks(userIds)){const {data,error}=await readAll(()=>db.from('server_login_lookup').select('user_id,login_id').in('user_id',group),'user_id');if(error)return out({error:'QUERY_FAILED'},500);lookup.push(...data)}
    const loginIds=new Map(lookup.map(row=>[row.user_id,row.login_id]));
    participantList=(parts||[]).map(({auth_user_id,...part})=>({...part,login_id:loginIds.get(auth_user_id)||null}));
   }
-  return out({profile:{role:me.role,display_name:me.display_name},participants:participantList,counselors,
+  // Counselors see only post status and submission date here; answers come from ?compare= after submission.
+  let postStatus;
+  if(me.role==='counselor'&&postEnabled){
+   postStatus=[];
+   for(const group of chunks(ids)){const {data,error}=await readAll(()=>db.from('assessments').select('id,participant_id,status,submitted_at').in('participant_id',group).eq('phase','post'),'id');if(error)return out({error:'QUERY_FAILED'},500);postStatus.push(...data.map(a=>({participant_id:a.participant_id,status:a.status==='submitted'?'submitted':'draft',submitted_at:a.status==='submitted'?a.submitted_at:null})))}
+  }
+  return out({profile:{role:me.role,display_name:me.display_name},participants:participantList,counselors,...(postStatus?{postAssessments:postStatus}:{}),
    assessments:assessments.map(a=>({id:a.id,participant_id:a.participant_id,phase:a.phase,status:a.status,
     answers:{reg:a.answers.reg||{careers:[{},{},{}]},goal:a.answers.goal||{},expect:a.answers.expect||{},done:a.answers.done||{},pre:a.answers.pre||Array(ITEM_COUNT).fill(null)},
     dateOfAssessment:a.answers.preDate||null,updated_at:a.updated_at,submitted_at:a.submitted_at}))});
  }
  const body=await readBody(req),action=body.action;
+  if(action==='post-draft'){
+   if(me.role!=='participant'||parts.length!==1)return out({error:'FORBIDDEN'},403);
+   if(Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED')!=='true')return out({error:'POST_NOT_CONFIGURED'},503);
+   return await writePostDraft(db,user,parts[0],assessments.find(a=>a.participant_id===parts[0].id),body);
+  }
+  if(action==='post-submit'){
+   if(me.role!=='participant'||parts.length!==1)return out({error:'FORBIDDEN'},403);
+   if(Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED')!=='true')return out({error:'POST_NOT_CONFIGURED'},503);
+   return await writePostSubmit(db,user,parts[0],assessments.find(a=>a.participant_id===parts[0].id),body);
+  }
  if(!['draft','submit','edit'].includes(action))return out({error:'ACTION_INVALID'},400);
  if((action==='edit'&&me.role!=='counselor')||(action!=='edit'&&me.role!=='participant'))return out({error:'FORBIDDEN'},403);
  const part=me.role==='participant'?parts[0]:parts.find(p=>p.id===body.participantId);
