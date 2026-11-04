@@ -10,7 +10,7 @@ import {loginView,passwordChangeView} from './login-view.js';
 import {mountParticipantRegistration} from './participant-registration.js';
 import {counselorView} from './counselor-view.js';
 import {compareView} from './compare-view.js';
-import {assessmentNotice} from './assessment-notice.js';
+import {assessmentNotice,postAssessmentNotice,postEntryUrl,POST_ENTRY_PARAM,POST_ENTRY_VALUE} from './assessment-notice.js';
 import {postTestGate} from './post-test-gate.js';
 import {esc,getPath,setPath} from './fields.js';
 import {$,toast} from '../browser/dom.js';
@@ -23,6 +23,21 @@ let counselorFilter={name:'',status:'all'};
 let registrationContext=null,unmountRegistration=null,mustChangePassword=false;
 let assessmentUrl='',assessmentUrlMessage='',assessmentUrlInput='';
 const registrationResults={results:[]};
+// A post notice link (?entry=post) asks to open the post assessment after login or session restore.
+// The marker stays in the address while the post screen is open so a reload returns there.
+let postEntry=new URLSearchParams(location.search).get(POST_ENTRY_PARAM)===POST_ENTRY_VALUE;
+function clearPostEntry(){
+  if(!postEntry)return;postEntry=false;
+  try{const url=new URL(location.href);url.searchParams.delete(POST_ENTRY_PARAM);history.replaceState(history.state,'',url.href)}catch{}
+}
+async function enterPostFromLink(){
+  if(!postEntry||!profile||mustChangePassword||busy)return;
+  if(profile.role!=='participant'||!postTestGate){clearPostEntry();return}
+  if(S.user?.status!=='submitted'){clearPostEntry();S.err='사전진단을 최종 제출한 뒤 사후진단에 참여할 수 있습니다. 사전진단을 먼저 완료해 주세요.';render();return}
+  await startPost();
+  // Server refusals (no submitted pre, no permission, feature off) keep the existing checks; only the message is added.
+  if(profile&&S.view!=='post'){clearPostEntry();S.err='사후진단을 시작하지 못했습니다. '+(S.err||'')+' 문제가 계속되면 담당 상담사에게 문의해 주세요.';render()}
+}
 function clearRegistrationResults(){registrationResults.results.forEach(r=>delete r.temporaryPassword);registrationResults.results.length=0}
 window.addEventListener('pagehide',()=>{clearRegistrationResults();unmountRegistration?.();unmountRegistration=null});
 const api=createAPI(()=>{reset();S.err='세션이 만료되었습니다. 다시 로그인해 주세요.';render()});
@@ -104,6 +119,7 @@ async function doLogin(){
   busy=true;S.err='';render();
   try{const data=await api.login(id,pw);openAccount(data);
   }catch(e){api.clear();reset();S.err=e.message}finally{busy=false;render();if(profile?.role==='counselor')window.scrollTo(0,0)}
+  await enterPostFromLink();
 }
 function openAccount(data){
   hydrate(data);
@@ -127,7 +143,7 @@ async function changePassword(){
   }catch(error){S.err=error.message}finally{busy=false;render()}
 }
 async function logout(){
-  if(busy)return;clearRegistrationResults();busy=true;render();
+  if(busy)return;clearRegistrationResults();clearPostEntry();busy=true;render();
   let message='';try{await api.logout()}catch{message='이 브라우저에서는 로그아웃했지만, 서비스에서 로그아웃 처리가 완료됐는지는 확인하지 못했습니다.'}
   reset();S.err=message;render();
 }
@@ -284,7 +300,7 @@ function postConfirmView(){
   if(postLocked)return `<div class="narrow mobile-survey" style="padding-top:20px"><div class="card"><h2>사후 진단 제출이 완료되었습니다</h2><p class="sub">사후 진단과 만족도 응답이 제출되었습니다. 제출한 응답은 수정할 수 없습니다.</p><div class="acts"><button class="btn ghost" onclick="leavePost()">처음 화면으로</button></div></div></div>`;
   return `<div class="narrow mobile-survey" style="padding-top:20px"><div class="card"><h2>최종 제출 확인</h2><p>사후 진단 15문항과 만족도 응답을 모두 확인했습니다. 제출하면 응답을 수정할 수 없습니다.</p><p>임시저장 상태</p><p id="post-save-status" role="status">${esc(postMessage)}</p><div class="acts"><button class="btn ghost" onclick="backSat()" ${postSubmitting?'disabled':''}>만족도 응답으로 돌아가기</button><button class="btn ghost" onclick="backPost()" ${postSubmitting?'disabled':''}>사후 진단으로 돌아가기</button><button class="btn mint" onclick="submitPost()" ${postSubmitting?'disabled aria-busy="true"':''}>${postSubmitting?'제출 중…':S.err?'다시 제출':'최종 제출'}</button></div></div></div>`;
 }
-function leavePost(){if(!postAllowed()||S.view!=='post')return;S.mode2='pre';S.view='home';S.err='';render();window.scrollTo(0,0)}
+function leavePost(){if(!postAllowed()||S.view!=='post')return;clearPostEntry();S.mode2='pre';S.view='home';S.err='';render();window.scrollTo(0,0)}
 function render(){
   mobileSurvey.capture();mobileSurvey.prepare();
   unmountRegistration?.();unmountRegistration=null;
@@ -293,7 +309,7 @@ function render(){
   $('.proto-note').textContent=profile?'세컨플래닝 · '+({counselor:'상담사',admin:'관리자',participant:'내담자'}[profile.role]):'계정으로 로그인해 주세요.';
   let html;
   if(restoring)html='<div class="narrow"><p role="status">로그인 세션을 확인하고 있습니다.</p></div>';
-  else if(!profile)html=loginView();
+  else if(!profile)html=(postEntry&&postTestGate?'<div class="narrow noprint"><p id="post-entry-hint" role="status">사후진단 안내 링크로 접속했습니다. 기존 아이디와 비밀번호로 로그인하면 사후진단으로 이동합니다.</p></div>':'')+loginView();
   else if(mustChangePassword)html=passwordChangeView();
   else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 참여자 등록</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><div id="live-registration"></div></div>`;
   else if(S.view==='post'&&postAllowed())html=postLocked?postConfirmView():S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):postConfirmView();
@@ -335,6 +351,15 @@ $('#app').addEventListener('click',async event=>{
   try{await navigator.clipboard.writeText(assessmentNotice({displayName:participant.nick,loginId:participant.loginId},assessmentUrl,{existing:true}));status.textContent='사전진단 안내문을 복사했습니다.'}
   catch{status.textContent='안내문을 복사하지 못했습니다. 클립보드 권한을 확인해 주세요.'}
 });
+$('#app').addEventListener('click',async event=>{
+  const button=event.target.closest('[data-copy-post-notice]');
+  if(!button||button.disabled||busy||profile?.role!=='counselor'||S.view!=='cns'||!postAvailable)return;
+  const participant=byId(button.dataset.copyPostNotice),status=$('#copy-notice-status'),postUrl=postEntryUrl(assessmentUrl);
+  if(!status)return;
+  if(!participant||participant.status!=='submitted'||participant.postStatus==='submitted'||!participant.nick||!participant.loginId||!postUrl){status.textContent='사후진단 안내문을 복사할 수 없는 상태입니다.';return}
+  try{await navigator.clipboard.writeText(postAssessmentNotice({displayName:participant.nick,loginId:participant.loginId},postUrl,ITEM_COUNT));status.textContent='사후진단 안내문을 복사했습니다.'}
+  catch{status.textContent='사후진단 안내문을 복사하지 못했습니다. 클립보드 권한을 확인해 주세요.'}
+});
 function fitSheets(on){document.querySelectorAll('.sheet').forEach(el=>{el.style.zoom='';el.style.width='';el.style.maxWidth='';if(!on||el.classList.contains('noprintpage'))return;const W=733,H=1000;el.style.maxWidth='none';el.style.width=W+'px';let z=Math.min(1,H/el.scrollHeight);for(let k=0;k<3&&z<1;k++){el.style.width=(W/z)+'px';z=Math.min(1,H/el.scrollHeight)}if(z<1){el.style.width=(W/z)+'px';z=Math.min(z,H/el.scrollHeight);el.style.zoom=String(z)}else el.style.width=''})}
 window.addEventListener('beforeprint',()=>fitSheets(true));window.addEventListener('afterprint',()=>fitSheets(false));
 window.addEventListener('beforeunload',e=>{if(dirty||saving||postDirty||postSaving){e.preventDefault();e.returnValue=''}});
@@ -343,4 +368,5 @@ reset();render();
   try{const data=await api.restore();if(data)openAccount(data)}
   catch{api.clear();reset();S.err='세션을 확인하지 못했습니다. 다시 로그인해 주세요.'}
   finally{restoring=false;render()}
+  await enterPostFromLink();
 })();
