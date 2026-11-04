@@ -7,8 +7,8 @@ let server;
 test.beforeAll(async()=>{server=await serve('src')});
 test.afterAll(async()=>{await server.close()});
 
-async function setup(page,{gate=true,status='submitted',role='participant',pending=false,postAssessments,compare}={}){
- const writes=[],requests=[],state={postAssessments,compare,compareRequests:0,post:null,revision:0,saveStatus:200,submitStatus:200,submitDelay:0,submits:0};
+async function setup(page,{gate=true,status='submitted',role='participant',pending=false,postAssessments,compare,entry=false,assessmentUrl,loginId,postReadStatus,postApproved=true,postApprovals=[{participant_id:'fixture',approved_at:'2026-10-15T00:00:00.000Z',source:'counselor'}]}={}){
+ const writes=[],requests=[],state={postAssessments,compare,compareRequests:0,post:null,revision:0,saveStatus:200,submitStatus:200,submitDelay:0,submits:0,postReadStatus,postApproved,postApprovals,approveStatus:200};
  await page.route('**/main.js',route=>route.fulfill({contentType:'text/javascript',body:"import './live/app.js';"}));
  await page.route('**/live/post-test-gate.js',route=>route.fulfill({contentType:'text/javascript',body:'export const postTestGate='+gate+';'}));
  await page.route('https://tafrbtqjlrokdnhudswb.supabase.co/**',async route=>{
@@ -16,7 +16,7 @@ async function setup(page,{gate=true,status='submitted',role='participant',pendi
   if(req.method()==='OPTIONS')return route.fulfill({status:204});
   let data;
   if(url.pathname.endsWith('secondcareer-login')||url.pathname==='/auth/v1/token')data={access_token:'fixture-access',refresh_token:'fixture-refresh',expires_in:3600};
-  else if(url.pathname.endsWith('secondcareer-account'))data={profile:{role,display_name:'가상 사용자'},mustChangePassword:pending,registrationAvailable:false};
+  else if(url.pathname.endsWith('secondcareer-account'))data={profile:{role,display_name:'가상 사용자'},mustChangePassword:pending,registrationAvailable:false,...(assessmentUrl?{assessmentUrl}:{})};
   else if(url.pathname.endsWith('secondcareer-assessment')){
    if(req.method()==='POST'){
     const body=req.postDataJSON();writes.push(body);
@@ -28,17 +28,21 @@ async function setup(page,{gate=true,status='submitted',role='participant',pendi
      state.submits++;if(state.submitDelay)await new Promise(r=>setTimeout(r,state.submitDelay));
      if(state.submitStatus!==200)return route.fulfill({status:state.submitStatus,contentType:'application/json',body:JSON.stringify({error:'SUBMIT_FAILED'})});
      state.revision++;const at=new Date(Date.UTC(2026,9,29)+state.revision).toISOString();state.post={status:'submitted',answers:structuredClone(body.answers),updatedAt:at,submittedAt:at};data=state.post;
+    }else if(body.action==='post-approve'){
+     if(state.approveStatus!==200)return route.fulfill({status:state.approveStatus,contentType:'application/json',body:JSON.stringify({error:'LOCKED'})});
+     const approval={participant_id:body.participantId,approved_at:'2026-10-25T00:00:00.000Z',source:'counselor'};state.postApprovals=[...state.postApprovals.filter(a=>a.participant_id!==body.participantId),approval];data={participantId:body.participantId,approvedAt:approval.approved_at,source:'counselor'};
     }else data={status:'draft',updatedAt:'revision'};
    }
-   else if(url.searchParams.get('phase')==='post')data={assessment:state.post};
+   else if(url.searchParams.get('phase')==='post'){if(state.postReadStatus)return route.fulfill({status:state.postReadStatus,contentType:'application/json',body:JSON.stringify({error:'PRE_REQUIRED'})});data={assessment:state.post}}
    else if(url.searchParams.has('compare')){state.compareRequests++;if(!state.compare)return route.fulfill({status:403,contentType:'application/json',body:JSON.stringify({error:'NOT_AVAILABLE'})});data=state.compare}
-   else data={profile:{role},participants:[{id:'fixture',display_name:'가상 참여자',counselor_user_id:'counselor'}],counselors:{},assessments:[{id:'assessment',participant_id:'fixture',phase:'pre',status,answers:{reg:{name:'가상 참여자',careers:[{}]},goal:{},expect:{},done:{},pre:Array(15).fill(3)},updated_at:'revision'}],...(state.postAssessments?{postAssessments:state.postAssessments}:{})};
+   else data={profile:{role},participants:[{id:'fixture',display_name:'가상 참여자',counselor_user_id:'counselor',...(loginId?{login_id:loginId}:{})}],counselors:{},assessments:[{id:'assessment',participant_id:'fixture',phase:'pre',status,answers:{reg:{name:'가상 참여자',careers:[{}]},goal:{},expect:{},done:{},pre:Array(15).fill(3)},updated_at:'revision'}],...(state.postAssessments?{postAssessments:state.postAssessments,postApprovals:state.postApprovals}:{}),...(role==='participant'?{postApproved:state.postApproved}:{})};
   }else if(url.pathname==='/auth/v1/logout')return route.fulfill({status:204});
   else throw Error('unexpected request');
   return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(data)});
  });
- await page.goto(server.url);await page.locator('#lg-id').fill('client01');await page.locator('#lg-pw').fill('fixture-password');await page.getByRole('button',{name:'로그인',exact:true}).click();
- if(pending)await expect(page.getByRole('heading',{name:'최초 비밀번호 변경'})).toBeVisible();
+ await page.goto(server.url+(entry?'?entry=post':''));await page.locator('#lg-id').fill('client01');await page.locator('#lg-pw').fill('fixture-password');await page.getByRole('button',{name:'로그인',exact:true}).click();
+ if(entry){}
+ else if(pending)await expect(page.getByRole('heading',{name:'최초 비밀번호 변경'})).toBeVisible();
  else if(role==='counselor')await expect(page.getByRole('heading',{name:'상담사 페이지'})).toBeVisible();
  else if(status==='submitted')await expect(page.getByRole('heading',{name:/제출이 완료되었습니다/})).toBeVisible();
  else await expect(page.locator('#live-save')).toBeVisible();
@@ -244,4 +248,120 @@ test('comparison fits a 375px mobile screen without page overflow',async({page})
  state.compare=await compareFixture(page);await page.locator('tr[data-participant="fixture"]').getByRole('button',{name:'비교 결과 보기'}).click();
  await expect(page.getByRole('heading',{name:'사전·사후 비교'})).toBeVisible();
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+});
+
+// ---- DEV-012: post notice link entry and counselor post notice copy (fixtures only) ----------
+const POST_HEADING={name:'사후 진단',exact:true};
+test('post entry URL keeps the configured address and adds only the entry marker',async({page})=>{
+ await page.route('**/main.js',route=>route.fulfill({contentType:'text/javascript',body:"import './live/app.js';"}));await page.goto(server.url);
+ const urls=await page.evaluate(async()=>{const {postEntryUrl}=await import('/live/assessment-notice.js');return ['https://a.example/diag','https://a.example/diag?org=1#top','http://a.example/diag','not a url',''].map(postEntryUrl)});
+ expect(urls).toEqual(['https://a.example/diag?entry=post','https://a.example/diag?org=1&entry=post#top',null,null,null]);
+});
+test('post link shows a login hint before login',async({page})=>{
+ await page.route('**/main.js',route=>route.fulfill({contentType:'text/javascript',body:"import './live/app.js';"}));
+ await page.goto(server.url+'?entry=post');await expect(page.locator('#post-entry-hint')).toContainText('로그인하면 사후진단으로 이동합니다');
+ await page.goto(server.url);await expect(page.locator('#lg-id')).toBeVisible();await expect(page.locator('#post-entry-hint')).toHaveCount(0);
+});
+test('post link opens the post assessment after login and after reload; leaving clears the marker',async({page})=>{
+ const {requests}=await setup(page,{entry:true});
+ await expect(page.getByRole('heading',POST_HEADING)).toBeVisible();expect(new URL(page.url()).search).toBe('?entry=post');
+ expect(requests.some(r=>r.path.endsWith('secondcareer-assessment'))).toBe(true);
+ await page.locator('#post-q-0').getByRole('radio').last().click();await page.getByRole('button',{name:'지금 임시저장'}).click();await expect(page.locator('#post-save-status')).toContainText('임시저장 완료');
+ await page.reload();await expect(page.getByRole('heading',POST_HEADING)).toBeVisible();await expect(page.locator('#post-q-0').getByRole('radio').last()).toHaveAttribute('aria-checked','true');
+ await page.getByRole('button',{name:'나중에 하기'}).click();await expect(page.getByRole('heading',{name:/제출이 완료되었습니다/})).toBeVisible();expect(new URL(page.url()).search).toBe('');
+ await page.reload();await expect(page.getByRole('heading',{name:/제출이 완료되었습니다/})).toBeVisible();await expect(page.getByRole('heading',POST_HEADING)).toHaveCount(0);
+});
+test('post link with an unsubmitted pre assessment explains and stays on the pre survey',async({page})=>{
+ await setup(page,{entry:true,status:'draft'});
+ await expect(page.getByRole('alert')).toContainText('사전진단을 먼저 완료');await expect(page.locator('#live-save')).toBeVisible();
+ await expect(page.getByRole('heading',POST_HEADING)).toHaveCount(0);expect(new URL(page.url()).search).toBe('');
+});
+test('server refusal of post entry is shown and the marker is cleared',async({page})=>{
+ await setup(page,{entry:true,postReadStatus:403});
+ await expect(page.getByRole('alert')).toContainText('사후진단을 시작하지 못했습니다');await expect(page.getByRole('heading',POST_HEADING)).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:/제출이 완료되었습니다/})).toBeVisible();expect(new URL(page.url()).search).toBe('');
+});
+test('post link is ignored for counselors and when the browser gate is off',async({browser})=>{
+ for(const options of [{role:'counselor'},{gate:false}]){
+  const page=await browser.newPage();
+  try{
+   await setup(page,{entry:true,...options});
+   await expect(page.getByRole('heading',options.role?{name:'상담사 페이지'}:{name:/제출이 완료되었습니다/})).toBeVisible();
+   await expect(page.getByRole('heading',POST_HEADING)).toHaveCount(0);await expect(page.getByRole('alert')).toHaveCount(0);
+  }finally{await page.close()}
+ }
+});
+async function mockClipboard(page,fail=false){await page.evaluate(fail=>{window.__copied='';Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:async text=>{if(fail)throw Error('denied');window.__copied=text}}})},fail)}
+const NOTICE_OPTIONS={role:'counselor',assessmentUrl:'https://example.invalid/diagnosis',loginId:'client01'};
+test('counselor copies the post notice with link, login ID and no password',async({page})=>{
+ await setup(page,{...NOTICE_OPTIONS,postAssessments:[{participant_id:'fixture',status:'draft',submitted_at:null}]});await mockClipboard(page);
+ const row=page.locator('tr[data-participant="fixture"]');await expect(row.getByRole('button',{name:'사전진단 안내 복사'})).toBeEnabled();
+ await expect(page.getByRole('columnheader',{name:'로그인 아이디'})).toBeVisible();await expect(row.locator('td').nth(1)).toHaveText('client01');
+ await row.getByRole('button',{name:'사후진단 안내 복사'}).click();await expect(page.locator('#copy-notice-status')).toHaveText('사후진단 안내문을 복사했습니다.');
+ const text=await page.evaluate(()=>window.__copied);
+ expect(text).toContain('가상 참여자님, 사후진단 안내입니다.');expect(text).toContain('접속 링크: https://example.invalid/diagnosis?entry=post');
+ expect(text).toContain('아이디: client01');expect(text).toContain('기존 비밀번호');expect(text).toContain('사후진단 15문항과 만족도 조사');
+ expect(text).not.toContain('임시 비밀번호');expect(text).not.toContain('fixture');
+ await mockClipboard(page,true);await row.getByRole('button',{name:'사후진단 안내 복사'}).click();
+ await expect(page.locator('#copy-notice-status')).toHaveText('사후진단 안내문을 복사하지 못했습니다. 클립보드 권한을 확인해 주세요.');
+});
+test('post notice copy is disabled before pre submission, after post submission and without an address',async({browser})=>{
+ for(const [options,reason] of [
+  [{...NOTICE_OPTIONS,status:'draft',postAssessments:[]},'사전진단 최종 제출 후 안내할 수 있습니다'],
+  [{...NOTICE_OPTIONS,postAssessments:[{participant_id:'fixture',status:'submitted',submitted_at:'2026-10-20T00:00:00.000Z'}]},'사후진단 제출 완료'],
+  [{...NOTICE_OPTIONS,assessmentUrl:undefined,postAssessments:[]},'진단 접속 주소 설정이 필요합니다'],
+  [{...NOTICE_OPTIONS,loginId:undefined,postAssessments:[]},'로그인 ID가 없습니다']]){
+  const page=await browser.newPage();
+  try{
+   await setup(page,options);await mockClipboard(page);const row=page.locator('tr[data-participant="fixture"]');
+   const button=row.getByRole('button',{name:'사후진단 안내 복사'});await expect(button).toBeDisabled();await expect(row).toContainText(reason);
+   await expect(row.locator('td').nth(1)).toHaveText(options.loginId===undefined&&reason==='로그인 ID가 없습니다'?'-':'client01');
+   await page.evaluate(()=>document.querySelector('[data-copy-post-notice]').dispatchEvent(new MouseEvent('click',{bubbles:true})));
+   expect(await page.evaluate(()=>window.__copied)).toBe('');
+  }finally{await page.close()}
+ }
+});
+test('post notice copy is hidden when the browser gate is off',async({page})=>{
+ await setup(page,{...NOTICE_OPTIONS,gate:false,postAssessments:[]});
+ await expect(page.getByRole('button',{name:'사전진단 안내 복사'})).toBeVisible();await expect(page.getByRole('button',{name:'사후진단 안내 복사'})).toHaveCount(0);
+});
+// ---- DEV-014: counselor approval before the post assessment (fixtures only) --------------------
+test('unapproved participant sees a disabled post button and enters after approval and reload',async({page})=>{
+ const {state}=await setup(page,{postApproved:false});
+ await expect(page.getByRole('button',{name:'사후진단 실시'})).toBeDisabled();await expect(page.locator('#post-approval-hint')).toContainText('허용하면');
+ await page.evaluate(()=>startPost());await expect(page.getByRole('heading',POST_HEADING)).toHaveCount(0);
+ state.postApproved=true;await page.reload();
+ await expect(page.getByRole('button',{name:'사후진단 실시'})).toBeEnabled();await expect(page.locator('#post-approval-hint')).toHaveCount(0);
+ await page.getByRole('button',{name:'사후진단 실시'}).click();await expect(page.getByRole('heading',POST_HEADING)).toBeVisible();
+});
+test('post link before approval explains and does not open the post assessment',async({page})=>{
+ await setup(page,{entry:true,postApproved:false});
+ await expect(page.getByRole('alert')).toContainText('담당 상담사가 사후진단을 허용한 뒤');await expect(page.getByRole('heading',POST_HEADING)).toHaveCount(0);
+ expect(new URL(page.url()).search).toBe('');
+});
+test('counselor allows the post assessment after confirmation, then the notice can be copied',async({page})=>{
+ const {writes}=await setup(page,{...NOTICE_OPTIONS,postAssessments:[],postApprovals:[]});
+ const row=page.locator('tr[data-participant="fixture"]'),notice=row.getByRole('button',{name:'사후진단 안내 복사'});
+ await expect(notice).toBeDisabled();await expect(row).toContainText('사후진단 허용 후 안내할 수 있습니다');
+ page.once('dialog',dialog=>dialog.dismiss());await row.getByRole('button',{name:'사후진단 허용'}).click();
+ await expect(row.getByRole('button',{name:'사후진단 허용'})).toBeEnabled();expect(writes.filter(w=>w.action==='post-approve')).toHaveLength(0);
+ let message='';page.once('dialog',dialog=>{message=dialog.message();dialog.accept()});await row.getByRole('button',{name:'사후진단 허용'}).click();
+ await expect(page.locator('#copy-notice-status')).toContainText('사후진단을 허용했습니다');expect(message).toContain('취소할 수 없습니다');
+ expect(writes.filter(w=>w.action==='post-approve')).toEqual([{action:'post-approve',participantId:'fixture'}]);
+ await expect(row.locator('[data-post-approval]')).toHaveText('허용됨 · 2026-10-25');await expect(row.getByRole('button',{name:'사후진단 허용'})).toHaveCount(0);
+ await expect(notice).toBeEnabled();
+});
+test('allow button is disabled before pre submission and after post submission; backfill is labelled',async({browser})=>{
+ for(const options of [{status:'draft',postAssessments:[],postApprovals:[]},{postAssessments:[{participant_id:'fixture',status:'submitted',submitted_at:'2026-10-20T00:00:00.000Z'}],postApprovals:[]}]){
+  const page=await browser.newPage();
+  try{await setup(page,{...NOTICE_OPTIONS,...options});await expect(page.locator('tr[data-participant="fixture"]').getByRole('button',{name:'사후진단 허용'})).toBeDisabled()}finally{await page.close()}
+ }
+ const page=await browser.newPage();
+ try{await setup(page,{...NOTICE_OPTIONS,postAssessments:[],postApprovals:[{participant_id:'fixture',approved_at:'2026-11-05T00:00:00.000Z',source:'backfill'}]});await expect(page.locator('[data-post-approval="backfill"]')).toHaveText('허용됨 · 기존 사후 기록')}finally{await page.close()}
+});
+test('a refused approval is shown and nothing is marked approved',async({page})=>{
+ const {state}=await setup(page,{...NOTICE_OPTIONS,postAssessments:[],postApprovals:[]});state.approveStatus=409;
+ page.once('dialog',dialog=>dialog.accept());await page.locator('tr[data-participant="fixture"]').getByRole('button',{name:'사후진단 허용'}).click();
+ await expect(page.getByRole('alert')).toContainText('이미 사후진단을 제출한 내담자입니다');expect(state.postApprovals).toEqual([]);
+ await expect(page.locator('tr[data-participant="fixture"]').getByRole('button',{name:'사후진단 안내 복사'})).toBeDisabled();
 });
