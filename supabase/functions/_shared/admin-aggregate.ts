@@ -15,10 +15,8 @@ import {rawSums, full} from '../secondcareer-assessment/js/05-engine.js';
 // Only these answer parts are read (paths as stored by the assessment function: `fields.expect`,
 // SAT_SCORES / SAT_CHOICES): answers.pre, answers.post, answers.expect.d32..d35 (pre), and the
 // satisfaction scores answers.sat.q1,q2,q3a,q3b,q3c,q5fit and choices answers.sat.d32..d35 (post).
-// Screen 7 also reads q7 and q7txt; free text is reduced to a boolean and never returned.
+// Screens 7/9 reuse q7txt; free text is reduced to existence/keyword flags and never returned.
 // Screen 8 additionally reads pre expectation d36. No registration answers, results, names or contacts are read.
-// Later analysis (REQ-A-015) needs other answer parts; they are not read or
-// estimated here until those analyses are implemented.
 const collator = new Intl.Collator('ko');
 // Engine `full` plus integers: a non-integer stored value would turn sums into strings.
 const complete = (a: unknown) => full(a) && (a as unknown[]).every(Number.isInteger);
@@ -28,7 +26,7 @@ const validScore = (v: unknown) => Number.isInteger(v) && (v as number) >= SCALE
 // the screens 4..6 population is the pairs that have it (see detailPopulation).
 const CHOICES = ['d32', 'd33', 'd34', 'd35'] as const, SAT_SCORES = ['q3a', 'q3b', 'q3c', 'q5fit'] as const;
 type Choices = Record<typeof CHOICES[number], string[]>;
-export type Pair = {pre: number[], post: number[], sat: {q1: number, q2: number, q7: string[], hasOpinion: boolean} | null,
+export type Pair = {pre: number[], post: number[], sat: {q1: number, q2: number, q7: string[], hasOpinion: boolean, feedbackMatches: boolean[]} | null,
   extra: {pre: Choices, sat: Choices & Record<typeof SAT_SCORES[number], number>} | null};
 // Selected JSON parts of the rows; only these values are fetched.
 const PRE_COLUMNS = 'pre:answers->pre,pd36:answers->expect->d36,' + CHOICES.map(k => 'p' + k + ':answers->expect->' + k).join(',');
@@ -36,6 +34,13 @@ const POST_COLUMNS = 'post:answers->post,q1:answers->sat->q1,q2:answers->sat->q2
 // Choice arrays are valid when they hold distinct stored option values within the limits the assessment function
 // enforces: pre answers exactly LIM picks (missing()), post at least 1 (3 for d33) and at most LIM (cleanSat).
 const validChoice = (path: string, v: unknown, min: number) => Array.isArray(v) && v.length >= min && v.length <= LIM[path] && new Set(v).size === v.length && v.every(x => typeof x === 'string' && OPT[path].includes(x));
+
+// rp9 fixed display order; literal, case-sensitive substring matching, without normalization.
+const FEEDBACK_KEYWORDS = [['감사','감사 표현'],['도움','도움이 되었다'],['정보','정보 제공'],['자신감','자신감·용기'],['시간','시간·진행 관련'],['추가','추가 상담 요청']];
+const opinionSummary = (value: unknown) => {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return {hasOpinion:!!text, feedbackMatches:FEEDBACK_KEYWORDS.map(([keyword]) => text.includes(keyword))};
+};
 
 // Pre-only analysis is always available; post-disabled requests read only pre and d36.
 export async function loadPairedPopulation(admin: any, organizationId: string, company: string | null, withAnswers = true) {
@@ -59,7 +64,7 @@ export async function loadPairedPopulation(admin: any, organizationId: string, c
     if (a?.status !== 'submitted' || b?.status !== 'submitted') continue;
     // A satisfaction answer counts only when both scores are valid (legacy: `p.sat` present).
     if (!complete(a.pre) || !complete(b.post)) { excludedInvalid++; continue; }
-    const sat = validScore(b.q1) && validScore(b.q2) ? {q1:b.q1, q2:b.q2, q7:Array.isArray(b.q7) ? b.q7.filter((x: unknown) => typeof x === 'string') : [], hasOpinion:typeof b.q7txt === 'string' && !!b.q7txt.trim()} : null;
+    const sat = validScore(b.q1) && validScore(b.q2) ? {q1:b.q1, q2:b.q2, q7:Array.isArray(b.q7) ? b.q7.filter((x: unknown) => typeof x === 'string') : [], ...opinionSummary(b.q7txt)} : null;
     const preOk = CHOICES.every(k => validChoice('expect.' + k, a['p' + k], LIM['expect.' + k]));
     const satOk = SAT_SCORES.every(k => validScore(b[k])) && CHOICES.every(k => validChoice('sat.' + k, b['s' + k], k === 'd33' ? LIM['sat.d33'] : 1));
     const choices = (row: any, prefix: string) => Object.fromEntries(CHOICES.map(k => [k, row[prefix + k]])) as Choices;
@@ -68,6 +73,7 @@ export async function loadPairedPopulation(admin: any, organizationId: string, c
   return {companies, pairs, excludedInvalid, firstChoices, preExcludedInvalid};
 }
 export const satisfactionPopulation = (pairs: Pair[]) => pairs.filter(p => p.sat);
+const opinionCount = (population: Pair[]) => population.filter(p => p.sat!.hasOpinion).length;
 // Population of screens 4..6 (legacy sv for rp4..rp6): satisfaction answered AND every field those screens read is valid.
 // The legacy report trusts the answer form; the server leaves out incomplete rows instead of showing NaN or miscounts.
 export const detailPopulation = (pairs: Pair[]) => pairs.filter(p => p.extra);
@@ -196,7 +202,7 @@ export function improvementAnalysis(pairs: Pair[]) {
   const counts = options.map(o => sv.filter(p => p.sat!.q7.includes(o)).length);
   const order = counts.map((_v, i) => i).sort((a, b) => counts[b] - counts[a] || a - b);
   return {n, avg1:r1f(mean(sv.map(p => p.sat!.q1))), avg2:r1f(mean(sv.map(p => p.sat!.q2))),
-    opinions:sv.filter(p => p.sat!.hasOpinion).length, options, counts, order, percentages:counts.map(c => r1f(c / n * 100))};
+    opinions:opinionCount(sv), options, counts, order, percentages:counts.map(c => r1f(c / n * 100))};
 }
 
 // REQ-A-014, rp8: count every distinct selection, rank by count with option order as tie-breaker.
@@ -209,4 +215,15 @@ export function firstSessionAnalysis(choices: string[][]) {
   const percentages = counts.map(c => r1f(c / n * 100));
   const top = top3(counts).map((index, k) => ({index, rank:k + 1, count:counts[index], pct:percentages[index]}));
   return {n, options, labels, counts, percentages, top, selections:sum(counts)};
+}
+
+// REQ-A-015: aggregate only. The legacy's opinion table is deliberately omitted.
+export function feedbackAnalysis(pairs: Pair[]) {
+  const sv = satisfactionPopulation(pairs), n = sv.length;
+  if (!n) return null;
+  const opinions = opinionCount(sv);
+  return {n, opinions, keywords:FEEDBACK_KEYWORDS.map(([keyword, label], i) => {
+    const count = sv.filter(p => p.sat!.feedbackMatches[i]).length;
+    return {keyword, label, count, pct:opinions ? r1f(count / opinions * 100) : 0};
+  })};
 }

@@ -81,7 +81,7 @@ async function legacy(page,list,{company='전체',extra=[]}={}){
     [...list,...extra].forEach((p,i)=>DB.push({...structuredClone(template),id:'L'+i,company:p.company,pre:p.pre,post:p.post,expect:{...template.expect,...p.exp},sat:p.sat?{...p.sat}:null}));
     S.rep={company};
     const d=repData(false),out={N:d.N,sv:d.sv.length,SH:{d32:SH.d32,d33:SH.d33,d34:SH.d34,d35:SH.d35},OPT:{d32:OPT['expect.d32'],d33:OPT['expect.d33'],d34:OPT['expect.d34'],d35:OPT['expect.d35']}};
-    if(d.sv.length){out.rp4=rp4(d);out.rp5=rp5(d);out.rp6=rp6(d);out.rp7=rp7(d)}
+    if(d.sv.length){out.rp4=rp4(d);out.rp5=rp5(d);out.rp6=rp6(d);out.rp7=rp7(d);out.rp9=rp9(d)}
     return out;
   },{list,extra,template:TEMPLATE,company});
 }
@@ -169,7 +169,7 @@ test('numeric-string answers: the server leaves them out; legacy counts them and
 
 test('1·2·9 admin only, own organization only; no personal data or free text in the response',async()=>{
   const {h}=seed(datasets().varied),r=await get(h,ids.admin),text=JSON.stringify(r.data);
-  expect(r.status).toBe(200);expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3','r4','r5','r6','r7','r8']);
+  expect(r.status).toBe(200);expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3','r4','r5','r6','r7','r8','r9']);
   for(const hidden of ['개인-','응답원문','결과원문','자유의견원문','다른 의견','01012341234','u-p','"p000"','x-','other-org',ids.counselor])expect(text).not.toContain(hidden);
   const cols=[...new Set(h.state.reads.filter(x=>x.table==='assessments').flatMap(x=>x.columns.split(',')))].sort();
   expect(cols).toEqual(ASSESSMENT_COLUMNS);
@@ -180,7 +180,7 @@ test('1·2·9 admin only, own organization only; no personal data or free text i
 });
 
 test('7 zero population, no valid detail answers, a disabled post feature and failed reads show no figures',async()=>{
-  const none={r1:null,r2:null,r3:null,r4:null,r5:null,r6:null,r7:null};
+  const none={r1:null,r2:null,r3:null,r4:null,r5:null,r6:null,r7:null,r9:null};
   const zero=(await get(seed([]).h,ids.admin)).data;expect(zero.population).toEqual({n:0,satN:0,detailN:0,excludedInvalid:1});expect(zero.analyses).toMatchObject(none);expect(zero.analyses.r8.n).toBe(3);
   // Satisfaction scores valid but the choice answers are not: screen 3 has figures, screens 4-6 do not.
   const noDetail=seed(datasets().varied.map(p=>({...p,sat:{...p.sat,d33:['없는 보기']}}))).h,nd=(await get(noDetail,ids.admin)).data;
@@ -205,7 +205,8 @@ test('response check rejects inconsistent screen 4-6 data',async()=>{
   const changes=[d=>{d.analyses.r4.pre[0]+=1},d=>{d.analyses.r4.scores.pop()},d=>{d.analyses.r4.positive.change=NaN},d=>{d.analyses.r4.n+=1},
     d=>{d.analyses.r5.top.reverse()},d=>{d.analyses.r5.change.pop()},d=>{d.analyses.r5.selections.pre+=1},d=>{d.analyses.r5.top[0].count+=1},d=>{d.analyses.r5.labels.pop()},
     d=>{d.analyses.r6.q5.post[0]+=1},d=>{d.analyses.r6.q6.top[0].index=(d.analyses.r6.q6.top[0].index+1)%5},d=>{d.analyses.r6.q6.selections.post-=1},d=>{d.analyses.r6.fit.n+=1},d=>{d.analyses.r6=null},
-    d=>{d.population.detailN=d.population.satN+1},d=>{d.population.detailN=0}];
+    d=>{d.population.detailN=d.population.satN+1},d=>{d.population.detailN=0},
+    d=>{d.analyses.r9.opinions+=1},d=>{d.analyses.r9.keywords.pop()},d=>{d.analyses.r9.keywords[0].count=d.analyses.r9.opinions+1},d=>{d.analyses.r9=null}];
   for(const change of changes){const d=structuredClone(ok);change(d);expect(validAggregate(d),String(change)).toBe(false)}
   const none=(await get(seed([]).h,ids.admin)).data;expect(validAggregate(none)).toBe(true);
 });
@@ -243,9 +244,16 @@ test.describe('admin aggregate screens 4-6',()=>{
     const errors=[];page.on('pageerror',e=>errors.push(String(e)));
     const list=datasets().varied,{h}=seed(list),calls=await open(page,h);await open1(page);
     const aggCalls=()=>calls.filter(c=>c.includes('admin-aggregate')).length;
-    await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(1);
-    for(const k of ['r9'])await expect(tab(page,k)).toContainText('구현 예정');
+    await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(0);
+    await expect(tab(page,'r9')).toBeEnabled();
     const a=(await get(h,ids.admin)).data.analyses;
+    await tab(page,'r9').click();
+    await expect(tab(page,'r9')).toHaveAttribute('aria-selected','true');
+    await expect(sec(page).locator('[data-agg-base]')).toContainText('만족도 응답 n=7');
+    await expect(sec(page).locator('[data-agg-opinion-count]')).toContainText('7건');
+    await expect(sec(page).locator('[data-agg-opinion-protection]')).toContainText('원문');
+    await expect(sec(page).locator('.ops')).toHaveCount(0);
+    expect(aggCalls()).toBe(1);
     await tab(page,'r7').click();
     await expect(tab(page,'r7')).toHaveAttribute('aria-selected','true');
     await expect(sec(page).locator('[data-agg-base]')).toContainText('만족도 응답 n=7');
@@ -293,7 +301,7 @@ test.describe('admin aggregate screens 4-6',()=>{
     await expect(sec(page).locator('[data-agg-base]')).toContainText('만족도 응답 n=7');
     await page.evaluate(()=>logout());await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();
     await open(page,seed(list.map(p=>({...p,sat:null}))).h);await open1(page);
-    for(const k of ['r4','r5','r6','r7']){await tab(page,k).click();await expect(sec(page).locator('[data-agg-empty]')).toHaveText('사후 만족도 설문에 응답한 참여자가 아직 없습니다.');await expect(sec(page).locator('.topitem, .tiles, .sidechart')).toHaveCount(0)}
+    for(const k of ['r4','r5','r6','r7','r9']){await tab(page,k).click();await expect(sec(page).locator('[data-agg-empty]')).toHaveText('사후 만족도 설문에 응답한 참여자가 아직 없습니다.');await expect(sec(page).locator('.topitem, .tiles, .sidechart')).toHaveCount(0)}
     await page.evaluate(()=>logout());await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();
     await open(page,seed(list.map(p=>({...p,sat:{...p.sat,d33:['없는 보기']}}))).h);await open1(page);
     await tab(page,'r4').click();await expect(sec(page).locator('[data-agg-empty]')).toHaveText('만족도와 사전 기대 응답이 모두 완전한 참여자가 아직 없습니다.');
@@ -301,7 +309,7 @@ test.describe('admin aggregate screens 4-6',()=>{
     await page.evaluate(()=>logout());await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();
     await open(page,seed([],{extras:false}).h);await open1Zero(page);
     async function open1Zero(p){await login(p);await sec(p).getByRole('button',{name:'통합 분석보고서 열기'}).click();await expect(sec(p).locator('[data-agg-empty]')).toBeVisible()}
-    for(const k of ['r4','r5','r6','r7']){await tab(page,k).click();await expect(sec(page).locator('[data-agg-empty]')).toHaveText('사전·사후를 모두 완료한 참여자가 아직 없습니다.');await expect(sec(page)).not.toContainText('NaN')}
+    for(const k of ['r4','r5','r6','r7','r9']){await tab(page,k).click();await expect(sec(page).locator('[data-agg-empty]')).toHaveText('사전·사후를 모두 완료한 참여자가 아직 없습니다.');await expect(sec(page)).not.toContainText('NaN')}
   });
 
   test('screen 8 works with post disabled and company changes, without reloading on tab switches',async({page})=>{
@@ -316,6 +324,19 @@ test.describe('admin aggregate screens 4-6',()=>{
     await sec(page).locator('#agg-company').selectOption('가 기업');
     await expect(sec(page).locator('[data-agg-base]')).toContainText('가 기업');await expect(tab(page,'r8')).toHaveAttribute('aria-selected','true');expect(aggCalls()).toBe(2);
     await tab(page,'r1').click();await expect(sec(page).locator('[data-agg-empty]')).toContainText('사후진단 기능');expect(aggCalls()).toBe(2);
+  });
+
+  test('screen 9 keeps its tab on company reload and shows empty opinions without raw text',async({page})=>{
+    const list=people(95,4).map(p=>({...p,sat:{...p.sat,q7txt:' \t '}})),s=seed(list),calls=await open(page,s.h);await open1(page);
+    await tab(page,'r9').click();
+    await expect(sec(page).locator('[data-agg-no-opinions]')).toHaveText('작성된 의견이 없습니다.');
+    await expect(sec(page).locator('.hbrow')).toHaveCount(6);
+    await expect(sec(page).locator('.hv')).toHaveText(Array(6).fill('0%0건'));
+    expect(calls.filter(c=>c.includes('admin-aggregate')).length).toBe(1);
+    await sec(page).locator('#agg-company').selectOption('가 기업');
+    await expect(tab(page,'r9')).toHaveAttribute('aria-selected','true');
+    await expect(sec(page).locator('[data-agg-base]')).toContainText('가 기업');
+    expect(calls.filter(c=>c.includes('admin-aggregate')).length).toBe(2);
   });
 });
 
@@ -369,4 +390,29 @@ test('screen 8 uses pre submissions independently and matches legacy rp8 includi
   expect(validAggregate(disabled)).toBe(true);
   const none=(await get(seed([],{extras:false,postEnabled:false}).h,ids.admin)).data;
   expect(none.prePopulation).toEqual({available:true,n:0,excludedInvalid:0});expect(none.analyses.r8).toBeNull();expect(validAggregate(none)).toBe(true);
+});
+
+test('screen 9 keyword figures and bars equal rp9 while the raw opinion table is intentionally excluded',async({page})=>{
+  const {r9View,validAggregate}=await views();
+  const cases={mixed:['감사 도움 정보 자신감 시간 추가 fixture-note-A','감사감사 감사 fixture-note-B','시간표 추가분 fixture-note-C','감 사 도 움 정 보 자 신 감 시 간 추 가','THANKS thanks','  정보  ','','   ',null],
+    noKeywords:['ONLY ASCII upper lower','감 사','정 보'], noOpinions:['',' \t\n ',null],single:['정보 정보 감사 fixture-note-single']};
+  const chart=html=>norm(html.slice(html.indexOf('<h3 class="st">')).split('<p class="hintline"')[0]);
+  for(const [name,texts] of Object.entries(cases)){
+    const list=people(91,texts.length).map((p,i)=>({...p,sat:{...p.sat,...(texts[i]===null?{q7txt:undefined}:{q7txt:texts[i]})}})),{h}=seed(list);
+    for(const company of ['전체','가 기업']){
+      const d=(await get(h,ids.admin,company==='전체'?'':'?company='+encodeURIComponent(company))).data,L=await legacy(page,list,{company});
+      expect(validAggregate(d)).toBe(true);expect(d.analyses.r9.n).toBe(L.sv);
+      expect(d.analyses.r9.opinions).toBe(d.analyses.r7.opinions);
+      same(chart(r9View(d)),chart(L.rp9),name+' '+company+' rp9 keyword bars');
+      expect(L.rp9.includes('class="t ops"')).toBe(d.analyses.r9.opinions>0);
+      const html=r9View(d);expect(html).not.toContain('class="t ops"');
+      for(const marker of ['fixture-note-','자유의견원문','다른 의견','01012341234','응답원문','participant_id','q7txt']){expect(JSON.stringify(d)).not.toContain(marker);expect(html).not.toContain(marker)}
+      if(!d.analyses.r9.opinions){expect(html).toContain('작성된 의견이 없습니다.');expect(d.analyses.r9.keywords.every(k=>k.count===0&&k.pct===0)).toBe(true)}
+    }
+    if(name==='mixed'){
+      const r=(await get(h,ids.admin)).data.analyses.r9;
+      expect(r.opinions).toBe(6);expect(r.keywords.map(k=>k.count)).toEqual([2,1,2,1,2,2]);
+      expect(r.keywords.map(k=>k.pct)).toEqual([33.3,16.7,33.3,16.7,33.3,33.3]);
+    }
+  }
 });

@@ -109,7 +109,7 @@ test('1·4·5·6·12 population is submitted pre and post only; response and rea
   const h=seed(DATASETS.varied),r=await get(h,ids.admin),text=JSON.stringify(r.data);
   expect(r.status).toBe(200);expect(r.headers.get('cache-control')).toBe('no-store');
   expect(Object.keys(r.data).sort()).toEqual(['analyses','companies','company','generatedAt','population','post','prePopulation','scope']);
-  expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3','r4','r5','r6','r7','r8']);
+  expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3','r4','r5','r6','r7','r8','r9']);
   for(const hidden of ['개인-','응답원문','결과원문','자유의견원문','01012341234','010-9999','u-p','"p000"','x-','other-org',ids.counselor])expect(text).not.toContain(hidden);
   expect(text).not.toMatch(/\[(\d,){14}\d\]/);
   const cols=table=>[...new Set(h.state.reads.filter(x=>x.table===table).flatMap(x=>x.columns.split(',')))].sort();
@@ -133,7 +133,7 @@ test('2 counselor, participant, other roles and unauthenticated requests are ref
 
 test('7 zero population and a disabled post feature show no figures',async()=>{
   const zero=seed([]),r=await get(zero,ids.admin);
-  expect(r.status).toBe(200);expect(r.data.population).toEqual({n:0,satN:0,detailN:0,excludedInvalid:1});expect(r.data.analyses).toEqual({r1:null,r2:null,r3:null,r4:null,r5:null,r6:null,r7:null,r8:null});
+  expect(r.status).toBe(200);expect(r.data.population).toEqual({n:0,satN:0,detailN:0,excludedInvalid:1});expect(r.data.analyses).toEqual({r1:null,r2:null,r3:null,r4:null,r5:null,r6:null,r7:null,r8:null,r9:null});
   const empty=seed([],{extras:false}),e=await get(empty,ids.admin);
   expect(e.data).toMatchObject({companies:[],population:{n:0,excludedInvalid:0},analyses:{r1:null}});
   const off=seed(DATASETS.varied,{postEnabled:false}),o=await get(off,ids.admin);
@@ -204,7 +204,7 @@ test.describe('admin aggregate screen',()=>{
     await expect(cells('rank')).toHaveText([...api.areas.map(a=>`${a.rank}위`),'-']);
     await expect(sec(page).locator('svg[role="img"] rect')).toHaveCount(10);
     await expect(sec(page).locator('[data-agg-tab]')).toHaveCount(9);
-    await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(1);await expect(sec(page).locator('[data-agg-tab="r7"]')).toBeEnabled();
+    await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(0);await expect(sec(page).locator('[data-agg-tab="r7"]')).toBeEnabled();
     await expect(sec(page).locator('[data-agg-excluded]')).toContainText('1명');
     await sec(page).locator('#agg-company').selectOption('가 기업');
     await expect(sec(page).locator('[data-agg-base]')).toContainText('[Base: 가 기업 사전·사후 참여자(n=5)');
