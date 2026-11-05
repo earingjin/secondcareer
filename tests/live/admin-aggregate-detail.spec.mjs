@@ -10,6 +10,8 @@ import {pathToFileURL} from 'node:url';
 import {createRequire} from 'node:module';
 import {serve} from '../tools/serve-static.mjs';
 const {harness,ids}=createRequire(import.meta.url)('./server-harness.cjs');
+// Every column the aggregate function selects from assessments (JSON paths of the stored answers; no d36, q7 or free text).
+const ASSESSMENT_COLUMNS=['id','participant_id','pd32:answers->expect->d32','pd33:answers->expect->d33','pd34:answers->expect->d34','pd35:answers->expect->d35','post:answers->post','pre:answers->pre','q1:answers->sat->q1','q2:answers->sat->q2','q3a:answers->sat->q3a','q3b:answers->sat->q3b','q3c:answers->sat->q3c','q5fit:answers->sat->q5fit','sd32:answers->sat->d32','sd33:answers->sat->d33','sd34:answers->sat->d34','sd35:answers->sat->d35','status'];
 const TEMPLATE=JSON.parse(fs.readFileSync(new URL('../snapshot/fixture.json',import.meta.url),'utf8')).db[0];
 const LEGACY=pathToFileURL(path.resolve('legacy/index.original.html')).href;
 
@@ -80,7 +82,7 @@ test('8·9·10·11 server detail and satisfaction equal legacy rp2/rp3 for the s
     const {h}=seed(list),r=await get(h,ids.admin);
     expect(r.status,name).toBe(200);
     const L=await legacy(page,list);
-    expect(r.data.population,name).toEqual({n:L.N,satN:L.sv,excludedInvalid:1});
+    expect(r.data.population,name).toEqual({n:L.N,satN:L.sv,detailN:0,excludedInvalid:1});
     same(body(r2View(r.data)),norm(L.rp2),name+' rp2');
     if(L.sv)same(body(r3View(r.data)),norm(L.rp3),name+' rp3');else expect(r.data.analyses.r3,name).toBeNull();
   }
@@ -107,7 +109,7 @@ test('detail structure: 15 factors, 5 areas, ranks 1..15 and 1..5, areas equal s
 test('company filter keeps legacy equality for detail and satisfaction',async({page})=>{
   const {r2View,r3View}=await views(),list=DATASETS.varied,{h}=seed(list);
   const ga=(await get(h,ids.admin,'?company='+encodeURIComponent('가 기업'))).data,L=await legacy(page,list,{company:'가 기업'});
-  expect(ga.population).toEqual({n:L.N,satN:L.sv,excludedInvalid:0});
+  expect(ga.population).toEqual({n:L.N,satN:L.sv,detailN:0,excludedInvalid:0});
   same(body(r2View(ga)),norm(L.rp2),'company rp2');same(body(r3View(ga)),norm(L.rp3),'company rp3');
 });
 
@@ -120,7 +122,7 @@ test('satisfaction population: pre+post submitted AND a valid Q1/Q2 answer; the 
   add('s-range','가 기업',a,b,{satRaw:{q1:4,q2:6}});
   add('s-float','가 기업',a,b,{satRaw:{q1:4.5,q2:3}});
   const r=(await get(h,ids.admin)).data;
-  expect(r.population).toEqual({n:9+4,satN:7,excludedInvalid:1});
+  expect(r.population).toEqual({n:9+4,satN:7,detailN:0,excludedInvalid:1});
   expect(r.analyses.r3.n).toBe(7);expect(r.analyses.r3.q1.n).toBe(7);expect(r.analyses.r3.q2.n).toBe(7);
   // Without any satisfaction answer: detail still works, screen 3 has no figures.
   const none=seed(DATASETS.varied.map(p=>({...p,sat:null}))).h,n=(await get(none,ids.admin)).data;
@@ -132,14 +134,14 @@ test('numeric-string answers: the server excludes them; legacy counts them and i
   // Both diagnoses submitted with answers stored as numeric strings.
   add('t-strings','가 기업',strings(a),strings(b),{sat:{q1:4,q2:3}});
   const r=(await get(h,ids.admin)).data;
-  expect(r.population).toEqual({n:9,satN:7,excludedInvalid:2});
+  expect(r.population).toEqual({n:9,satN:7,detailN:0,excludedInvalid:2});
   const L=await legacy(page,list,{extra:[{pre:strings(a),post:strings(b),company:'가 기업',sat:{q1:4,q2:3}}]});
   expect(L.N).toBe(r.population.n+1);                        // legacy `full` accepts '3'
   expect(L.areaPre).not.toEqual(r.analyses.r1.areas.map(x=>String(x.pre)));   // but string sums concatenate
   // A satisfaction score stored as a string is not valid for the server; legacy counts the person.
   const s=seed(list);s.add('t-sat-string','가 기업',a,b,{satRaw:{q1:'4',q2:3}});
   const rs=(await get(s.h,ids.admin)).data;
-  expect(rs.population).toEqual({n:10,satN:7,excludedInvalid:1});
+  expect(rs.population).toEqual({n:10,satN:7,detailN:0,excludedInvalid:1});
   const Ls=await legacy(page,list,{extra:[{pre:a,post:b,company:'가 기업',sat:{q1:'4',q2:3}}]});
   expect(Ls.sv).toBe(rs.population.satN+1);
 });
@@ -147,12 +149,12 @@ test('numeric-string answers: the server excludes them; legacy counts them and i
 test('1·2·3·12 admin only, own organization only, personal data and free text never returned',async()=>{
   const {h}=seed(DATASETS.varied),r=await get(h,ids.admin),text=JSON.stringify(r.data);
   expect(r.status).toBe(200);
-  expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3']);
+  expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3','r4','r5','r6']);
   for(const hidden of ['개인-','응답원문','결과원문','자유의견원문','01012341234','u-p','"p000"','x-','other-org',ids.counselor])expect(text).not.toContain(hidden);
   expect(text).not.toMatch(/\[(\d,){14}\d\]/);
   // The selected columns are the two scores and the two diagnosis arrays: no choices or free text.
   const cols=[...new Set(h.state.reads.filter(x=>x.table==='assessments').flatMap(x=>x.columns.split(',')))].sort();
-  expect(cols).toEqual(['id','participant_id','post:answers->post','pre:answers->pre','q1:answers->sat->q1','q2:answers->sat->q2','status']);
+  expect(cols).toEqual(ASSESSMENT_COLUMNS);
   h.state.tables.user_profiles.push({user_id:'manager-user',organization_id:ids.org,role:'manager',display_name:'고객사'});h.state.users['manager-user']={id:'manager-user',app_metadata:{}};
   for(const [token,status] of [[ids.counselor,403],[ids.participant,403],[ids.other,403],['manager-user',403],[null,401]]){const x=await get(h,token);expect(x.status).toBe(status);expect(x.data.analyses).toBeUndefined()}
   // The other organization's satisfaction answers (all 1s in the fixture) never enter the figures.
@@ -161,7 +163,7 @@ test('1·2·3·12 admin only, own organization only, personal data and free text
 
 test('zero population and a disabled post feature show no figures; failed reads fail closed',async()=>{
   const zero=(await get(seed([]).h,ids.admin)).data;
-  expect(zero.population).toEqual({n:0,satN:0,excludedInvalid:1});expect(zero.analyses).toEqual({r1:null,r2:null,r3:null});
+  expect(zero.population).toEqual({n:0,satN:0,detailN:0,excludedInvalid:1});expect(zero.analyses).toEqual({r1:null,r2:null,r3:null,r4:null,r5:null,r6:null});
   const off=seed(DATASETS.varied,{postEnabled:false}),o=(await get(off.h,ids.admin)).data;
   expect(o).toMatchObject({post:{available:false},population:null,analyses:{r1:null,r2:null,r3:null}});
   expect(off.h.state.reads.some(x=>x.table==='assessments')).toBe(false);
@@ -211,8 +213,8 @@ test.describe('admin aggregate screens 2 and 3',()=>{
     const {h}=seed(DATASETS.varied),calls=await open(page,h);await open1(page);
     const aggCalls=()=>calls.filter(c=>c.includes('admin-aggregate')).length;
     expect(aggCalls()).toBe(1);
-    await expect(sec(page).locator('[data-agg-tab]')).toHaveCount(9);await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(6);
-    for(const k of ['r4','r5','r6','r7','r8','r9'])await expect(tab(page,k)).toContainText('구현 예정');
+    await expect(sec(page).locator('[data-agg-tab]')).toHaveCount(9);await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(3);
+    for(const k of ['r7','r8','r9'])await expect(tab(page,k)).toContainText('구현 예정');
     await expect(sec(page).locator('[data-agg-base]')).toHaveText(/\[Base: 전체 기업 사전·사후 참여자\(n=9\), 단위: 명\]/);
     const r=(await get(h,ids.admin)).data.analyses;
     await tab(page,'r2').click();

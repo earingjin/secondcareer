@@ -9,6 +9,8 @@ import {pathToFileURL} from 'node:url';
 import {createRequire} from 'node:module';
 import {serve} from '../tools/serve-static.mjs';
 const {harness,ids}=createRequire(import.meta.url)('./server-harness.cjs');
+// Every column the aggregate function selects from assessments (JSON paths of the stored answers; no d36, q7 or free text).
+const ASSESSMENT_COLUMNS=['id','participant_id','pd32:answers->expect->d32','pd33:answers->expect->d33','pd34:answers->expect->d34','pd35:answers->expect->d35','post:answers->post','pre:answers->pre','q1:answers->sat->q1','q2:answers->sat->q2','q3a:answers->sat->q3a','q3b:answers->sat->q3b','q3c:answers->sat->q3c','q5fit:answers->sat->q5fit','sd32:answers->sat->d32','sd33:answers->sat->d33','sd34:answers->sat->d34','sd35:answers->sat->d35','status'];
 const TEMPLATE=JSON.parse(fs.readFileSync(new URL('../snapshot/fixture.json',import.meta.url),'utf8')).db[0];
 const LEGACY=pathToFileURL(path.resolve('legacy/index.original.html')).href;
 
@@ -84,7 +86,7 @@ test('8·9·10·11 server figures equal the legacy report for the same answers, 
   for(const [name,list] of Object.entries(DATASETS)){
     const h=seed(list),r=await get(h,ids.admin);
     expect(r.status,name).toBe(200);
-    expect(r.data.population).toEqual({n:list.length,satN:0,excludedInvalid:1});
+    expect(r.data.population).toEqual({n:list.length,satN:0,detailN:0,excludedInvalid:1});
     expectSameAsLegacy(await legacyFigures(page,list),r.data.analyses.r1,r.data.population.n);
   }
   // The tie dataset really has a tie: equal rates keep area order.
@@ -107,12 +109,12 @@ test('1·4·5·6·12 population is submitted pre and post only; response and rea
   const h=seed(DATASETS.varied),r=await get(h,ids.admin),text=JSON.stringify(r.data);
   expect(r.status).toBe(200);expect(r.headers.get('cache-control')).toBe('no-store');
   expect(Object.keys(r.data).sort()).toEqual(['analyses','companies','company','generatedAt','population','post','scope']);
-  expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3']);
+  expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3','r4','r5','r6']);
   for(const hidden of ['개인-','응답원문','결과원문','자유의견원문','01012341234','010-9999','u-p','"p000"','x-','other-org',ids.counselor])expect(text).not.toContain(hidden);
   expect(text).not.toMatch(/\[(\d,){14}\d\]/);
   const cols=table=>[...new Set(h.state.reads.filter(x=>x.table===table).flatMap(x=>x.columns.split(',')))].sort();
   expect(cols('participants')).toEqual(['company_name','id']);
-  expect(cols('assessments')).toEqual(['id','participant_id','post:answers->post','pre:answers->pre','q1:answers->sat->q1','q2:answers->sat->q2','status']);
+  expect(cols('assessments')).toEqual(ASSESSMENT_COLUMNS);
   expect(h.state.reads.filter(x=>x.table==='participants').every(x=>x.filters.some(([k,v,op])=>k==='organization_id'&&v===ids.org&&op==='eq'))).toBe(true);
   expect(h.state.reads.filter(x=>x.table==='assessments').flatMap(x=>x.filters.find(([k])=>k==='participant_id')[1]).includes('x-other-org')).toBe(false);
 });
@@ -131,7 +133,7 @@ test('2 counselor, participant, other roles and unauthenticated requests are ref
 
 test('7 zero population and a disabled post feature show no figures',async()=>{
   const zero=seed([]),r=await get(zero,ids.admin);
-  expect(r.status).toBe(200);expect(r.data.population).toEqual({n:0,satN:0,excludedInvalid:1});expect(r.data.analyses).toEqual({r1:null,r2:null,r3:null});
+  expect(r.status).toBe(200);expect(r.data.population).toEqual({n:0,satN:0,detailN:0,excludedInvalid:1});expect(r.data.analyses).toEqual({r1:null,r2:null,r3:null,r4:null,r5:null,r6:null});
   const empty=seed([],{extras:false}),e=await get(empty,ids.admin);
   expect(e.data).toMatchObject({companies:[],population:{n:0,excludedInvalid:0},analyses:{r1:null}});
   const off=seed(DATASETS.varied,{postEnabled:false}),o=await get(off,ids.admin);
@@ -202,7 +204,7 @@ test.describe('admin aggregate screen',()=>{
     await expect(cells('rank')).toHaveText([...api.areas.map(a=>`${a.rank}위`),'-']);
     await expect(sec(page).locator('svg[role="img"] rect')).toHaveCount(10);
     await expect(sec(page).locator('[data-agg-tab]')).toHaveCount(9);
-    await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(6);await expect(sec(page).locator('[data-agg-tab="r4"]')).toContainText('구현 예정');
+    await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(3);await expect(sec(page).locator('[data-agg-tab="r7"]')).toContainText('구현 예정');
     await expect(sec(page).locator('[data-agg-excluded]')).toContainText('1명');
     await sec(page).locator('#agg-company').selectOption('가 기업');
     await expect(sec(page).locator('[data-agg-base]')).toContainText('[Base: 가 기업 사전·사후 참여자(n=5)');

@@ -4,7 +4,7 @@ import {AREA_COUNT,ITEM_COUNT,SCALE_MIN,SCALE_MAX} from '../js/02-eval-config.js
 // REQ-A-006..009 admin aggregate report. Every figure comes from the server
 // (secondcareer-admin-aggregate); this module only checks the response and renders it.
 // Screen names follow the legacy report (RTABS). Implemented: r1, r2, r3.
-export const AGGREGATE_TABS=[['r1','1. 사전사후 결과',true],['r2','2. 사전사후 상세',true],['r3','3. 만족도',true],['r4','4. 만족도_심리적 안정감'],['r5','5. 만족도_호소문제의 변화'],['r6','6. 만족도_컨설팅 기대 및 효과'],['r7','7. 만족도_전반적인 만족도(개선요인)'],['r8','8. 첫회기 컨설팅에 대한 기대'],['r9','9. 만족도_기타의견']];
+export const AGGREGATE_TABS=[['r1','1. 사전사후 결과',true],['r2','2. 사전사후 상세',true],['r3','3. 만족도',true],['r4','4. 만족도_심리적 안정감',true],['r5','5. 만족도_호소문제의 변화',true],['r6','6. 만족도_컨설팅 기대 및 효과',true],['r7','7. 만족도_전반적인 만족도(개선요인)'],['r8','8. 첫회기 컨설팅에 대한 기대'],['r9','9. 만족도_기타의견']];
 const IMPLEMENTED=AGGREGATE_TABS.filter(t=>t[2]).map(t=>t[0]);
 const num=Number.isFinite,count=v=>Number.isInteger(v)&&v>=0;
 const isPermutation=(list,size)=>list.length===size&&[...list].sort((x,y)=>x-y).every((v,i)=>v===i+1);
@@ -18,20 +18,43 @@ function validSatItem(q,n){
   return !!q.positive&&q.positive.count===q.distribution[0].count+q.distribution[1].count&&num(q.positive.pct);
 }
 
+const KEYS=['r1','r2','r3','r4','r5','r6'];
+// Consistency checks only (no figure shown comes from here): lists have equal length, counts add up, the top entries
+// are the first three by the legacy order (count descending, equal counts keep the option order).
+const top3Of=counts=>counts.map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0]||a[1]-b[1]).slice(0,3).map(x=>x[1]);
+function validChoices(b,n,{single=false,rankBy,change=false}){
+  if(!b||!Array.isArray(b.options)||!b.options.every(o=>typeof o==='string'&&o)||!Array.isArray(b.labels)||b.labels.length!==b.options.length)return false;
+  const L=b.options.length,sums=[b.pre,b.post].map(a=>Array.isArray(a)&&a.length===L&&a.every(c=>count(c)&&c<=n)?a.reduce((s,c)=>s+c,0):-1);
+  if(sums.includes(-1)||sums.some(s=>single?s!==n:s<n))return false;
+  if(!b.selections||b.selections.pre!==sums[0]||b.selections.post!==sums[1])return false;
+  if(change&&!(Array.isArray(b.change)&&b.change.length===L&&b.change.every(num)))return false;
+  const counts=b[rankBy],order=top3Of(counts);
+  return Array.isArray(b.top)&&b.top.length===order.length&&b.top.every((t,k)=>t&&t.index===order[k]&&t.rank===k+1&&t.count===counts[t.index]&&num(t.pct));
+}
+function validStability(r,n){
+  const L=Array.isArray(r.options)?r.options.length:-1;
+  if(L<2||!Array.isArray(r.labels)||r.labels.length!==L)return false;
+  // Single-choice question: every participant of the screen has exactly one counted answer before and after.
+  if(![r.pre,r.post].every(a=>Array.isArray(a)&&a.length===L&&a.every(c=>count(c)&&c<=n)&&a.reduce((s,c)=>s+c,0)===n))return false;
+  const q=r.positive;
+  return !!q&&[q.pre,q.post,q.change].every(num)&&Array.isArray(r.scores)&&r.scores.length===3&&r.scores.every((s,i)=>s&&s.key===['q3a','q3b','q3c'][i]&&num(s.avg));
+}
 export function validAggregate(d){
   if(!d||typeof d!=='object'||d.scope!=='organization'||typeof d.generatedAt!=='string'||!Number.isFinite(Date.parse(d.generatedAt)))return false;
   if(!Array.isArray(d.companies)||!d.companies.every(c=>typeof c==='string'&&c.trim())||new Set(d.companies).size!==d.companies.length)return false;
   if(!(d.company===null||d.companies.includes(d.company))||!d.post||typeof d.post.available!=='boolean'||!d.analyses)return false;
-  if(!d.post.available)return d.population===null&&d.analyses.r1===null&&d.analyses.r2===null&&d.analyses.r3===null;
-  const p=d.population;if(!p||!count(p.n)||!count(p.satN)||p.satN>p.n||!count(p.excludedInvalid))return false;
+  if(!d.post.available)return d.population===null&&KEYS.every(k=>d.analyses[k]===null);
+  const p=d.population;if(!p||!count(p.n)||!count(p.satN)||!count(p.detailN)||p.satN>p.n||p.detailN>p.satN||!count(p.excludedInvalid))return false;
   const {r1,r2,r3}=d.analyses;
-  if(p.n===0)return r1===null&&r2===null&&r3===null;
+  if(p.n===0)return KEYS.every(k=>d.analyses[k]===null);
   if(!r1||!num(r1.areaMax)||!num(r1.totalMax)||!Array.isArray(r1.areas)||r1.areas.length!==AREA_COUNT||!r1.total||![r1.total.pre,r1.total.post,r1.total.rate].every(num))return false;
   if(!r1.areas.every(validRow)||!isPermutation(r1.areas.map(a=>a.rank),AREA_COUNT))return false;
   if(!r2||!Array.isArray(r2.factors)||r2.factors.length!==ITEM_COUNT||!Array.isArray(r2.areas)||!r2.areas.every(validRow)||!sameAreaRows(r1.areas,r2.areas))return false;
   if(!r2.factors.every(f=>validRow(f)&&Number.isInteger(f.area)&&f.area>=0&&f.area<AREA_COUNT)||!isPermutation(r2.factors.map(f=>f.rank),ITEM_COUNT)||!num(r2.scaleMax))return false;
-  if(p.satN===0)return r3===null;
-  return !!r3&&r3.n===p.satN&&validSatItem(r3.q1,p.satN)&&validSatItem(r3.q2,p.satN);
+  if(p.satN===0?r3!==null:!(r3&&r3.n===p.satN&&validSatItem(r3.q1,p.satN)&&validSatItem(r3.q2,p.satN)))return false;
+  const {r4,r5,r6}=d.analyses,N=p.detailN;
+  if(N===0)return r4===null&&r5===null&&r6===null;
+  return !!r4&&r4.n===N&&validStability(r4,N)&&!!r5&&r5.n===N&&validChoices(r5,N,{rankBy:'pre',change:true})&&!!r6&&r6.n===N&&validChoices(r6.q5,N,{single:true,rankBy:'pre'})&&validChoices(r6.q6,N,{rankBy:'post'})&&validSatItem(r6.fit,N);
 }
 
 // Display helpers from the legacy report (arrow, sgn, legend2, gbars, hbrow); no calculation.
@@ -53,6 +76,9 @@ function gbars(o){
   return s+'</svg>';
 }
 const ORD=['1st','2nd','3rd','4th','5th'];
+// Legacy axis scale (mx) and TOP list (sideList): display only, the figures come from the server.
+const mx=a=>{const m=Math.max(1,...a),st=m<=6?1:m<=12?2:5;return {max:Math.ceil((m+.5)/st)*st,step:st}};
+const sideList=(O,top,unit,label)=>`<div>${top.map((t,k)=>`<div class="topitem t${k+1}"><b>${String(k+1).padStart(2,'0')}</b><span>${esc(O[t.index])}${label?label:''} (${t.pct}%, ${t.count}${unit})</span></div>`).join('')}</div>`;
 
 export function r1View(d){
   const r=d.analyses.r1,n=d.population.n,A=r.areas;
@@ -98,6 +124,36 @@ export function r3View(d){
   <p class="hintline" data-agg-method>계산 기준: 평균은 응답 점수 평균(소수 첫째 자리 반올림, ${SCALE_MAX}점 만점), 비율은 해당 점수 응답 수 ÷ 응답자 수 × 100(소수 첫째 자리), 전체 긍정은 ${SCALE_MAX}점과 ${SCALE_MAX-1}점 응답의 합입니다. 항목 이름은 점수 ${SCALE_MAX}→${SCALE_MIN} 순서이며 보기 문구는 레거시 보고서와 같습니다.</p>`;
 }
 
+export function r4View(d){
+  const r=d.analyses.r4,m=mx([...r.pre,...r.post]),st=[['q3a','상담 이후 막연한 불안이 줄었다'],['q3b','미래에 대한 자신감이 높아졌다'],['q3c','마음이 이전보다 안정되었다']];
+  return `<div class="qbar">Q 3.0 서비스 이후 심리적 안정감</div>
+  <div class="tiles" style="grid-template-columns:repeat(3,1fr);margin-top:14px"><div class="tile"><span>사전 긍정적 마음 상태</span><b>${r.positive.pre}%</b></div><div class="tile c2"><span>사후 긍정적 마음 상태</span><b>${r.positive.post}%</b></div><div class="tile c1"><span>변화</span><b>${sgn(r.positive.change)}%p</b></div></div>
+  <p class="hintline">긍정적 마음 상태 = ‘잘 될 것이라고 믿는다’ + ‘구체적으로 준비하고 있어 안심이다’ 선택 비율</p>
+  <h3 class="st">Q 3.1 마음 상태 사전·사후 분포 (명)</h3>${legend2('사전응답','사후응답')}
+  ${gbars({series:[{vals:r.pre,cls:'rpre'},{vals:r.post,cls:'rpost'}],labels:r.labels,max:m.max,step:m.step,label:'마음 상태 사전 사후 분포',h:310})}
+  <h3 class="st">Q 3.2 심리적 안정감 문항 (5점 척도)</h3>
+  ${st.map(([k,l],i)=>hbrow(l,r.scores[i].avg/SCALE_MAX*100,`<b>${r.scores[i].avg}점</b>`)).join('')}
+  <p class="hintline" data-agg-method>Base 단위는 명입니다. Q 3.1은 마음 상태를 한 가지만 고른 단일 선택 문항이라 사전·사후 각각 합계가 ${r.n}명(기준 인원)입니다. 긍정 비율 = 긍정 선택 인원 ÷ 기준 인원 × 100(소수 첫째 자리), 변화는 사후 − 사전(%p)이며 반올림된 비율로 계산합니다. Q 3.2 점수는 응답 평균(소수 첫째 자리 반올림, ${SCALE_MAX}점 만점)입니다.</p>`;
+}
+export function r5View(d){
+  const r=d.analyses.r5,m=mx([...r.pre,...r.post]),order=r.top.map(t=>t.index);
+  const top=r.options.map((o,i)=>{const k=order.indexOf(i);return k>=0?{t:`${r.change[i]}% ${arrow(r.change[i])}`,c:r.change[i]<0?'dn':'',r:`TOP ${k+1}`}:null});
+  return `<div class="qbar">Q 4.0 사전사후 변화 TOP3 · 사전(퇴직을 맞이하며 고민되는 부분), 사후(서비스 이후 가장 고민되는 부분)</div>
+  <div class="sidechart"><div style="padding-top:34px">${sideList(r.options,r.top,'명')}</div><div>${legend2('사전응답','사후응답')}${gbars({series:[{vals:r.pre,cls:'rpre'},{vals:r.post,cls:'rpost'}],labels:r.labels,max:m.max,step:m.step,top,pt:46,h:330,label:'호소문제 사전 사후 변화'})}</div></div>
+  <p class="fnote">3가지 우선순위를 모두 집계한 중복선택 문항입니다 (사전 ${r.selections.pre}건, 사후 ${r.selections.post}건). 상단 수치는 사전 대비 사후 응답 변화율입니다.</p>
+  <p class="hintline" data-agg-method>Base 단위는 명이며 기준 인원은 ${r.n}명입니다. 중복선택 문항이라 한 사람이 여러 항목에 포함되어 항목별 인원의 합이 기준 인원과 다릅니다. TOP3 옆의 비율은 해당 항목 선택 건수 ÷ 전체 선택 건수(사전 ${r.selections.pre}건)이며 참여자 비율이 아닙니다. 순위는 사전 선택 건수가 많은 순이고 같으면 문항 보기 순서가 먼저입니다. 변화율 = (사후 − 사전) ÷ 사전 × 100(소수 첫째 자리), 사전이 0건이면 0입니다.</p>`;
+}
+export function r6View(d){
+  const r=d.analyses.r6,{q5,q6}=r,m5=mx([...q5.pre,...q5.post]),m6=mx([...q6.pre,...q6.post]),o5=q5.top.map(t=>t.index),o6=q6.top.map(t=>t.index);
+  const t5=q5.options.map((o,i)=>o5.includes(i)?{t:'',r:`TOP ${o5.indexOf(i)+1}`}:null),t6=q6.options.map((o,i)=>o6.includes(i)?{t:'',r:`TOP ${o6.indexOf(i)+1}`}:null);
+  return `<div class="qbar">Q 5.0 사전(컨설팅 기대), 사후(가장 도움이 된 부분)</div>
+  <div class="sidechart"><div style="padding-top:34px">${sideList(q5.options,q5.top,'명')}</div><div>${legend2('사전응답(기대)','사후응답(도움이 된 부분)')}${gbars({series:[{vals:q5.pre,cls:'rpre'},{vals:q5.post,cls:'rpost'}],labels:q5.labels,max:m5.max,step:m5.step,top:t5,pt:46,h:320,label:'컨설팅 기대와 도움이 된 부분'})}</div></div>
+  <div class="sat2" style="margin-top:22px">${satCard('q5fit','Q 5.2 컨설팅 전 기대했던 부분의 충족도',r.fit,SAT_Q2)}<div></div></div>
+  <div class="qbar" style="margin-top:26px">Q 6.0 사전(경력준비에 장애가 되는 요인), 사후(가장 크게 극복된 장애요인)</div>
+  <div class="sidechart"><div style="padding-top:34px">${sideList(q6.options,q6.top,'건',' 극복')}</div><div>${legend2('사전응답','사후응답')}${gbars({series:[{vals:q6.pre,cls:'rpre'},{vals:q6.post,cls:'rpost'}],labels:q6.labels,max:m6.max,step:m6.step,top:t6,box:o6,pt:46,h:320,label:'경력준비 장애요인 사전 사후'})}</div></div>
+  <p class="fnote">중복선택 문항으로 사전과 사후의 응답 건수가 다를 수 있습니다 (사전 ${q6.selections.pre}건, 사후 ${q6.selections.post}건)</p>
+  <p class="hintline" data-agg-method>Base 단위는 명이며 기준 인원은 ${r.n}명입니다. 세 질문은 서로 다른 문항이라 합치거나 같은 지표로 비교하지 않습니다. Q 5.0은 한 가지만 고른 단일 선택(사전은 기대, 사후는 가장 도움이 된 부분), Q 5.2는 사후 충족도 점수(분모 ${r.fit.n}명), Q 6.0은 중복선택(사전 장애요인, 사후 극복된 요인)입니다. 옆 목록의 비율은 선택 건수 ÷ 해당 질문의 전체 선택 건수이며 참여자 비율이 아닙니다. Q 5.0 순위는 사전 선택 수, Q 6.0 순위는 사후(극복) 선택 수가 많은 순이고 같으면 보기 순서가 먼저입니다.</p>`;
+}
 export function adminAggregateView({data,loading=false,message='',tab='r1'}){
   const active=IMPLEMENTED.includes(tab)?tab:'r1';
   const select=data?`<label class="hintline" for="agg-company">기업</label><select class="in" id="agg-company" data-aggregate-company ${loading?'disabled':''}><option value="" ${data.company===null?'selected':''}>전체</option>${data.companies.map(c=>`<option value="${esc(c)}" ${data.company===c?'selected':''}>${esc(c)}</option>`).join('')}</select>`:'';
@@ -106,13 +162,15 @@ export function adminAggregateView({data,loading=false,message='',tab='r1'}){
   const intro='<p class="hintline">관리자 소속 조직 참여자 중 사전진단과 사후진단을 모두 최종 제출한 참여자를 기준으로 서버에서 집계합니다. 개인별 응답은 화면에 내려오지 않습니다. 이 화면은 조회용이며 통합 보고서 인쇄는 아직 제공하지 않습니다.</p>';
   if(!data)return head+status+intro;
   const tabs=`<div class="filters" role="tablist" aria-label="통합 분석 화면" data-agg-tabs>${AGGREGATE_TABS.map(([k,l,on])=>on?`<button class="btn ${k===active?'':'ghost '}sm" role="tab" aria-selected="${k===active}" data-agg-tab="${k}">${esc(l)}</button>`:`<button class="btn ghost sm" role="tab" aria-selected="false" disabled data-agg-tab="${k}" title="구현 예정">${esc(l)} · 구현 예정</button>`).join('')}</div>`;
-  const p=data.population,sat=active==='r3';
+  const p=data.population,detail=['r4','r5','r6'].includes(active),sat=active==='r3'||detail;
   let body;
   if(!data.post.available)body='<div class="empty" data-agg-empty>사후진단 기능이 이 서비스 환경에서 사용 설정되어 있지 않아 사전·사후 통합 분석을 집계하지 않습니다.</div>';
   else if(!p.n)body='<div class="empty" data-agg-empty>사전·사후를 모두 완료한 참여자가 아직 없습니다.</div>';
   else if(sat&&!p.satN)body='<div class="empty" data-agg-empty>사후 만족도 설문에 응답한 참여자가 아직 없습니다.</div>';
-  else body=({r1:r1View,r2:r2View,r3:r3View})[active](data);
-  const base=data.post.available?`<div class="rbase" data-agg-base>[Base: ${data.company===null?'전체 기업':esc(data.company)} 사전·사후 참여자(n=${p.n})${sat&&p.n?`, 만족도 응답 n=${p.satN}`:''}, 단위: 명] · 집계 시각 ${esc(new Date(data.generatedAt).toLocaleString('ko-KR'))}</div>`:'';
+  else if(detail&&!p.detailN)body='<div class="empty" data-agg-empty>만족도와 사전 기대 응답이 모두 완전한 참여자가 아직 없습니다.</div>';
+  else body=({r1:r1View,r2:r2View,r3:r3View,r4:r4View,r5:r5View,r6:r6View})[active](data);
+  const base=data.post.available?`<div class="rbase" data-agg-base>[Base: ${data.company===null?'전체 기업':esc(data.company)} 사전·사후 참여자(n=${p.n})${sat&&p.n?`, 만족도 응답 n=${detail?p.detailN:p.satN}`:''}, 단위: 명] · 집계 시각 ${esc(new Date(data.generatedAt).toLocaleString('ko-KR'))}</div>`:'';
+  const partial=detail&&data.post.available&&p.satN>p.detailN?`<p class="hintline" data-agg-detail-base>만족도 응답 ${p.satN}명 중 사전 기대·만족도 선택 응답이 완전한 ${p.detailN}명을 이 화면의 기준으로 합니다(나머지 ${p.satN-p.detailN}명 제외).</p>`:'';
   const excluded=data.post.available&&p.excludedInvalid?`<p class="hintline" data-agg-excluded>두 진단을 모두 제출했지만 응답이 완전하지 않아 제외한 참여자 ${p.excludedInvalid}명</p>`:'';
-  return head+status+intro+tabs+base+body+excluded+'<p class="hintline">4~9번 화면(심리적 안정감, 호소문제 변화 등)은 아직 구현되지 않았습니다.</p>';
+  return head+status+intro+tabs+base+body+partial+excluded+'<p class="hintline">7~9번 화면(전반적인 만족도 개선요인, 첫회기 기대, 기타의견)은 아직 구현되지 않았습니다.</p>';
 }

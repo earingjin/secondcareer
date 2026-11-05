@@ -469,7 +469,7 @@ $('#app').addEventListener('click',event=>{
 });
 $('#app').addEventListener('click',event=>{
   const tab=event.target.closest('[data-agg-tab]');
-  if(!tab||tab.disabled||busy||aggregate.loading||!aggregate.data||profile?.role!=='admin'||!['r1','r2','r3'].includes(tab.dataset.aggTab))return;
+  if(!tab||tab.disabled||busy||aggregate.loading||!aggregate.data||profile?.role!=='admin'||!['r1','r2','r3','r4','r5','r6'].includes(tab.dataset.aggTab))return;
   aggregate.tab=tab.dataset.aggTab;paintAggregate();$(`#admin-aggregate [data-agg-tab="${aggregate.tab}"]`)?.focus();
 });
 $('#app').addEventListener('change',event=>{
