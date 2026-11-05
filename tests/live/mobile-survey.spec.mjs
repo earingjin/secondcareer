@@ -22,6 +22,7 @@ async function setup(page,{answers={},role='participant',disableMobile=false}={}
     let data;
     if(url.pathname.endsWith('/secondcareer-login')||url.pathname==='/auth/v1/token')data={access_token:'mock-access',refresh_token:'mock-refresh',expires_in:3600};
     else if(url.pathname.endsWith('/secondcareer-account'))data={profile:{role,display_name:'가상 사용자'},mustChangePassword:false,registrationAvailable:false};
+    else if(url.pathname.endsWith('/secondcareer-admin-progress'))data={scope:'organization',generatedAt:'2026-10-26T03:00:00Z',total:0,pre:{notStarted:0,draft:0,submitted:0},post:{available:false},companies:[]};
     else if(url.pathname.endsWith('/secondcareer-assessment')){
       if(url.searchParams.has('id'))data={html:'<section class="sheet"><h2>모의 서버 보고서</h2><button class="noprint" onclick="window.print()">인쇄</button></section>'};
       else if(request.method()==='POST'){
