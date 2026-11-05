@@ -55,6 +55,10 @@ export function createAPI(onExpired,env=runtimeEnv()){
       if(path==='/functions/v1/secondcareer-admin-progress'&&response.status!==401){
         throw Error(response.status===403?'진단 현황을 조회할 권한이 없습니다.':'진단 현황을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
       }
+      if(path.startsWith('/functions/v1/secondcareer-admin-report?')&&response.status!==401){
+        const reportMessages={400:'보고서 종류 또는 조회 요청을 확인해 주세요.',403:'보고서를 조회할 권한이 없거나 최종 제출이 완료되지 않았습니다.'};
+        throw Error(reportMessages[response.status]||'보고서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      }
       if(path==='/functions/v1/secondcareer-admin-directory'&&response.status!==401){
         throw Error(response.status===403?'운영 관리 목록을 조회할 권한이 없습니다.':'운영 관리 목록을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
       }
@@ -123,6 +127,8 @@ export function createAPI(onExpired,env=runtimeEnv()){
     adminProgress:()=>request('/functions/v1/secondcareer-admin-progress'),
     // REQ-A-001/002 read only: organization, companies, counselors and participants in the server-checked scope.
     adminDirectory:()=>request('/functions/v1/secondcareer-admin-directory'),
+    // REQ-A-005: the server re-checks the participant's organization and final submission.
+    adminReport:(id,kind='c')=>{if(!['c','p'].includes(kind))throw Error('보고서 종류를 확인해 주세요.');return request('/functions/v1/secondcareer-admin-report?id='+encodeURIComponent(id)+'&kind='+kind)},
     postDraft:()=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?phase=post')},
     compare:id=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?compare='+encodeURIComponent(id))},
     write:(action,body)=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment',{body:{action,...body}})},

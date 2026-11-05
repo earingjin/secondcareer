@@ -6,14 +6,17 @@ import {participantAccessError} from './participant-access.ts';
 //   The request carries no organization, company, counselor or participant identifier.
 // - Finer "business scope" rules are not decided yet (requirements §10.3); the scope is
 //   the administrator's own organization, as in the account and registration functions.
-export async function authenticateAdmin(req: Request) {
+export async function authenticateAdmin(req: Request, allowedParams: string[] = []) {
   const {user, profile, admin} = await authenticate(req);
   const accessError = participantAccessError(user);
   if (accessError) throw new APIError(accessError, 403);
   if (profile.role !== 'admin') throw new APIError('FORBIDDEN', 403);
-  // No client-supplied scope is accepted, not even as a filter.
-  if (new URL(req.url).search) throw new APIError('INVALID_REQUEST', 400);
-  return {user, profile, admin};
+  // No client-supplied scope is accepted, not even as a filter. A caller may name
+  // target parameters (e.g. a report's participant ID); each is a lookup key that the
+  // caller re-checks against this organization, never a permission.
+  const params = new URL(req.url).searchParams, keys = [...params.keys()];
+  if (keys.some(k => !allowedParams.includes(k)) || new Set(keys).size !== keys.length) throw new APIError('INVALID_REQUEST', 400);
+  return {user, profile, admin, params};
 }
 
 // Key-ordered paging: a page boundary never shifts and a failed page fails the whole read.

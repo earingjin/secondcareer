@@ -8,7 +8,7 @@ function harness(){
   const users=Object.fromEntries(profiles.map(p=>[p.user_id,{id:p.user_id,email:`fixture-${p.user_id}@example.invalid`,app_metadata:{}}]));
   const credentials=new Map(profiles.map(p=>[p.user_id,'Fixture-password-123!']));
   const loginIds={[ids.counselor]:'consult01',[ids.admin]:'admin01',[ids.participant]:'client01',[ids.other]:'other01'};
-  const tables={user_profiles:profiles,organizations:[{id:ids.org,name:'테스트 기업'}],server_login_lookup:profiles.map(p=>({user_id:p.user_id,login_id:loginIds[p.user_id],internal_email:users[p.user_id].email})),participant_registration_requests:[],participants:[{id:'existing-participant',auth_user_id:ids.participant,counselor_user_id:ids.counselor,organization_id:ids.org,display_name:'기존참여자',company_name:'테스트기업'}],assessments:[]};
+  const tables={user_profiles:profiles,organizations:[{id:ids.org,name:'테스트 기업'}],server_login_lookup:profiles.map(p=>({user_id:p.user_id,login_id:loginIds[p.user_id],internal_email:users[p.user_id].email})),participant_registration_requests:[],participants:[{id:'existing-participant',auth_user_id:ids.participant,counselor_user_id:ids.counselor,organization_id:ids.org,display_name:'기존참여자',company_name:'테스트기업'}],assessments:[],assessment_history:[]};
   // pageSize caps each read like the Data API row limit; reads/failReadsOf record and fail reads per table.
   const state={tables,users,created:[],updated:[],enabled:true,postEnabled:false,pageSize:Infinity,reads:[],failReadsOf:null,failCreate:false,failComplete:false,failProfile:false,failUpdate:false};
   const db={from(name){
@@ -57,11 +57,12 @@ function harness(){
     return {data:id,error:null};
   }};
   const cache=new Map(),root=path.resolve('supabase/functions');
-  const context=vm.createContext({Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,btoa,crypto:webcrypto,Deno:{env:{get:key=>key==='SECONDCAREER_REGISTRATION_ENABLED'?(state.enabled?'true':'false'):key==='SECONDCAREER_POST_DRAFT_ENABLED'?(state.postEnabled?'true':'false'):'fixture'},serve:()=>{}}});
+  const context=vm.createContext({Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,btoa,crypto:webcrypto,Deno:{env:{get:key=>key==='SECONDCAREER_REGISTRATION_ENABLED'?(state.enabled?'true':'false'):key==='SECONDCAREER_POST_DRAFT_ENABLED'?(state.postEnabled?'true':'false'):'fixture'},serve:f=>{served=f}}});
+  let served=null;
   function load(filename){
     filename=path.resolve(filename);if(cache.has(filename))return cache.get(filename).exports;
     const module={exports:{}};cache.set(filename,module);
-    const code=transformSync(fs.readFileSync(filename,'utf8'),{loader:'ts',format:'cjs',target:'es2022'}).code;
+    const code=transformSync(fs.readFileSync(filename,'utf8'),{loader:filename.endsWith('.ts')?'ts':'js',format:'cjs',target:'es2022'}).code;
     const requireMock=specifier=>specifier.startsWith('npm:')?{createClient:()=>db}:load(path.resolve(path.dirname(filename),specifier));
     vm.runInContext('(function(require,module,exports){'+code+'\n})',context,{filename})(requireMock,module,module.exports);
     return module.exports;
@@ -71,6 +72,9 @@ function harness(){
   const access=load(path.join(root,'_shared/participant-access.ts'));
   const progress=load(path.join(root,'secondcareer-admin-progress/index.ts'));
   const directory=load(path.join(root,'secondcareer-admin-directory/index.ts'));
+  const adminReport=load(path.join(root,'secondcareer-admin-report/index.ts'));
+  // The counselor assessment function has no exported handler; take the one it passes to Deno.serve.
+  load(path.join(root,'secondcareer-assessment/index.ts'));const assessment=served;
   async function call(handler,token,body,method=body?'POST':'GET',url='https://fixture.invalid/'){
     const response=await handler(new Request(url,{method,headers:{...(token?{authorization:'Bearer '+token}:{}),'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}));
     return {status:response.status,headers:response.headers,data:await response.json()};
@@ -80,6 +84,6 @@ function harness(){
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
-  return {state,ids,registration,account,access,progress,directory,call,signIn};
+  return {state,ids,registration,account,access,progress,directory,adminReport,assessment,call,signIn};
 }
 module.exports={harness,ids};

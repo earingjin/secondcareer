@@ -33,16 +33,16 @@ test('1·4·5·6 admin gets scoped counselors, companies and participants with s
   expect(r.data.counselors).toEqual([{id:C2,name:'김상담',loginId:'counsel02',assigned:1},{id:ids.counselor,name:'상담사',loginId:'consult01',assigned:2}]);
   expect(r.data.companies).toEqual([{name:'가 기업',total:2,counselors:2},{name:'나 기업',total:2,counselors:1},{name:null,total:1,counselors:0}]);
   expect(r.data.participants).toEqual([
-    {name:'참여-d1',loginId:'part0001',companyName:'가 기업',counselorId:ids.counselor,assignment:'assigned',preStatus:'submitted'},
-    {name:'참여-d2',loginId:'part0002',companyName:'가 기업',counselorId:C2,assignment:'assigned',preStatus:'draft'},
-    {name:'참여-d3',loginId:null,companyName:'나 기업',counselorId:ids.counselor,assignment:'assigned',preStatus:'notStarted'},
-    {name:'참여-d5',loginId:'part0005',companyName:'나 기업',counselorId:null,assignment:'unknown',preStatus:'submitted'},
-    {name:'참여-d4',loginId:'part0004',companyName:null,counselorId:null,assignment:'unassigned',preStatus:'notStarted'}]);
+    {id:'d1',name:'참여-d1',loginId:'part0001',companyName:'가 기업',counselorId:ids.counselor,assignment:'assigned',preStatus:'submitted'},
+    {id:'d2',name:'참여-d2',loginId:'part0002',companyName:'가 기업',counselorId:C2,assignment:'assigned',preStatus:'draft'},
+    {id:'d3',name:'참여-d3',loginId:null,companyName:'나 기업',counselorId:ids.counselor,assignment:'assigned',preStatus:'notStarted'},
+    {id:'d5',name:'참여-d5',loginId:'part0005',companyName:'나 기업',counselorId:null,assignment:'unknown',preStatus:'submitted'},
+    {id:'d4',name:'참여-d4',loginId:'part0004',companyName:null,counselorId:null,assignment:'unassigned',preStatus:'notStarted'}]);
 });
 
 test('3 another organization, its counselor and personal details never appear in the response or the reads',async()=>{
   const h=seed(),r=await get(h,ids.admin),body=JSON.stringify(r.data);
-  for(const hidden of ['비밀 기업','other001','다른 조직',ids.other,'01099998888','secret-','example.invalid','응답원문','결과원문','u-d1','"d1"'])expect(body).not.toContain(hidden);
+  for(const hidden of ['비밀 기업','other001','다른 조직',ids.other,'01099998888','secret-','example.invalid','응답원문','결과원문','u-d1'])expect(body).not.toContain(hidden);
   const reads=h.state.reads.filter(x=>x.table!=='user_profiles'||x.filters.some(([k])=>k==='role'));
   for(const read of reads.filter(x=>['participants','user_profiles'].includes(x.table)))
     expect(read.filters.some(([k,v,op])=>k==='organization_id'&&v===ids.org&&op==='eq')).toBe(true);

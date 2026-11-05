@@ -7,8 +7,8 @@ import {authenticateAdmin, readAll, chunks, phaseStates, companyOf, byCompany} f
 // - "Organization" is the operating tenant (organizations, user_profiles.organization_id).
 //   "Company" is the participant's registered 소속기업 text (participants.company_name).
 //   The two are reported separately and never mixed.
-// - Returned per participant: registered display name, login ID, company label,
-//   counselor reference and pre-assessment state. No phone, e-mail, internal Auth
+// - Returned per participant: participant ID (report lookup key), registered display
+//   name, login ID, company label, counselor reference and pre-assessment state. No phone, e-mail, internal Auth
 //   e-mail, answers, results or post-assessment content.
 // Authentication, role and organization scope: ../_shared/admin-access.ts.
 const collator = new Intl.Collator('ko');
@@ -50,7 +50,9 @@ export async function handleAdminDirectory(req: Request) {
       const assignment = !p.counselor_user_id ? 'unassigned' : counselor ? 'assigned' : 'unknown';
       if (counselor) { counselor.assigned++; company.counselors.add(counselor.id); }
       else if (assignment === 'unassigned') unassigned++; else unknownCounselor++;
-      return {name:p.display_name || '', loginId:(p.auth_user_id && logins.get(p.auth_user_id)) || null, companyName,
+      // `id` lets the admin screen ask for this participant's report. It is a lookup key
+      // only: secondcareer-admin-report re-checks the organization on every request.
+      return {id:p.id, name:p.display_name || '', loginId:(p.auth_user_id && logins.get(p.auth_user_id)) || null, companyName,
         counselorId:counselor ? counselor.id : null, assignment, preStatus:pre.get(p.id) || 'notStarted'};
     });
     list.sort((a, b) => byCompany({name:a.companyName}, {name:b.companyName}) || collator.compare(a.name, b.name) || collator.compare(a.loginId || '', b.loginId || ''));

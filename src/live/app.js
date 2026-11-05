@@ -117,6 +117,11 @@ async function persistEdit(p,e){
 }
 function nav(v){
   if(busy||mustChangePassword)return;
+  // REQ-A-005: an administrator only moves between the admin page and an opened report.
+  if(profile?.role==='admin'){
+    if(v!=='admin')return;
+    reportHTML='';S.res=null;S.view='admin';S.err='';render();window.scrollTo(0,0);return;
+  }
   const allowed=profile?.role==='participant'?['wizard','home']:['cns','wizard','result'];
   if(!profile||!allowed.includes(v))return;
   if(v==='wizard'&&(!S.user||(profile.role==='counselor'&&!S.cedit)))return;
@@ -221,6 +226,21 @@ async function openCompare(id){
     if(data?.participantId!==id||!validScores(data.areas)||!validPost(data.items?.pre)||!validPost(data.items?.post)||[...data.items.pre,...data.items.post].includes(null)||!validSat(data.sat,true))throw Error('비교 결과를 확인하지 못했습니다.');
     compareData=data;S.view='compare';S.err='';
   }catch(e){S.err=e.message}finally{busy=false;render();window.scrollTo(0,0)}
+}
+// REQ-A-005: admin report from the server-checked directory list. Only a row the server
+// listed as submitted is requested; the server re-checks organization and state.
+async function openAdminReport(id,kind='c'){
+  if(busy||profile?.role!=='admin'||mustChangePassword)return;
+  const row=directory.data?.participants.find(p=>p.id===id);
+  if(!['c','p'].includes(kind)||!row){S.err='관리자 참여자 목록과 보고서 종류를 확인해 주세요.';render();return}
+  if(row.preStatus!=='submitted'){S.err='사전진단 최종 제출이 완료된 참여자만 보고서를 조회할 수 있습니다.';render();return}
+  const run=epoch;busy=true;reportHTML='';render();
+  try{
+    const data=await api.adminReport(id,kind);if(run!==epoch)return;
+    if(typeof data?.html!=='string'||!data.html.trim())throw Error('보고서를 확인하지 못했습니다.');
+    reportHTML=data.html;S.res={id,role:kind};S.view='admin-report';S.err='';
+  }catch(e){if(run===epoch&&profile){reportHTML='';S.res=null;S.view='admin';S.err=e.message}}
+  finally{if(run===epoch){busy=false;render();window.scrollTo(0,0)}}
 }
 async function openRes(id,kind='c'){
   if(busy||profile?.role!=='counselor')return;
@@ -357,6 +377,7 @@ function render(){
   if(restoring)html='<div class="narrow"><p role="status">로그인 세션을 확인하고 있습니다.</p></div>';
   else if(!profile)html=(postEntry&&postTestGate?'<div class="narrow noprint"><p id="post-entry-hint" role="status">사후진단 안내 링크로 접속했습니다. 기존 아이디와 비밀번호로 로그인하면 사후진단으로 이동합니다.</p></div>':'')+loginView();
   else if(mustChangePassword)html=passwordChangeView();
+  else if(profile.role==='admin'&&S.view==='admin-report'&&reportHTML)html=`<div class="narrow noprint"><div class="toolbar" id="admin-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openAdminReport('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openAdminReport('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('admin')">관리자 참여자 목록</button></div></div></div>`+reportHTML;
   else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 참여자 등록</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec" id="admin-progress" aria-label="진단 진행 현황">${adminProgressView(progress)}</section><section class="card sec" id="admin-directory" aria-label="운영 관리">${adminDirectoryView(directory)}</section><section class="card sec"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><div id="live-registration"></div></div>`;
   else if(S.view==='post'&&postAllowed())html=postLocked?postConfirmView():S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):postConfirmView();
   else if(S.view==='wizard')html=`<div class="narrow noprint"><p id="live-save" role="status">${esc(saveMessage)}</p>${profile.role==='participant'?'<div class="acts"><button class="btn ghost sm" onclick="retrySave()">지금 임시저장</button><button class="btn ghost sm" onclick="logout()">로그아웃</button></div>':''}</div>`+view.vWizard();
@@ -371,10 +392,12 @@ function render(){
   mobileSurvey.mount();
   const registration=$('#live-registration');
   if(registration&&registrationContext&&!busy){const run=epoch;unmountRegistration=mountParticipantRegistration(registration,{context:registrationContext,resultState:registrationResults,register:body=>api.register(body),onBusy:value=>{if(run===epoch)busy=value}})}
+  // The shared server report keeps the counselor's edit button; editing is counselor-only.
+  if(profile?.role==='admin'&&S.view==='admin-report')$('#app').querySelectorAll('[onclick^="startEdit"]').forEach(e=>e.remove());
   if(busy)$('#app').querySelectorAll('input,button,select,textarea').forEach(e=>e.disabled=true);
 }
 function editable(){return !busy&&!mustChangePassword&&profile&&(profile.role==='participant'?S.user?.status!=='submitted':!!S.cedit)}
-const handlers={doLogin,changePassword,logout,refresh,saveAssessmentUrl,openRes,openCompare,render,nav,filterCounselor,goHome:()=>nav(profile?.role==='counselor'?'cns':'home'),
+const handlers={doLogin,changePassword,logout,refresh,saveAssessmentUrl,openRes,openAdminReport,openCompare,render,nav,filterCounselor,goHome:()=>nav(profile?.role==='counselor'?'cns':'home'),
   startPost,answerPost,nextPost,leavePost,submitPost,setSatScore,toggleSat,setSatText,checkSat,backSat,savePost:async()=>{if(postAllowed()&&S.view==='post')try{await flushPost()}catch{}},backPost:()=>{if(postAllowed()&&!postLocked&&!postSubmitting&&S.view==='post'){S.pstep=1;S.err='';render()}},
   retrySave:async()=>{if(!busy){dirty=true;try{await flushDraft()}catch{}}},
   startEdit:id=>{if(!busy&&profile?.role==='counselor'&&byId(id)?.status==='submitted')edits.startEdit(id)},
@@ -415,6 +438,11 @@ $('#app').addEventListener('click',event=>{
   const button=event.target.closest('[data-admin-directory="refresh"]');
   if(!button||button.disabled||busy||directory.loading||profile?.role!=='admin')return;
   loadDirectory();
+});
+$('#app').addEventListener('click',event=>{
+  const button=event.target.closest('[data-admin-report]');
+  if(!button||button.disabled||busy||profile?.role!=='admin')return;
+  openAdminReport(button.dataset.adminReport,button.dataset.kind);
 });
 $('#app').addEventListener('change',event=>{
   const key=event.target.closest('[data-directory-filter]')?.dataset.directoryFilter;
