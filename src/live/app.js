@@ -33,7 +33,7 @@ let progress={data:null,loading:false,message:''},progressRun=0;
 const NO_FILTER={company:'all',counselor:'all',status:'all'};
 let directory={data:null,loading:false,message:'',filter:{...NO_FILTER}},directoryRun=0;
 // REQ-A-006/007: loaded only when the administrator opens it.
-let aggregate={data:null,loading:false,message:''},aggregateRun=0;
+let aggregate={data:null,loading:false,message:'',tab:'r1'},aggregateRun=0;
 // A post notice link (?entry=post) asks to open the post assessment after login or session restore.
 // The marker stays in the address while the post screen is open so a reload returns there.
 let postEntry=new URLSearchParams(location.search).get(POST_ENTRY_PARAM)===POST_ENTRY_VALUE;
@@ -60,7 +60,7 @@ const survey=createSurvey({save,render,nav,toast,getPath,setPath,OPT,LIM,ITEM_CO
 const mobileSurvey=createMobileSurvey({getProfile:()=>profile,steps:view.WSTEPS,missing:survey.missing,goStep:survey.goStep,goQ:survey.goQ,nextFrom:survey.nextFrom,render,toast});
 const edits=createCounselorEdit({byId,getDB:()=>records,save:()=>{},nav,render,toast,missing:survey.missing,ansText:view.ansText,getWSTEPS:()=>view.WSTEPS,getCounselors:()=>COUNSELORS,persistEdit, EVAL_VERSION:'',toAssessment:()=>null});
 
-function reset(){mobileSurvey.reset();clearRegistrationResults();progress={data:null,loading:false,message:''};progressRun++;directory={data:null,loading:false,message:'',filter:{...NO_FILTER}};directoryRun++;aggregate={data:null,loading:false,message:''};aggregateRun++;assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];postAvailable=false;postApproved=false;compareData=null;profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
+function reset(){mobileSurvey.reset();clearRegistrationResults();progress={data:null,loading:false,message:''};progressRun++;directory={data:null,loading:false,message:'',filter:{...NO_FILTER}};directoryRun++;aggregate={data:null,loading:false,message:'',tab:'r1'};aggregateRun++;assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];postAvailable=false;postApproved=false;compareData=null;profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
 function hydrate(data){
   if(!data.profile||!['participant','counselor','admin'].includes(data.profile.role)||!Array.isArray(data.participants)||!Array.isArray(data.assessments))throw Error('권한 또는 조회 응답이 올바르지 않습니다.');
   profile=data.profile;mustChangePassword=data.mustChangePassword===true;participants=data.participants;setCounselors(data.assessmentCounselors||{});
@@ -161,8 +161,8 @@ async function loadAggregate(company=null){
   try{
     const data=await api.adminAggregate(company);if(run!==aggregateRun)return;
     if(!validAggregate(data)||data.company!==company)throw Error('통합 분석 응답을 확인하지 못했습니다. 다시 불러와 주세요.');
-    aggregate={data,loading:false,message:''};
-  }catch(error){if(run===aggregateRun)aggregate={data:null,loading:false,message:error.message}}
+    aggregate={data,loading:false,message:'',tab:aggregate.tab};
+  }catch(error){if(run===aggregateRun)aggregate={data:null,loading:false,message:error.message,tab:aggregate.tab}}
   finally{if(run===aggregateRun){aggregate.loading=false;paintAggregate()}}
 }
 // REQ-A-001/002 read-only management lists, painted in place like the progress section.
@@ -466,6 +466,11 @@ $('#app').addEventListener('click',event=>{
   const button=event.target.closest('[data-admin-aggregate="load"]');
   if(!button||button.disabled||busy||aggregate.loading||profile?.role!=='admin')return;
   loadAggregate(aggregate.data?.company??null);
+});
+$('#app').addEventListener('click',event=>{
+  const tab=event.target.closest('[data-agg-tab]');
+  if(!tab||tab.disabled||busy||aggregate.loading||!aggregate.data||profile?.role!=='admin'||!['r1','r2','r3'].includes(tab.dataset.aggTab))return;
+  aggregate.tab=tab.dataset.aggTab;paintAggregate();$(`#admin-aggregate [data-agg-tab="${aggregate.tab}"]`)?.focus();
 });
 $('#app').addEventListener('change',event=>{
   const select=event.target.closest('[data-aggregate-company]');

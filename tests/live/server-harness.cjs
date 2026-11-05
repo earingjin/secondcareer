@@ -30,8 +30,9 @@ function harness(){
       if(order)rows=[...rows].sort((a,b)=>a[order]<b[order]?-1:a[order]>b[order]?1:0);
       if(!single&&!update)rows=rows.slice(0,Math.min(limit,state.pageSize));
       // A real select returns only the requested columns.
-      // Also models PostgREST JSON paths: 'alias:column->key' returns {alias: column[key]}.
-      const pick=(r,spec)=>{const m=/^(?:(\w+):)?(\w+)->(\w+)$/.exec(spec);return m?[m[1]||m[3],r[m[2]]?.[m[3]]]:[spec,r[spec]]};
+      // Also models PostgREST JSON paths: 'alias:column->key(->key...)' returns {alias: column[key]...}
+      // (missing parts give null, as a JSON path does).
+      const pick=(r,spec)=>{const m=/^(?:(\w+):)?(\w+)((?:->\w+)+)$/.exec(spec);if(!m)return [spec,r[spec]];const keys=m[3].slice(2).split('->');return [m[1]||keys[keys.length-1],keys.reduce((v,k)=>v?.[k],r[m[2]])??null]};
       if(columns&&!update)rows=rows.map(r=>Object.fromEntries(columns.split(',').map(k=>pick(r,k))));
       return {data:single?(rows[0]||null):rows,error:null};
     }
