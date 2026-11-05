@@ -14,6 +14,7 @@ import {assessmentNotice,postAssessmentNotice,postEntryUrl,POST_ENTRY_PARAM,POST
 import {postTestGate} from './post-test-gate.js';
 import {adminProgressView,validProgress} from './admin-progress-view.js';
 import {adminDirectoryView,validDirectory} from './admin-directory-view.js';
+import {adminAggregateView,validAggregate} from './admin-aggregate-view.js';
 import {esc,getPath,setPath} from './fields.js';
 import {$,toast} from '../browser/dom.js';
 
@@ -31,6 +32,8 @@ const registrationResults={results:[]};
 let progress={data:null,loading:false,message:''},progressRun=0;
 const NO_FILTER={company:'all',counselor:'all',status:'all'};
 let directory={data:null,loading:false,message:'',filter:{...NO_FILTER}},directoryRun=0;
+// REQ-A-006/007: loaded only when the administrator opens it.
+let aggregate={data:null,loading:false,message:''},aggregateRun=0;
 // A post notice link (?entry=post) asks to open the post assessment after login or session restore.
 // The marker stays in the address while the post screen is open so a reload returns there.
 let postEntry=new URLSearchParams(location.search).get(POST_ENTRY_PARAM)===POST_ENTRY_VALUE;
@@ -57,7 +60,7 @@ const survey=createSurvey({save,render,nav,toast,getPath,setPath,OPT,LIM,ITEM_CO
 const mobileSurvey=createMobileSurvey({getProfile:()=>profile,steps:view.WSTEPS,missing:survey.missing,goStep:survey.goStep,goQ:survey.goQ,nextFrom:survey.nextFrom,render,toast});
 const edits=createCounselorEdit({byId,getDB:()=>records,save:()=>{},nav,render,toast,missing:survey.missing,ansText:view.ansText,getWSTEPS:()=>view.WSTEPS,getCounselors:()=>COUNSELORS,persistEdit, EVAL_VERSION:'',toAssessment:()=>null});
 
-function reset(){mobileSurvey.reset();clearRegistrationResults();progress={data:null,loading:false,message:''};progressRun++;directory={data:null,loading:false,message:'',filter:{...NO_FILTER}};directoryRun++;assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];postAvailable=false;postApproved=false;compareData=null;profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
+function reset(){mobileSurvey.reset();clearRegistrationResults();progress={data:null,loading:false,message:''};progressRun++;directory={data:null,loading:false,message:'',filter:{...NO_FILTER}};directoryRun++;aggregate={data:null,loading:false,message:''};aggregateRun++;assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];postAvailable=false;postApproved=false;compareData=null;profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
 function hydrate(data){
   if(!data.profile||!['participant','counselor','admin'].includes(data.profile.role)||!Array.isArray(data.participants)||!Array.isArray(data.assessments))throw Error('권한 또는 조회 응답이 올바르지 않습니다.');
   profile=data.profile;mustChangePassword=data.mustChangePassword===true;participants=data.participants;setCounselors(data.assessmentCounselors||{});
@@ -146,6 +149,21 @@ function openAccount(data){
   }else S.view='cns';
   saveMessage='응답을 불러왔습니다.';
   if(profile.role==='admin'&&!mustChangePassword){loadProgress();loadDirectory()}
+}
+function paintAggregate(){
+  const el=$('#admin-aggregate');if(!el)return;
+  el.innerHTML=adminAggregateView(aggregate);
+  if(busy)el.querySelectorAll('button,select').forEach(e=>e.disabled=true);
+}
+async function loadAggregate(company=null){
+  if(profile?.role!=='admin'||mustChangePassword)return;
+  const run=++aggregateRun;aggregate={...aggregate,loading:true,message:''};paintAggregate();
+  try{
+    const data=await api.adminAggregate(company);if(run!==aggregateRun)return;
+    if(!validAggregate(data)||data.company!==company)throw Error('통합 분석 응답을 확인하지 못했습니다. 다시 불러와 주세요.');
+    aggregate={data,loading:false,message:''};
+  }catch(error){if(run===aggregateRun)aggregate={data:null,loading:false,message:error.message}}
+  finally{if(run===aggregateRun){aggregate.loading=false;paintAggregate()}}
 }
 // REQ-A-001/002 read-only management lists, painted in place like the progress section.
 function paintDirectory(){
@@ -378,7 +396,7 @@ function render(){
   else if(!profile)html=(postEntry&&postTestGate?'<div class="narrow noprint"><p id="post-entry-hint" role="status">사후진단 안내 링크로 접속했습니다. 기존 아이디와 비밀번호로 로그인하면 사후진단으로 이동합니다.</p></div>':'')+loginView();
   else if(mustChangePassword)html=passwordChangeView();
   else if(profile.role==='admin'&&S.view==='admin-report'&&reportHTML)html=`<div class="narrow noprint"><div class="toolbar" id="admin-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openAdminReport('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openAdminReport('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('admin')">관리자 참여자 목록</button></div></div></div>`+reportHTML;
-  else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 참여자 등록</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec" id="admin-progress" aria-label="진단 진행 현황">${adminProgressView(progress)}</section><section class="card sec" id="admin-directory" aria-label="운영 관리">${adminDirectoryView(directory)}</section><section class="card sec"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><div id="live-registration"></div></div>`;
+  else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 참여자 등록</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec" id="admin-progress" aria-label="진단 진행 현황">${adminProgressView(progress)}</section><section class="card sec" id="admin-directory" aria-label="운영 관리">${adminDirectoryView(directory)}</section><section class="card sec" id="admin-aggregate" aria-label="통합 분석보고서">${adminAggregateView(aggregate)}</section><section class="card sec"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><div id="live-registration"></div></div>`;
   else if(S.view==='post'&&postAllowed())html=postLocked?postConfirmView():S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):postConfirmView();
   else if(S.view==='wizard')html=`<div class="narrow noprint"><p id="live-save" role="status">${esc(saveMessage)}</p>${profile.role==='participant'?'<div class="acts"><button class="btn ghost sm" onclick="retrySave()">지금 임시저장</button><button class="btn ghost sm" onclick="logout()">로그아웃</button></div>':''}</div>`+view.vWizard();
   else if(profile.role==='counselor'&&S.view==='result')html=`<div class="narrow noprint"><div class="toolbar" id="live-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openRes('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openRes('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('cns')">담당 내담자 목록</button></div></div></div>`+reportHTML;
@@ -443,6 +461,16 @@ $('#app').addEventListener('click',event=>{
   const button=event.target.closest('[data-admin-report]');
   if(!button||button.disabled||busy||profile?.role!=='admin')return;
   openAdminReport(button.dataset.adminReport,button.dataset.kind);
+});
+$('#app').addEventListener('click',event=>{
+  const button=event.target.closest('[data-admin-aggregate="load"]');
+  if(!button||button.disabled||busy||aggregate.loading||profile?.role!=='admin')return;
+  loadAggregate(aggregate.data?.company??null);
+});
+$('#app').addEventListener('change',event=>{
+  const select=event.target.closest('[data-aggregate-company]');
+  if(!select||busy||aggregate.loading||profile?.role!=='admin')return;
+  loadAggregate(select.value||null);
 });
 $('#app').addEventListener('change',event=>{
   const key=event.target.closest('[data-directory-filter]')?.dataset.directoryFilter;

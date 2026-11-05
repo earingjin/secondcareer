@@ -39,15 +39,20 @@ export const chunks = <T>(items: T[], size = 100) => { const out: T[][] = []; fo
 // participant_id -> 'draft' | 'submitted'. A missing row means not started.
 // Unknown states or two rows for one participant and phase mean the stored
 // contract is not what this code expects, so the read fails closed.
-export async function phaseStates(admin: any, ids: string[], phase: 'pre' | 'post') {
-  const states = new Map<string, 'draft' | 'submitted'>(), allowed = new Set(ids);
+// participant_id -> row with `status` and any extra selected column (e.g. 'pre:answers->pre').
+export async function phaseRows(admin: any, ids: string[], phase: 'pre' | 'post', extra = '') {
+  const rows = new Map<string, any>(), allowed = new Set(ids), columns = 'id,participant_id,status' + (extra ? ',' + extra : '');
   for (const group of chunks(ids)) {
-    const rows = await readAll(() => admin.from('assessments').select('id,participant_id,status').in('participant_id', group).eq('phase', phase), 'id');
-    for (const row of rows) {
-      if (!allowed.has(row.participant_id) || !['draft','submitted'].includes(row.status) || states.has(row.participant_id)) throw new APIError('ASSESSMENT_STATE_INVALID', 500);
-      states.set(row.participant_id, row.status);
+    for (const row of await readAll(() => admin.from('assessments').select(columns).in('participant_id', group).eq('phase', phase), 'id')) {
+      if (!allowed.has(row.participant_id) || !['draft','submitted'].includes(row.status) || rows.has(row.participant_id)) throw new APIError('ASSESSMENT_STATE_INVALID', 500);
+      rows.set(row.participant_id, row);
     }
   }
+  return rows;
+}
+export async function phaseStates(admin: any, ids: string[], phase: 'pre' | 'post') {
+  const states = new Map<string, 'draft' | 'submitted'>();
+  for (const [id, row] of await phaseRows(admin, ids, phase)) states.set(id, row.status);
   return states;
 }
 

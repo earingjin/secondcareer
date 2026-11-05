@@ -30,7 +30,9 @@ function harness(){
       if(order)rows=[...rows].sort((a,b)=>a[order]<b[order]?-1:a[order]>b[order]?1:0);
       if(!single&&!update)rows=rows.slice(0,Math.min(limit,state.pageSize));
       // A real select returns only the requested columns.
-      if(columns&&!update)rows=rows.map(r=>Object.fromEntries(columns.split(',').map(k=>[k,r[k]])));
+      // Also models PostgREST JSON paths: 'alias:column->key' returns {alias: column[key]}.
+      const pick=(r,spec)=>{const m=/^(?:(\w+):)?(\w+)->(\w+)$/.exec(spec);return m?[m[1]||m[3],r[m[2]]?.[m[3]]]:[spec,r[spec]]};
+      if(columns&&!update)rows=rows.map(r=>Object.fromEntries(columns.split(',').map(k=>pick(r,k))));
       return {data:single?(rows[0]||null):rows,error:null};
     }
     return q;
@@ -73,6 +75,7 @@ function harness(){
   const progress=load(path.join(root,'secondcareer-admin-progress/index.ts'));
   const directory=load(path.join(root,'secondcareer-admin-directory/index.ts'));
   const adminReport=load(path.join(root,'secondcareer-admin-report/index.ts'));
+  const aggregate=load(path.join(root,'secondcareer-admin-aggregate/index.ts'));
   // The counselor assessment function has no exported handler; take the one it passes to Deno.serve.
   load(path.join(root,'secondcareer-assessment/index.ts'));const assessment=served;
   async function call(handler,token,body,method=body?'POST':'GET',url='https://fixture.invalid/'){
@@ -84,6 +87,6 @@ function harness(){
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
-  return {state,ids,registration,account,access,progress,directory,adminReport,assessment,call,signIn};
+  return {state,ids,registration,account,access,progress,directory,adminReport,aggregate,assessment,call,signIn};
 }
 module.exports={harness,ids};
