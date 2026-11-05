@@ -22,6 +22,7 @@ async function setup(page,{postEnabled=false,progressStatus=null}={}){
     else if(url.pathname.endsWith('/secondcareer-account'))result=await h.call(h.account.handleAccount,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-register-participant'))result=await h.call(h.registration.handleRegistration,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-admin-progress'))result=progressStatus?{status:progressStatus,data:{error:'FIXTURE'}}:await h.call(h.progress.handleAdminProgress,token,body,request.method(),'https://fixture.invalid/'+url.search);
+    else if(url.pathname.endsWith('/secondcareer-admin-directory'))result=await h.call(h.directory.handleAdminDirectory,token,body,request.method(),'https://fixture.invalid/'+url.search);
     else if(url.pathname.endsWith('/secondcareer-assessment'))result={status:200,data:{profile:{role:'counselor',display_name:'상담사'},participants:[],assessments:[],counselors:{}}};
     else if(url.pathname==='/auth/v1/logout')return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*'}});
     else throw Error('Unexpected API path: '+url.pathname);

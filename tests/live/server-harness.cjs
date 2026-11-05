@@ -70,6 +70,7 @@ function harness(){
   const account=load(path.join(root,'secondcareer-account/index.ts'));
   const access=load(path.join(root,'_shared/participant-access.ts'));
   const progress=load(path.join(root,'secondcareer-admin-progress/index.ts'));
+  const directory=load(path.join(root,'secondcareer-admin-directory/index.ts'));
   async function call(handler,token,body,method=body?'POST':'GET',url='https://fixture.invalid/'){
     const response=await handler(new Request(url,{method,headers:{...(token?{authorization:'Bearer '+token}:{}),'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}));
     return {status:response.status,headers:response.headers,data:await response.json()};
@@ -79,6 +80,6 @@ function harness(){
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
-  return {state,ids,registration,account,access,progress,call,signIn};
+  return {state,ids,registration,account,access,progress,directory,call,signIn};
 }
 module.exports={harness,ids};

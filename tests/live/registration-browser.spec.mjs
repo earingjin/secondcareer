@@ -48,6 +48,7 @@ async function setup(page,{pending=false,enabled=true}={}){
     }else if(url.pathname.endsWith('/secondcareer-account'))result=await h.call(h.account.handleAccount,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-register-participant'))result=await h.call(h.registration.handleRegistration,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-admin-progress'))result=await h.call(h.progress.handleAdminProgress,token,body,request.method());
+    else if(url.pathname.endsWith('/secondcareer-admin-directory'))result=await h.call(h.directory.handleAdminDirectory,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-assessment')){
       // Model the mandatory guard contract; original handler is not local.
       const profile=h.state.tables.user_profiles.find(p=>p.user_id===token);

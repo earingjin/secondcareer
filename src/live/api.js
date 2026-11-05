@@ -55,6 +55,9 @@ export function createAPI(onExpired,env=runtimeEnv()){
       if(path==='/functions/v1/secondcareer-admin-progress'&&response.status!==401){
         throw Error(response.status===403?'진단 현황을 조회할 권한이 없습니다.':'진단 현황을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
       }
+      if(path==='/functions/v1/secondcareer-admin-directory'&&response.status!==401){
+        throw Error(response.status===403?'운영 관리 목록을 조회할 권한이 없습니다.':'운영 관리 목록을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
+      }
       if(body?.action==='post-approve'&&response.status!==401){
         const approveMessages={PRE_REQUIRED:'사전진단을 최종 제출한 내담자만 사후진단을 허용할 수 있습니다.',LOCKED:'이미 사후진단을 제출한 내담자입니다.',FORBIDDEN:'담당 내담자만 사후진단을 허용할 수 있습니다.',POST_NOT_CONFIGURED:'사후진단 기능을 사용할 수 없습니다. 관리자에게 문의해 주세요.'};
         throw Error(approveMessages[data?.error]||'사후진단 허용 여부를 확인하지 못했습니다. 새로 조회해 상태를 확인해 주세요.');
@@ -118,6 +121,8 @@ export function createAPI(onExpired,env=runtimeEnv()){
     register:body=>request('/functions/v1/secondcareer-register-participant',{body}),
     // REQ-A-004: counts only; the server derives the scope from the signed-in profile.
     adminProgress:()=>request('/functions/v1/secondcareer-admin-progress'),
+    // REQ-A-001/002 read only: organization, companies, counselors and participants in the server-checked scope.
+    adminDirectory:()=>request('/functions/v1/secondcareer-admin-directory'),
     postDraft:()=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?phase=post')},
     compare:id=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?compare='+encodeURIComponent(id))},
     write:(action,body)=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment',{body:{action,...body}})},
