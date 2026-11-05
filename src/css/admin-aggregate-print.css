@@ -1,0 +1,41 @@
+/* REQ-A-016 관리자 통합 분석보고서 전체 인쇄 (A4 세로, 여백은 기존 @page 규칙 8mm).
+   인쇄 버튼을 누른 동안만 body.agg-printing 이 붙고, 그때 화면(#app) 대신 #admin-aggregate-print 만 인쇄한다.
+   분석 화면의 기존 클래스와 규칙은 바꾸지 않고, 인쇄본(.aggp) 안에서만 배치를 보정한다. */
+@media print{
+  body.agg-printing #app{display:none!important}
+  body.agg-printing #admin-aggregate-print{display:block!important}
+  /* 다크 모드에서도 흰 종이에 읽히도록 인쇄본 안에서는 밝은 색 값을 쓴다(기존 :root 밝은 테마 값). */
+  #admin-aggregate-print{
+    --cream:#F1F8F5; --card:#FFFFFF; --ink:#2B3A3D; --ink-soft:#5D7074; --line:#D5E5E2;
+    --tint-coral:#D7EBEC; --tint-gold:#F6F3DE; --tint-mint:#E2F0D9; --tint-blue:#E3EEF9;
+    --coral-deep:#256A70; --mint-deep:#3E8A6E; --blush:#AFD6D9; --peach:#D7EBEC;
+    --bar:#4D9FA5; --avg:#D9D9D9; --pre:#82BDC2; --post:#2F7C82;
+    color:var(--ink);background:#fff;font-family:var(--font);color-scheme:light
+  }
+  .aggp-head{padding-bottom:4mm;margin-bottom:5mm;border-bottom:1.5px solid #B8C6C4}
+  .aggp-head h1{font-size:22px;margin:0 0 10px}
+  .aggp-meta{display:grid;grid-template-columns:1fr 1fr;gap:4px 16px;margin:0 0 8px;font-size:12px}
+  .aggp-meta div{display:flex;gap:8px}
+  .aggp-meta dt{min-width:64px;font-weight:800;color:var(--ink-soft)}
+  .aggp-meta dd{margin:0;font-weight:700}
+  /* 분석마다 새 쪽에서 시작하고, 내용이 길면 다음 쪽으로 이어진다(쪽수를 고정하지 않는다). */
+  .aggp-sec{break-before:page}
+  .aggp-sec:first-of-type{break-before:auto}
+  .aggp-h{font-size:17px;margin:0 0 8px;break-after:avoid}
+  .aggp .rbase,.aggp .qbar,.aggp h3,.aggp .legend,.aggp .axisnote{break-after:avoid}
+  .aggp svg,.aggp table,.aggp tr,.aggp .tiles,.aggp .hbrow,.aggp .topitem,.aggp .pie,.aggp .fnote,.aggp .hintline,.aggp .empty,.aggp .sat2>div,.aggp .sidechart>div{break-inside:avoid}
+  /* 가로 스크롤 영역(2번 표·그래프)은 종이 폭에 맞춘다. 잘리거나 스크롤로 숨지 않게 한다. */
+  .aggp .scroll{overflow:visible}
+  .aggp .scroll>table,.aggp .scroll>div{min-width:0!important;width:100%}
+  .aggp table.t{font-size:10px}
+  .aggp table.t th,.aggp table.t td{padding:4px 5px}
+  .aggp table.t th{white-space:normal}
+  /* 2번 요인 표(21열)는 열 너비를 고르게 나누고 칸 안에서 줄바꿈해 종이 폭을 넘지 않게 한다. */
+  .aggp table.t[data-agg-detail]{table-layout:fixed;font-size:8.5px}
+  .aggp table.t[data-agg-detail] th,.aggp table.t[data-agg-detail] td{padding:3px 2px;overflow-wrap:anywhere;text-align:center}
+  /* 종이 폭(약 733px)이 화면 좁은 폭 규칙에 걸려도 레거시 넓은 화면 배치를 유지한다. */
+  .aggp .sat2{grid-template-columns:1fr 1fr}
+  .aggp .sidechart{grid-template-columns:minmax(190px,1fr) 2.4fr}
+  .aggp .tiles{grid-template-columns:repeat(4,1fr)}
+  .aggp .hintline{font-size:11px}
+}
