@@ -1,10 +1,10 @@
 import {esc} from './fields.js';
 import {AREA_COUNT,ITEM_COUNT,SCALE_MIN,SCALE_MAX} from '../js/02-eval-config.js';
 
-// REQ-A-006..013 admin aggregate report. Every figure comes from the server
+// REQ-A-006..014 admin aggregate report. Every figure comes from the server
 // (secondcareer-admin-aggregate); this module only checks the response and renders it.
-// Screen names follow the legacy report (RTABS). Implemented: r1..r7.
-export const AGGREGATE_TABS=[['r1','1. 사전사후 결과',true],['r2','2. 사전사후 상세',true],['r3','3. 만족도',true],['r4','4. 만족도_심리적 안정감',true],['r5','5. 만족도_호소문제의 변화',true],['r6','6. 만족도_컨설팅 기대 및 효과',true],['r7','7. 만족도_전반적인 만족도(개선요인)',true],['r8','8. 첫회기 컨설팅에 대한 기대'],['r9','9. 만족도_기타의견']];
+// Screen names follow the legacy report (RTABS). Implemented: r1..r8.
+export const AGGREGATE_TABS=[['r1','1. 사전사후 결과',true],['r2','2. 사전사후 상세',true],['r3','3. 만족도',true],['r4','4. 만족도_심리적 안정감',true],['r5','5. 만족도_호소문제의 변화',true],['r6','6. 만족도_컨설팅 기대 및 효과',true],['r7','7. 만족도_전반적인 만족도(개선요인)',true],['r8','8. 첫회기 컨설팅에 대한 기대',true],['r9','9. 만족도_기타의견']];
 const IMPLEMENTED=AGGREGATE_TABS.filter(t=>t[2]).map(t=>t[0]);
 const num=Number.isFinite,count=v=>Number.isInteger(v)&&v>=0;
 const isPermutation=(list,size)=>list.length===size&&[...list].sort((x,y)=>x-y).every((v,i)=>v===i+1);
@@ -43,6 +43,9 @@ export function validAggregate(d){
   if(!d||typeof d!=='object'||d.scope!=='organization'||typeof d.generatedAt!=='string'||!Number.isFinite(Date.parse(d.generatedAt)))return false;
   if(!Array.isArray(d.companies)||!d.companies.every(c=>typeof c==='string'&&c.trim())||new Set(d.companies).size!==d.companies.length)return false;
   if(!(d.company===null||d.companies.includes(d.company))||!d.post||typeof d.post.available!=='boolean'||!d.analyses)return false;
+  const pre=d.prePopulation,r8=d.analyses.r8;
+  if(!pre||pre.available!==true||!count(pre.n)||!count(pre.excludedInvalid))return false;
+  if(!pre.n ? r8!==null : !(r8&&r8.n===pre.n&&Array.isArray(r8.options)&&r8.options.length>=3&&r8.options.every(o=>typeof o==='string'&&o)&&Array.isArray(r8.labels)&&r8.labels.length===r8.options.length&&Array.isArray(r8.counts)&&r8.counts.length===r8.options.length&&r8.counts.every(c=>count(c)&&c<=pre.n)&&Array.isArray(r8.percentages)&&r8.percentages.length===r8.options.length&&r8.percentages.every(num)&&r8.selections===r8.counts.reduce((a,b)=>a+b,0)&&r8.selections>=pre.n&&r8.selections<=2*pre.n&&Array.isArray(r8.top)&&r8.top.length===3&&r8.top.every((t,i)=>t&&t.index===top3Of(r8.counts)[i]&&t.rank===i+1&&t.count===r8.counts[t.index]&&num(t.pct))))return false;
   if(!d.post.available)return d.population===null&&KEYS.every(k=>d.analyses[k]===null);
   const p=d.population;if(!p||!count(p.n)||!count(p.satN)||!count(p.detailN)||p.satN>p.n||p.detailN>p.satN||!count(p.excludedInvalid))return false;
   const {r1,r2,r3}=d.analyses;
@@ -164,23 +167,34 @@ export function r7View(d){
   <p class="fnote">자유 의견 원문은 표시하지 않습니다.</p>
   <p class="hintline" data-agg-method>기준 인원은 사전·사후 참여자 중 만족도 응답 ${r.n}명입니다. 최대 2개 중복선택으로 항목별 인원 ÷ 기준 인원 × 100을 소수 첫째 자리로 반올림합니다. 무응답은 선택 건수에 포함하지 않고 분모에는 포함합니다. 건수가 같으면 보기 순서로 표시합니다. 평균은 만족도 응답 점수의 평균이며 자유 의견은 앞뒤 공백을 제외한 내용이 있는 응답 건수입니다.</p>`;
 }
+export function r8View(d){
+  const r=d.analyses.r8,m=mx(r.counts),order=r.top.map(t=>t.index);
+  const top=r.options.map((o,i)=>order.includes(i)?{t:'',r:`TOP ${order.indexOf(i)+1}`}:null);
+  return `<div class="sidechart" style="margin-top:0"><div><div class="qbar">Q 7.0 첫 회기 컨설팅 기대, TOP3</div><div style="padding-top:58px">${sideList(r.options,r.top,'건')}</div></div>
+  <div><div class="qbar">Q 7.1 첫 회기 컨설팅은 어떤 형식으로 진행하기를 바라나요? (중복 : 최대 2개 선택)</div><div class="legend" style="margin-top:10px"><span><i class="sw" style="background:var(--pre)"></i>사전응답</span></div>
+  ${gbars({series:[{vals:r.counts,cls:'rpre'}],labels:r.labels,max:m.max,step:m.step,top,pt:46,pb:66,h:350,bw:42,label:'첫 회기 컨설팅 진행 형식 기대'})}</div></div>
+  <p class="fnote">중복선택 문항입니다 (총 ${r.selections}건, 응답자 ${r.n}명). 비율은 응답자 대비입니다.</p>
+  <table><thead><tr><th>응답 항목</th><th>인원</th><th>비율</th></tr></thead><tbody>${r.options.map((o,i)=>`<tr><td>${esc(o)}</td><td>${r.counts[i]}명</td><td>${r.percentages[i]}%</td></tr>`).join('')}</tbody></table>
+  <p class="hintline" data-agg-method>사전진단을 최종 제출하고 진단 응답과 첫 회기 기대 문항이 유효한 ${r.n}명을 기준으로 합니다. 각 비율은 선택 인원 ÷ 기준 인원 × 100(소수 첫째 자리 반올림)입니다. 최대 2개 선택을 모두 세며 순위 가중치는 없습니다. 동점은 보기 순서가 먼저입니다.</p>`;
+}
 export function adminAggregateView({data,loading=false,message='',tab='r1'}){
   const active=IMPLEMENTED.includes(tab)?tab:'r1';
   const select=data?`<label class="hintline" for="agg-company">기업</label><select class="in" id="agg-company" data-aggregate-company ${loading?'disabled':''}><option value="" ${data.company===null?'selected':''}>전체</option>${data.companies.map(c=>`<option value="${esc(c)}" ${data.company===c?'selected':''}>${esc(c)}</option>`).join('')}</select>`:'';
   const head=`<div class="filters" style="justify-content:space-between"><h2>통합 분석보고서</h2><div class="acts">${select}<button class="btn ghost" data-admin-aggregate="load" ${loading?'disabled aria-busy="true"':''}>${data?'통합 분석 다시 불러오기':'통합 분석보고서 열기'}</button></div></div>`;
   const status=`<p role="status" class="hintline" id="admin-aggregate-status">${esc(loading?'통합 분석을 집계하고 있습니다.':message)}</p>`;
-  const intro='<p class="hintline">관리자 소속 조직 참여자 중 사전진단과 사후진단을 모두 최종 제출한 참여자를 기준으로 서버에서 집계합니다. 개인별 응답은 화면에 내려오지 않습니다. 이 화면은 조회용이며 통합 보고서 인쇄는 아직 제공하지 않습니다.</p>';
+  const intro='<p class="hintline">관리자 소속 조직의 사전·사후 최종 제출자를 기준으로 집계하며, 8번은 사전진단 최종 제출자를 기준으로 합니다. 개인별 응답은 화면에 내려오지 않습니다. 이 화면은 조회용이며 통합 보고서 인쇄는 아직 제공하지 않습니다.</p>';
   if(!data)return head+status+intro;
   const tabs=`<div class="filters" role="tablist" aria-label="통합 분석 화면" data-agg-tabs>${AGGREGATE_TABS.map(([k,l,on])=>on?`<button class="btn ${k===active?'':'ghost '}sm" role="tab" aria-selected="${k===active}" data-agg-tab="${k}">${esc(l)}</button>`:`<button class="btn ghost sm" role="tab" aria-selected="false" disabled data-agg-tab="${k}" title="구현 예정">${esc(l)} · 구현 예정</button>`).join('')}</div>`;
   const p=data.population,detail=['r4','r5','r6'].includes(active),sat=active==='r3'||active==='r7'||detail;
   let body;
-  if(!data.post.available)body='<div class="empty" data-agg-empty>사후진단 기능이 이 서비스 환경에서 사용 설정되어 있지 않아 사전·사후 통합 분석을 집계하지 않습니다.</div>';
+  if(active==='r8')body=data.prePopulation.n?r8View(data):'<div class="empty" data-agg-empty>유효한 사전진단 완료자가 아직 없습니다.</div>';
+  else if(!data.post.available)body='<div class="empty" data-agg-empty>사후진단 기능이 이 서비스 환경에서 사용 설정되어 있지 않아 사전·사후 통합 분석을 집계하지 않습니다.</div>';
   else if(!p.n)body='<div class="empty" data-agg-empty>사전·사후를 모두 완료한 참여자가 아직 없습니다.</div>';
   else if(sat&&!p.satN)body='<div class="empty" data-agg-empty>사후 만족도 설문에 응답한 참여자가 아직 없습니다.</div>';
   else if(detail&&!p.detailN)body='<div class="empty" data-agg-empty>만족도와 사전 기대 응답이 모두 완전한 참여자가 아직 없습니다.</div>';
   else body=({r1:r1View,r2:r2View,r3:r3View,r4:r4View,r5:r5View,r6:r6View,r7:r7View})[active](data);
-  const base=data.post.available?`<div class="rbase" data-agg-base>[Base: ${data.company===null?'전체 기업':esc(data.company)} 사전·사후 참여자(n=${p.n})${sat&&p.n?`, 만족도 응답 n=${detail?p.detailN:p.satN}`:''}, 단위: 명] · 집계 시각 ${esc(new Date(data.generatedAt).toLocaleString('ko-KR'))}</div>`:'';
+  const base=active==='r8'?`<div class="rbase" data-agg-base>[Base: ${data.company===null?'전체 기업':esc(data.company)} 유효한 사전진단 완료자(n=${data.prePopulation.n}), 단위: 명] · 집계 시각 ${esc(new Date(data.generatedAt).toLocaleString('ko-KR'))}</div>`:data.post.available?`<div class="rbase" data-agg-base>[Base: ${data.company===null?'전체 기업':esc(data.company)} 사전·사후 참여자(n=${p.n})${sat&&p.n?`, 만족도 응답 n=${detail?p.detailN:p.satN}`:''}, 단위: 명] · 집계 시각 ${esc(new Date(data.generatedAt).toLocaleString('ko-KR'))}</div>`:'';
   const partial=detail&&data.post.available&&p.satN>p.detailN?`<p class="hintline" data-agg-detail-base>만족도 응답 ${p.satN}명 중 사전 기대·만족도 선택 응답이 완전한 ${p.detailN}명을 이 화면의 기준으로 합니다(나머지 ${p.satN-p.detailN}명 제외).</p>`:'';
-  const excluded=data.post.available&&p.excludedInvalid?`<p class="hintline" data-agg-excluded>두 진단을 모두 제출했지만 응답이 완전하지 않아 제외한 참여자 ${p.excludedInvalid}명</p>`:'';
-  return head+status+intro+tabs+base+body+partial+excluded+'<p class="hintline">8~9번 화면(첫회기 기대, 기타의견)은 아직 구현되지 않았습니다.</p>';
+  const excluded=active==='r8'&&data.prePopulation.excludedInvalid?`<p class="hintline" data-agg-excluded>사전진단을 제출했지만 진단 또는 첫 회기 기대 응답이 유효하지 않아 제외한 참여자 ${data.prePopulation.excludedInvalid}명</p>`:active!=='r8'&&data.post.available&&p.excludedInvalid?`<p class="hintline" data-agg-excluded>두 진단을 모두 제출했지만 응답이 완전하지 않아 제외한 참여자 ${p.excludedInvalid}명</p>`:'';
+  return head+status+intro+tabs+base+body+partial+excluded+'<p class="hintline">9번 화면(기타의견)은 아직 구현되지 않았습니다.</p>';
 }

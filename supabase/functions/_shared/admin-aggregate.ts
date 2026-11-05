@@ -16,8 +16,8 @@ import {rawSums, full} from '../secondcareer-assessment/js/05-engine.js';
 // SAT_SCORES / SAT_CHOICES): answers.pre, answers.post, answers.expect.d32..d35 (pre), and the
 // satisfaction scores answers.sat.q1,q2,q3a,q3b,q3c,q5fit and choices answers.sat.d32..d35 (post).
 // Screen 7 also reads q7 and q7txt; free text is reduced to a boolean and never returned.
-// No registration answers, results, names, contacts or d36 are read.
-// Later analyses (REQ-A-014..015) need other answer parts; they are not read or
+// Screen 8 additionally reads pre expectation d36. No registration answers, results, names or contacts are read.
+// Later analysis (REQ-A-015) needs other answer parts; they are not read or
 // estimated here until those analyses are implemented.
 const collator = new Intl.Collator('ko');
 // Engine `full` plus integers: a non-integer stored value would turn sums into strings.
@@ -31,20 +31,27 @@ type Choices = Record<typeof CHOICES[number], string[]>;
 export type Pair = {pre: number[], post: number[], sat: {q1: number, q2: number, q7: string[], hasOpinion: boolean} | null,
   extra: {pre: Choices, sat: Choices & Record<typeof SAT_SCORES[number], number>} | null};
 // Selected JSON parts of the rows; only these values are fetched.
-const PRE_COLUMNS = 'pre:answers->pre,' + CHOICES.map(k => 'p' + k + ':answers->expect->' + k).join(',');
+const PRE_COLUMNS = 'pre:answers->pre,pd36:answers->expect->d36,' + CHOICES.map(k => 'p' + k + ':answers->expect->' + k).join(',');
 const POST_COLUMNS = 'post:answers->post,q1:answers->sat->q1,q2:answers->sat->q2,q7:answers->sat->q7,q7txt:answers->sat->q7txt,' + SAT_SCORES.map(k => k + ':answers->sat->' + k).join(',') + ',' + CHOICES.map(k => 's' + k + ':answers->sat->' + k).join(',');
 // Choice arrays are valid when they hold distinct stored option values within the limits the assessment function
 // enforces: pre answers exactly LIM picks (missing()), post at least 1 (3 for d33) and at most LIM (cleanSat).
 const validChoice = (path: string, v: unknown, min: number) => Array.isArray(v) && v.length >= min && v.length <= LIM[path] && new Set(v).size === v.length && v.every(x => typeof x === 'string' && OPT[path].includes(x));
 
-// withAnswers=false (post assessment not enabled): companies only, no answers are read.
+// Pre-only analysis is always available; post-disabled requests read only pre and d36.
 export async function loadPairedPopulation(admin: any, organizationId: string, company: string | null, withAnswers = true) {
   const participants = await readAll(() => admin.from('participants').select('id,company_name').eq('organization_id', organizationId), 'id');
   const companies = [...new Set(participants.map(p => companyOf(p.company_name)).filter(Boolean) as string[])].sort(collator.compare);
   if (company !== null && !companies.includes(company)) throw new APIError('INVALID_REQUEST', 400);
-  if (!withAnswers) return {companies, pairs:null, excludedInvalid:0};
   const ids = participants.filter(p => company === null || companyOf(p.company_name) === company).map(p => p.id);
-  const pre = await phaseRows(admin, ids, 'pre', PRE_COLUMNS);
+  const pre = await phaseRows(admin, ids, 'pre', withAnswers ? PRE_COLUMNS : 'pre:answers->pre,pd36:answers->expect->d36');
+  const firstChoices: string[][] = []; let preExcludedInvalid = 0;
+  for (const id of ids) {
+    const a = pre.get(id);
+    if (a?.status !== 'submitted') continue;
+    if (!complete(a.pre) || !validChoice('expect.d36', a.pd36, 1)) { preExcludedInvalid++; continue; }
+    firstChoices.push(a.pd36);
+  }
+  if (!withAnswers) return {companies, pairs:null, excludedInvalid:0, firstChoices, preExcludedInvalid};
   const post = await phaseRows(admin, ids, 'post', POST_COLUMNS);
   const pairs: Pair[] = []; let excludedInvalid = 0;
   for (const id of ids) {
@@ -58,7 +65,7 @@ export async function loadPairedPopulation(admin: any, organizationId: string, c
     const choices = (row: any, prefix: string) => Object.fromEntries(CHOICES.map(k => [k, row[prefix + k]])) as Choices;
     pairs.push({pre:a.pre, post:b.post, sat, extra:sat && preOk && satOk ? {pre:choices(a, 'p'), sat:{...choices(b, 's'), ...Object.fromEntries(SAT_SCORES.map(k => [k, b[k]]))} as any} : null});
   }
-  return {companies, pairs, excludedInvalid};
+  return {companies, pairs, excludedInvalid, firstChoices, preExcludedInvalid};
 }
 export const satisfactionPopulation = (pairs: Pair[]) => pairs.filter(p => p.sat);
 // Population of screens 4..6 (legacy sv for rp4..rp6): satisfaction answered AND every field those screens read is valid.
@@ -190,4 +197,16 @@ export function improvementAnalysis(pairs: Pair[]) {
   const order = counts.map((_v, i) => i).sort((a, b) => counts[b] - counts[a] || a - b);
   return {n, avg1:r1f(mean(sv.map(p => p.sat!.q1))), avg2:r1f(mean(sv.map(p => p.sat!.q2))),
     opinions:sv.filter(p => p.sat!.hasOpinion).length, options, counts, order, percentages:counts.map(c => r1f(c / n * 100))};
+}
+
+// REQ-A-014, rp8: count every distinct selection, rank by count with option order as tie-breaker.
+// Percentages use the valid pre-submitted population, not the number of selections.
+export function firstSessionAnalysis(choices: string[][]) {
+  const n = choices.length;
+  if (!n) return null;
+  const options = [...OPT['expect.d36']] as string[], labels = qdOptions('expect.d36', 'chart') as string[];
+  const counts = options.map(o => choices.filter(c => c.includes(o)).length);
+  const percentages = counts.map(c => r1f(c / n * 100));
+  const top = top3(counts).map((index, k) => ({index, rank:k + 1, count:counts[index], pct:percentages[index]}));
+  return {n, options, labels, counts, percentages, top, selections:sum(counts)};
 }

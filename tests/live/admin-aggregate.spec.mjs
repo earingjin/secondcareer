@@ -9,8 +9,8 @@ import {pathToFileURL} from 'node:url';
 import {createRequire} from 'node:module';
 import {serve} from '../tools/serve-static.mjs';
 const {harness,ids}=createRequire(import.meta.url)('./server-harness.cjs');
-// Every column the aggregate function selects from assessments (JSON paths of the stored answers; q7 and q7txt for screen 7; no d36).
-const ASSESSMENT_COLUMNS=['id','participant_id','pd32:answers->expect->d32','pd33:answers->expect->d33','pd34:answers->expect->d34','pd35:answers->expect->d35','post:answers->post','pre:answers->pre','q1:answers->sat->q1','q2:answers->sat->q2','q3a:answers->sat->q3a','q3b:answers->sat->q3b','q3c:answers->sat->q3c','q5fit:answers->sat->q5fit','q7:answers->sat->q7','q7txt:answers->sat->q7txt','sd32:answers->sat->d32','sd33:answers->sat->d33','sd34:answers->sat->d34','sd35:answers->sat->d35','status'];
+// Every column the aggregate function selects from assessments (JSON paths of the stored answers, including screen 8 pre d36).
+const ASSESSMENT_COLUMNS=['id','participant_id','pd32:answers->expect->d32','pd33:answers->expect->d33','pd34:answers->expect->d34','pd35:answers->expect->d35','pd36:answers->expect->d36','post:answers->post','pre:answers->pre','q1:answers->sat->q1','q2:answers->sat->q2','q3a:answers->sat->q3a','q3b:answers->sat->q3b','q3c:answers->sat->q3c','q5fit:answers->sat->q5fit','q7:answers->sat->q7','q7txt:answers->sat->q7txt','sd32:answers->sat->d32','sd33:answers->sat->d33','sd34:answers->sat->d34','sd35:answers->sat->d35','status'];
 const TEMPLATE=JSON.parse(fs.readFileSync(new URL('../snapshot/fixture.json',import.meta.url),'utf8')).db[0];
 const LEGACY=pathToFileURL(path.resolve('legacy/index.original.html')).href;
 
@@ -108,8 +108,8 @@ test('company filter equals the legacy company base and stays inside the organiz
 test('1·4·5·6·12 population is submitted pre and post only; response and reads carry no personal data',async()=>{
   const h=seed(DATASETS.varied),r=await get(h,ids.admin),text=JSON.stringify(r.data);
   expect(r.status).toBe(200);expect(r.headers.get('cache-control')).toBe('no-store');
-  expect(Object.keys(r.data).sort()).toEqual(['analyses','companies','company','generatedAt','population','post','scope']);
-  expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3','r4','r5','r6','r7']);
+  expect(Object.keys(r.data).sort()).toEqual(['analyses','companies','company','generatedAt','population','post','prePopulation','scope']);
+  expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3','r4','r5','r6','r7','r8']);
   for(const hidden of ['개인-','응답원문','결과원문','자유의견원문','01012341234','010-9999','u-p','"p000"','x-','other-org',ids.counselor])expect(text).not.toContain(hidden);
   expect(text).not.toMatch(/\[(\d,){14}\d\]/);
   const cols=table=>[...new Set(h.state.reads.filter(x=>x.table===table).flatMap(x=>x.columns.split(',')))].sort();
@@ -133,12 +133,12 @@ test('2 counselor, participant, other roles and unauthenticated requests are ref
 
 test('7 zero population and a disabled post feature show no figures',async()=>{
   const zero=seed([]),r=await get(zero,ids.admin);
-  expect(r.status).toBe(200);expect(r.data.population).toEqual({n:0,satN:0,detailN:0,excludedInvalid:1});expect(r.data.analyses).toEqual({r1:null,r2:null,r3:null,r4:null,r5:null,r6:null,r7:null});
+  expect(r.status).toBe(200);expect(r.data.population).toEqual({n:0,satN:0,detailN:0,excludedInvalid:1});expect(r.data.analyses).toEqual({r1:null,r2:null,r3:null,r4:null,r5:null,r6:null,r7:null,r8:null});
   const empty=seed([],{extras:false}),e=await get(empty,ids.admin);
   expect(e.data).toMatchObject({companies:[],population:{n:0,excludedInvalid:0},analyses:{r1:null}});
   const off=seed(DATASETS.varied,{postEnabled:false}),o=await get(off,ids.admin);
   expect(o.data).toMatchObject({post:{available:false},population:null,analyses:{r1:null}});expect(o.data.companies).toEqual(['가 기업','나 기업']);
-  expect(off.state.reads.some(x=>x.table==='assessments')).toBe(false);
+  expect(off.state.reads.some(x=>x.table==='assessments'&&x.filters.some(([k,v])=>k==='phase'&&v==='post'))).toBe(false);
 });
 
 test('13 failed reads and invalid stored states fail closed without partial figures',async()=>{
@@ -204,7 +204,7 @@ test.describe('admin aggregate screen',()=>{
     await expect(cells('rank')).toHaveText([...api.areas.map(a=>`${a.rank}위`),'-']);
     await expect(sec(page).locator('svg[role="img"] rect')).toHaveCount(10);
     await expect(sec(page).locator('[data-agg-tab]')).toHaveCount(9);
-    await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(2);await expect(sec(page).locator('[data-agg-tab="r7"]')).toBeEnabled();
+    await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(1);await expect(sec(page).locator('[data-agg-tab="r7"]')).toBeEnabled();
     await expect(sec(page).locator('[data-agg-excluded]')).toContainText('1명');
     await sec(page).locator('#agg-company').selectOption('가 기업');
     await expect(sec(page).locator('[data-agg-base]')).toContainText('[Base: 가 기업 사전·사후 참여자(n=5)');
