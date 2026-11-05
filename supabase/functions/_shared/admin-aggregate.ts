@@ -15,8 +15,9 @@ import {rawSums, full} from '../secondcareer-assessment/js/05-engine.js';
 // Only these answer parts are read (paths as stored by the assessment function: `fields.expect`,
 // SAT_SCORES / SAT_CHOICES): answers.pre, answers.post, answers.expect.d32..d35 (pre), and the
 // satisfaction scores answers.sat.q1,q2,q3a,q3b,q3c,q5fit and choices answers.sat.d32..d35 (post).
-// No registration answers, results, names, contacts, d36, q7 or free-text opinions.
-// Later analyses (REQ-A-013..015) need other answer parts; they are not read or
+// Screen 7 also reads q7 and q7txt; free text is reduced to a boolean and never returned.
+// No registration answers, results, names, contacts or d36 are read.
+// Later analyses (REQ-A-014..015) need other answer parts; they are not read or
 // estimated here until those analyses are implemented.
 const collator = new Intl.Collator('ko');
 // Engine `full` plus integers: a non-integer stored value would turn sums into strings.
@@ -27,11 +28,11 @@ const validScore = (v: unknown) => Number.isInteger(v) && (v as number) >= SCALE
 // the screens 4..6 population is the pairs that have it (see detailPopulation).
 const CHOICES = ['d32', 'd33', 'd34', 'd35'] as const, SAT_SCORES = ['q3a', 'q3b', 'q3c', 'q5fit'] as const;
 type Choices = Record<typeof CHOICES[number], string[]>;
-export type Pair = {pre: number[], post: number[], sat: {q1: number, q2: number} | null,
+export type Pair = {pre: number[], post: number[], sat: {q1: number, q2: number, q7: string[], hasOpinion: boolean} | null,
   extra: {pre: Choices, sat: Choices & Record<typeof SAT_SCORES[number], number>} | null};
 // Selected JSON parts of the rows; only these values are fetched.
 const PRE_COLUMNS = 'pre:answers->pre,' + CHOICES.map(k => 'p' + k + ':answers->expect->' + k).join(',');
-const POST_COLUMNS = 'post:answers->post,q1:answers->sat->q1,q2:answers->sat->q2,' + SAT_SCORES.map(k => k + ':answers->sat->' + k).join(',') + ',' + CHOICES.map(k => 's' + k + ':answers->sat->' + k).join(',');
+const POST_COLUMNS = 'post:answers->post,q1:answers->sat->q1,q2:answers->sat->q2,q7:answers->sat->q7,q7txt:answers->sat->q7txt,' + SAT_SCORES.map(k => k + ':answers->sat->' + k).join(',') + ',' + CHOICES.map(k => 's' + k + ':answers->sat->' + k).join(',');
 // Choice arrays are valid when they hold distinct stored option values within the limits the assessment function
 // enforces: pre answers exactly LIM picks (missing()), post at least 1 (3 for d33) and at most LIM (cleanSat).
 const validChoice = (path: string, v: unknown, min: number) => Array.isArray(v) && v.length >= min && v.length <= LIM[path] && new Set(v).size === v.length && v.every(x => typeof x === 'string' && OPT[path].includes(x));
@@ -51,7 +52,7 @@ export async function loadPairedPopulation(admin: any, organizationId: string, c
     if (a?.status !== 'submitted' || b?.status !== 'submitted') continue;
     // A satisfaction answer counts only when both scores are valid (legacy: `p.sat` present).
     if (!complete(a.pre) || !complete(b.post)) { excludedInvalid++; continue; }
-    const sat = validScore(b.q1) && validScore(b.q2) ? {q1:b.q1, q2:b.q2} : null;
+    const sat = validScore(b.q1) && validScore(b.q2) ? {q1:b.q1, q2:b.q2, q7:Array.isArray(b.q7) ? b.q7.filter((x: unknown) => typeof x === 'string') : [], hasOpinion:typeof b.q7txt === 'string' && !!b.q7txt.trim()} : null;
     const preOk = CHOICES.every(k => validChoice('expect.' + k, a['p' + k], LIM['expect.' + k]));
     const satOk = SAT_SCORES.every(k => validScore(b[k])) && CHOICES.every(k => validChoice('sat.' + k, b['s' + k], k === 'd33' ? LIM['sat.d33'] : 1));
     const choices = (row: any, prefix: string) => Object.fromEntries(CHOICES.map(k => [k, row[prefix + k]])) as Choices;
@@ -178,4 +179,15 @@ export function consultingAnalysis(pairs: Pair[]) {
     q5:{options:O5, labels:chartLabels('d34'), pre:e0, post:e1, top:topEntries(e0, e0), selections:{pre:sum(e0), post:sum(e1)}},
     fit:scoreItem(sv.map(p => p.extra!.sat.q5fit)),
     q6:{options:O6, labels:chartLabels('d35'), pre:b0, post:b1, top:topEntries(b1, b1), selections:{pre:sum(b0), post:sum(b1)}}};
+}
+
+// REQ-A-013: rp7 uses the satisfaction population, including unanswered q7 as zero selections.
+export function improvementAnalysis(pairs: Pair[]) {
+  const sv = satisfactionPopulation(pairs), n = sv.length;
+  if (!n) return null;
+  const options = [...OPT['sat.q7']] as string[];
+  const counts = options.map(o => sv.filter(p => p.sat!.q7.includes(o)).length);
+  const order = counts.map((_v, i) => i).sort((a, b) => counts[b] - counts[a] || a - b);
+  return {n, avg1:r1f(mean(sv.map(p => p.sat!.q1))), avg2:r1f(mean(sv.map(p => p.sat!.q2))),
+    opinions:sv.filter(p => p.sat!.hasOpinion).length, options, counts, order, percentages:counts.map(c => r1f(c / n * 100))};
 }

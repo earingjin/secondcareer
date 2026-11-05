@@ -10,8 +10,8 @@ import {pathToFileURL} from 'node:url';
 import {createRequire} from 'node:module';
 import {serve} from '../tools/serve-static.mjs';
 const {harness,ids}=createRequire(import.meta.url)('./server-harness.cjs');
-// Every column the aggregate function selects from assessments (JSON paths of the stored answers; no d36, q7 or free text).
-const ASSESSMENT_COLUMNS=['id','participant_id','pd32:answers->expect->d32','pd33:answers->expect->d33','pd34:answers->expect->d34','pd35:answers->expect->d35','post:answers->post','pre:answers->pre','q1:answers->sat->q1','q2:answers->sat->q2','q3a:answers->sat->q3a','q3b:answers->sat->q3b','q3c:answers->sat->q3c','q5fit:answers->sat->q5fit','sd32:answers->sat->d32','sd33:answers->sat->d33','sd34:answers->sat->d34','sd35:answers->sat->d35','status'];
+// Every column the aggregate function selects from assessments (JSON paths of the stored answers; q7 and q7txt for screen 7; no d36).
+const ASSESSMENT_COLUMNS=['id','participant_id','pd32:answers->expect->d32','pd33:answers->expect->d33','pd34:answers->expect->d34','pd35:answers->expect->d35','post:answers->post','pre:answers->pre','q1:answers->sat->q1','q2:answers->sat->q2','q3a:answers->sat->q3a','q3b:answers->sat->q3b','q3c:answers->sat->q3c','q5fit:answers->sat->q5fit','q7:answers->sat->q7','q7txt:answers->sat->q7txt','sd32:answers->sat->d32','sd33:answers->sat->d33','sd34:answers->sat->d34','sd35:answers->sat->d35','status'];
 const TEMPLATE=JSON.parse(fs.readFileSync(new URL('../snapshot/fixture.json',import.meta.url),'utf8')).db[0];
 const LEGACY=pathToFileURL(path.resolve('legacy/index.original.html')).href;
 
@@ -149,10 +149,10 @@ test('numeric-string answers: the server excludes them; legacy counts them and i
 test('1·2·3·12 admin only, own organization only, personal data and free text never returned',async()=>{
   const {h}=seed(DATASETS.varied),r=await get(h,ids.admin),text=JSON.stringify(r.data);
   expect(r.status).toBe(200);
-  expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3','r4','r5','r6']);
+  expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3','r4','r5','r6','r7']);
   for(const hidden of ['개인-','응답원문','결과원문','자유의견원문','01012341234','u-p','"p000"','x-','other-org',ids.counselor])expect(text).not.toContain(hidden);
   expect(text).not.toMatch(/\[(\d,){14}\d\]/);
-  // The selected columns are the two scores and the two diagnosis arrays: no choices or free text.
+  // Only the explicitly listed JSON paths are selected; free text is never returned by the API.
   const cols=[...new Set(h.state.reads.filter(x=>x.table==='assessments').flatMap(x=>x.columns.split(',')))].sort();
   expect(cols).toEqual(ASSESSMENT_COLUMNS);
   h.state.tables.user_profiles.push({user_id:'manager-user',organization_id:ids.org,role:'manager',display_name:'고객사'});h.state.users['manager-user']={id:'manager-user',app_metadata:{}};
@@ -163,7 +163,7 @@ test('1·2·3·12 admin only, own organization only, personal data and free text
 
 test('zero population and a disabled post feature show no figures; failed reads fail closed',async()=>{
   const zero=(await get(seed([]).h,ids.admin)).data;
-  expect(zero.population).toEqual({n:0,satN:0,detailN:0,excludedInvalid:1});expect(zero.analyses).toEqual({r1:null,r2:null,r3:null,r4:null,r5:null,r6:null});
+  expect(zero.population).toEqual({n:0,satN:0,detailN:0,excludedInvalid:1});expect(zero.analyses).toEqual({r1:null,r2:null,r3:null,r4:null,r5:null,r6:null,r7:null});
   const off=seed(DATASETS.varied,{postEnabled:false}),o=(await get(off.h,ids.admin)).data;
   expect(o).toMatchObject({post:{available:false},population:null,analyses:{r1:null,r2:null,r3:null}});
   expect(off.h.state.reads.some(x=>x.table==='assessments')).toBe(false);
@@ -213,8 +213,8 @@ test.describe('admin aggregate screens 2 and 3',()=>{
     const {h}=seed(DATASETS.varied),calls=await open(page,h);await open1(page);
     const aggCalls=()=>calls.filter(c=>c.includes('admin-aggregate')).length;
     expect(aggCalls()).toBe(1);
-    await expect(sec(page).locator('[data-agg-tab]')).toHaveCount(9);await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(3);
-    for(const k of ['r7','r8','r9'])await expect(tab(page,k)).toContainText('구현 예정');
+    await expect(sec(page).locator('[data-agg-tab]')).toHaveCount(9);await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(2);
+    for(const k of ['r8','r9'])await expect(tab(page,k)).toContainText('구현 예정');
     await expect(sec(page).locator('[data-agg-base]')).toHaveText(/\[Base: 전체 기업 사전·사후 참여자\(n=9\), 단위: 명\]/);
     const r=(await get(h,ids.admin)).data.analyses;
     await tab(page,'r2').click();

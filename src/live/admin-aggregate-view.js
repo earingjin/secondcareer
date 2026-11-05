@@ -1,10 +1,10 @@
 import {esc} from './fields.js';
 import {AREA_COUNT,ITEM_COUNT,SCALE_MIN,SCALE_MAX} from '../js/02-eval-config.js';
 
-// REQ-A-006..009 admin aggregate report. Every figure comes from the server
+// REQ-A-006..013 admin aggregate report. Every figure comes from the server
 // (secondcareer-admin-aggregate); this module only checks the response and renders it.
-// Screen names follow the legacy report (RTABS). Implemented: r1, r2, r3.
-export const AGGREGATE_TABS=[['r1','1. 사전사후 결과',true],['r2','2. 사전사후 상세',true],['r3','3. 만족도',true],['r4','4. 만족도_심리적 안정감',true],['r5','5. 만족도_호소문제의 변화',true],['r6','6. 만족도_컨설팅 기대 및 효과',true],['r7','7. 만족도_전반적인 만족도(개선요인)'],['r8','8. 첫회기 컨설팅에 대한 기대'],['r9','9. 만족도_기타의견']];
+// Screen names follow the legacy report (RTABS). Implemented: r1..r7.
+export const AGGREGATE_TABS=[['r1','1. 사전사후 결과',true],['r2','2. 사전사후 상세',true],['r3','3. 만족도',true],['r4','4. 만족도_심리적 안정감',true],['r5','5. 만족도_호소문제의 변화',true],['r6','6. 만족도_컨설팅 기대 및 효과',true],['r7','7. 만족도_전반적인 만족도(개선요인)',true],['r8','8. 첫회기 컨설팅에 대한 기대'],['r9','9. 만족도_기타의견']];
 const IMPLEMENTED=AGGREGATE_TABS.filter(t=>t[2]).map(t=>t[0]);
 const num=Number.isFinite,count=v=>Number.isInteger(v)&&v>=0;
 const isPermutation=(list,size)=>list.length===size&&[...list].sort((x,y)=>x-y).every((v,i)=>v===i+1);
@@ -18,7 +18,7 @@ function validSatItem(q,n){
   return !!q.positive&&q.positive.count===q.distribution[0].count+q.distribution[1].count&&num(q.positive.pct);
 }
 
-const KEYS=['r1','r2','r3','r4','r5','r6'];
+const KEYS=['r1','r2','r3','r4','r5','r6','r7'];
 // Consistency checks only (no figure shown comes from here): lists have equal length, counts add up, the top entries
 // are the first three by the legacy order (count descending, equal counts keep the option order).
 const top3Of=counts=>counts.map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0]||a[1]-b[1]).slice(0,3).map(x=>x[1]);
@@ -52,6 +52,8 @@ export function validAggregate(d){
   if(!r2||!Array.isArray(r2.factors)||r2.factors.length!==ITEM_COUNT||!Array.isArray(r2.areas)||!r2.areas.every(validRow)||!sameAreaRows(r1.areas,r2.areas))return false;
   if(!r2.factors.every(f=>validRow(f)&&Number.isInteger(f.area)&&f.area>=0&&f.area<AREA_COUNT)||!isPermutation(r2.factors.map(f=>f.rank),ITEM_COUNT)||!num(r2.scaleMax))return false;
   if(p.satN===0?r3!==null:!(r3&&r3.n===p.satN&&validSatItem(r3.q1,p.satN)&&validSatItem(r3.q2,p.satN)))return false;
+  const r7=d.analyses.r7;
+  if(p.satN===0 ? r7!==null : !(r7 && r7.n===p.satN && num(r7.avg1) && num(r7.avg2) && count(r7.opinions) && r7.opinions<=p.satN && Array.isArray(r7.options) && r7.options.length>0 && r7.options.every(o=>typeof o==='string'&&o) && Array.isArray(r7.counts) && r7.counts.length===r7.options.length && r7.counts.every(c=>count(c)&&c<=p.satN) && Array.isArray(r7.percentages) && r7.percentages.length===r7.options.length && r7.percentages.every(num) && Array.isArray(r7.order) && r7.order.length===r7.options.length && r7.order.every((v,i)=>v===r7.counts.map((_,j)=>j).sort((a,b)=>r7.counts[b]-r7.counts[a]||a-b)[i])))return false;
   const {r4,r5,r6}=d.analyses,N=p.detailN;
   if(N===0)return r4===null&&r5===null&&r6===null;
   return !!r4&&r4.n===N&&validStability(r4,N)&&!!r5&&r5.n===N&&validChoices(r5,N,{rankBy:'pre',change:true})&&!!r6&&r6.n===N&&validChoices(r6.q5,N,{single:true,rankBy:'pre'})&&validChoices(r6.q6,N,{rankBy:'post'})&&validSatItem(r6.fit,N);
@@ -154,6 +156,14 @@ export function r6View(d){
   <p class="fnote">중복선택 문항으로 사전과 사후의 응답 건수가 다를 수 있습니다 (사전 ${q6.selections.pre}건, 사후 ${q6.selections.post}건)</p>
   <p class="hintline" data-agg-method>Base 단위는 명이며 기준 인원은 ${r.n}명입니다. 세 질문은 서로 다른 문항이라 합치거나 같은 지표로 비교하지 않습니다. Q 5.0은 한 가지만 고른 단일 선택(사전은 기대, 사후는 가장 도움이 된 부분), Q 5.2는 사후 충족도 점수(분모 ${r.fit.n}명), Q 6.0은 중복선택(사전 장애요인, 사후 극복된 요인)입니다. 옆 목록의 비율은 선택 건수 ÷ 해당 질문의 전체 선택 건수이며 참여자 비율이 아닙니다. Q 5.0 순위는 사전 선택 수, Q 6.0 순위는 사후(극복) 선택 수가 많은 순이고 같으면 보기 순서가 먼저입니다.</p>`;
 }
+export function r7View(d){
+  const r=d.analyses.r7;
+  return `<div class="qbar">Q 7.0 전반적인 만족도 · 개선이 필요한 부분 (최대 2가지 선택)</div>
+  <div class="tiles" style="grid-template-columns:repeat(3,1fr);margin-top:14px"><div class="tile c1"><span>전반적 만족도 (5점)</span><b>${r.avg1}</b></div><div class="tile c2"><span>경력 설계 유익도 (5점)</span><b>${r.avg2}</b></div><div class="tile"><span>자유 의견</span><b>${r.opinions}건</b></div></div>
+  ${r.order.map(i=>hbrow(esc(r.options[i]),r.counts[i]/r.n*100,`<b>${r.percentages[i]}%</b>${r.counts[i]}명`)).join('')}
+  <p class="fnote">자유 의견 원문은 표시하지 않습니다.</p>
+  <p class="hintline" data-agg-method>기준 인원은 사전·사후 참여자 중 만족도 응답 ${r.n}명입니다. 최대 2개 중복선택으로 항목별 인원 ÷ 기준 인원 × 100을 소수 첫째 자리로 반올림합니다. 무응답은 선택 건수에 포함하지 않고 분모에는 포함합니다. 건수가 같으면 보기 순서로 표시합니다. 평균은 만족도 응답 점수의 평균이며 자유 의견은 앞뒤 공백을 제외한 내용이 있는 응답 건수입니다.</p>`;
+}
 export function adminAggregateView({data,loading=false,message='',tab='r1'}){
   const active=IMPLEMENTED.includes(tab)?tab:'r1';
   const select=data?`<label class="hintline" for="agg-company">기업</label><select class="in" id="agg-company" data-aggregate-company ${loading?'disabled':''}><option value="" ${data.company===null?'selected':''}>전체</option>${data.companies.map(c=>`<option value="${esc(c)}" ${data.company===c?'selected':''}>${esc(c)}</option>`).join('')}</select>`:'';
@@ -162,15 +172,15 @@ export function adminAggregateView({data,loading=false,message='',tab='r1'}){
   const intro='<p class="hintline">관리자 소속 조직 참여자 중 사전진단과 사후진단을 모두 최종 제출한 참여자를 기준으로 서버에서 집계합니다. 개인별 응답은 화면에 내려오지 않습니다. 이 화면은 조회용이며 통합 보고서 인쇄는 아직 제공하지 않습니다.</p>';
   if(!data)return head+status+intro;
   const tabs=`<div class="filters" role="tablist" aria-label="통합 분석 화면" data-agg-tabs>${AGGREGATE_TABS.map(([k,l,on])=>on?`<button class="btn ${k===active?'':'ghost '}sm" role="tab" aria-selected="${k===active}" data-agg-tab="${k}">${esc(l)}</button>`:`<button class="btn ghost sm" role="tab" aria-selected="false" disabled data-agg-tab="${k}" title="구현 예정">${esc(l)} · 구현 예정</button>`).join('')}</div>`;
-  const p=data.population,detail=['r4','r5','r6'].includes(active),sat=active==='r3'||detail;
+  const p=data.population,detail=['r4','r5','r6'].includes(active),sat=active==='r3'||active==='r7'||detail;
   let body;
   if(!data.post.available)body='<div class="empty" data-agg-empty>사후진단 기능이 이 서비스 환경에서 사용 설정되어 있지 않아 사전·사후 통합 분석을 집계하지 않습니다.</div>';
   else if(!p.n)body='<div class="empty" data-agg-empty>사전·사후를 모두 완료한 참여자가 아직 없습니다.</div>';
   else if(sat&&!p.satN)body='<div class="empty" data-agg-empty>사후 만족도 설문에 응답한 참여자가 아직 없습니다.</div>';
   else if(detail&&!p.detailN)body='<div class="empty" data-agg-empty>만족도와 사전 기대 응답이 모두 완전한 참여자가 아직 없습니다.</div>';
-  else body=({r1:r1View,r2:r2View,r3:r3View,r4:r4View,r5:r5View,r6:r6View})[active](data);
+  else body=({r1:r1View,r2:r2View,r3:r3View,r4:r4View,r5:r5View,r6:r6View,r7:r7View})[active](data);
   const base=data.post.available?`<div class="rbase" data-agg-base>[Base: ${data.company===null?'전체 기업':esc(data.company)} 사전·사후 참여자(n=${p.n})${sat&&p.n?`, 만족도 응답 n=${detail?p.detailN:p.satN}`:''}, 단위: 명] · 집계 시각 ${esc(new Date(data.generatedAt).toLocaleString('ko-KR'))}</div>`:'';
   const partial=detail&&data.post.available&&p.satN>p.detailN?`<p class="hintline" data-agg-detail-base>만족도 응답 ${p.satN}명 중 사전 기대·만족도 선택 응답이 완전한 ${p.detailN}명을 이 화면의 기준으로 합니다(나머지 ${p.satN-p.detailN}명 제외).</p>`:'';
   const excluded=data.post.available&&p.excludedInvalid?`<p class="hintline" data-agg-excluded>두 진단을 모두 제출했지만 응답이 완전하지 않아 제외한 참여자 ${p.excludedInvalid}명</p>`:'';
-  return head+status+intro+tabs+base+body+partial+excluded+'<p class="hintline">7~9번 화면(전반적인 만족도 개선요인, 첫회기 기대, 기타의견)은 아직 구현되지 않았습니다.</p>';
+  return head+status+intro+tabs+base+body+partial+excluded+'<p class="hintline">8~9번 화면(첫회기 기대, 기타의견)은 아직 구현되지 않았습니다.</p>';
 }

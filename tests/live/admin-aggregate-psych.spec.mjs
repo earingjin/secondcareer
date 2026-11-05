@@ -12,8 +12,8 @@ import {serve} from '../tools/serve-static.mjs';
 const {harness,ids}=createRequire(import.meta.url)('./server-harness.cjs');
 const TEMPLATE=JSON.parse(fs.readFileSync(new URL('../snapshot/fixture.json',import.meta.url),'utf8')).db[0];
 const LEGACY=pathToFileURL(path.resolve('legacy/index.original.html')).href;
-// Every column the aggregate function selects from assessments (JSON paths of the stored answers; no d36, q7 or free text).
-const ASSESSMENT_COLUMNS=['id','participant_id','pd32:answers->expect->d32','pd33:answers->expect->d33','pd34:answers->expect->d34','pd35:answers->expect->d35','post:answers->post','pre:answers->pre','q1:answers->sat->q1','q2:answers->sat->q2','q3a:answers->sat->q3a','q3b:answers->sat->q3b','q3c:answers->sat->q3c','q5fit:answers->sat->q5fit','sd32:answers->sat->d32','sd33:answers->sat->d33','sd34:answers->sat->d34','sd35:answers->sat->d35','status'];
+// Every column the aggregate function selects from assessments (JSON paths of the stored answers; q7 and q7txt for screen 7; no d36).
+const ASSESSMENT_COLUMNS=['id','participant_id','pd32:answers->expect->d32','pd33:answers->expect->d33','pd34:answers->expect->d34','pd35:answers->expect->d35','post:answers->post','pre:answers->pre','q1:answers->sat->q1','q2:answers->sat->q2','q3a:answers->sat->q3a','q3b:answers->sat->q3b','q3c:answers->sat->q3c','q5fit:answers->sat->q5fit','q7:answers->sat->q7','q7txt:answers->sat->q7txt','sd32:answers->sat->d32','sd33:answers->sat->d33','sd34:answers->sat->d34','sd35:answers->sat->d35','status'];
 
 // Option lists and chart labels as the legacy page defines them (same source the server uses).
 let O,SHL;
@@ -81,7 +81,7 @@ async function legacy(page,list,{company='전체',extra=[]}={}){
     [...list,...extra].forEach((p,i)=>DB.push({...structuredClone(template),id:'L'+i,company:p.company,pre:p.pre,post:p.post,expect:{...template.expect,...p.exp},sat:p.sat?{...p.sat}:null}));
     S.rep={company};
     const d=repData(false),out={N:d.N,sv:d.sv.length,SH:{d32:SH.d32,d33:SH.d33,d34:SH.d34,d35:SH.d35},OPT:{d32:OPT['expect.d32'],d33:OPT['expect.d33'],d34:OPT['expect.d34'],d35:OPT['expect.d35']}};
-    if(d.sv.length){out.rp4=rp4(d);out.rp5=rp5(d);out.rp6=rp6(d)}
+    if(d.sv.length){out.rp4=rp4(d);out.rp5=rp5(d);out.rp6=rp6(d);out.rp7=rp7(d)}
     return out;
   },{list,extra,template:TEMPLATE,company});
 }
@@ -167,20 +167,20 @@ test('numeric-string answers: the server leaves them out; legacy counts them and
   expect(norm(L.rp4)).not.toBe(body(r4View(r)));                               // and screen 4 differs (string concatenation in the average)
 });
 
-test('1·2·9 admin only, own organization only; no personal data, ids, free text, d36 or q7 in the response or the selected columns',async()=>{
+test('1·2·9 admin only, own organization only; no personal data or free text in the response, and no d36 in selected columns',async()=>{
   const {h}=seed(datasets().varied),r=await get(h,ids.admin),text=JSON.stringify(r.data);
-  expect(r.status).toBe(200);expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3','r4','r5','r6']);
+  expect(r.status).toBe(200);expect(Object.keys(r.data.analyses)).toEqual(['r1','r2','r3','r4','r5','r6','r7']);
   for(const hidden of ['개인-','응답원문','결과원문','자유의견원문','다른 의견','01012341234','u-p','"p000"','x-','other-org',ids.counselor])expect(text).not.toContain(hidden);
   const cols=[...new Set(h.state.reads.filter(x=>x.table==='assessments').flatMap(x=>x.columns.split(',')))].sort();
   expect(cols).toEqual(ASSESSMENT_COLUMNS);
-  expect(cols.some(c=>/d36|q7/.test(c))).toBe(false);
+  expect(cols.some(c=>/d36/.test(c))).toBe(false);
   h.state.tables.user_profiles.push({user_id:'manager-user',organization_id:ids.org,role:'manager',display_name:'고객사'});h.state.users['manager-user']={id:'manager-user',app_metadata:{}};
   for(const [token,status] of [[ids.counselor,403],[ids.participant,403],[ids.other,403],['manager-user',403],[null,401]]){const x=await get(h,token);expect(x.status).toBe(status);expect(x.data.analyses).toBeUndefined()}
   expect((await get(h,ids.admin,'?organizationId=other-org')).status).toBe(400);
 });
 
 test('7 zero population, no valid detail answers, a disabled post feature and failed reads show no figures',async()=>{
-  const none={r1:null,r2:null,r3:null,r4:null,r5:null,r6:null};
+  const none={r1:null,r2:null,r3:null,r4:null,r5:null,r6:null,r7:null};
   const zero=(await get(seed([]).h,ids.admin)).data;expect(zero.population).toEqual({n:0,satN:0,detailN:0,excludedInvalid:1});expect(zero.analyses).toEqual(none);
   // Satisfaction scores valid but the choice answers are not: screen 3 has figures, screens 4-6 do not.
   const noDetail=seed(datasets().varied.map(p=>({...p,sat:{...p.sat,d33:['없는 보기']}}))).h,nd=(await get(noDetail,ids.admin)).data;
@@ -243,9 +243,20 @@ test.describe('admin aggregate screens 4-6',()=>{
     const errors=[];page.on('pageerror',e=>errors.push(String(e)));
     const list=datasets().varied,{h}=seed(list),calls=await open(page,h);await open1(page);
     const aggCalls=()=>calls.filter(c=>c.includes('admin-aggregate')).length;
-    await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(3);
-    for(const k of ['r7','r8','r9'])await expect(tab(page,k)).toContainText('구현 예정');
+    await expect(sec(page).locator('[data-agg-tab]:disabled')).toHaveCount(2);
+    for(const k of ['r8','r9'])await expect(tab(page,k)).toContainText('구현 예정');
     const a=(await get(h,ids.admin)).data.analyses;
+    await tab(page,'r7').click();
+    await expect(tab(page,'r7')).toHaveAttribute('aria-selected','true');
+    await expect(sec(page).locator('[data-agg-base]')).toContainText('만족도 응답 n=7');
+    await expect(sec(page).locator('.hbrow')).toHaveCount(a.r7.options.length);
+    expect(aggCalls()).toBe(1);
+    await sec(page).locator('#agg-company').selectOption('가 기업');
+    await expect(tab(page,'r7')).toHaveAttribute('aria-selected','true');
+    await expect(sec(page).locator('[data-agg-base]')).toContainText('가 기업');
+    expect(aggCalls()).toBe(2);
+    await sec(page).locator('#agg-company').selectOption('');
+    await expect(sec(page).locator('[data-agg-base]')).toContainText('전체 기업');
     await tab(page,'r4').click();
     await expect(tab(page,'r4')).toHaveAttribute('aria-selected','true');
     await expect(sec(page).locator('[data-agg-base]')).toContainText('사전·사후 참여자(n=9), 만족도 응답 n=7, 단위: 명]');
@@ -263,10 +274,10 @@ test.describe('admin aggregate screens 4-6',()=>{
     await expect(sec(page).locator('[data-agg-sat="q5fit"] .pie-lab')).toHaveText(`종합평균 ${a.r6.fit.avg}점`);
     await expect(sec(page).locator('.topitem').last()).toContainText('극복');
     await expect(sec(page).locator('[data-agg-method]')).toContainText('서로 다른 문항');
-    expect(aggCalls()).toBe(1);
+    expect(aggCalls()).toBe(3);
     await sec(page).locator('#agg-company').selectOption('가 기업');
     await expect(sec(page).locator('[data-agg-base]')).toContainText('[Base: 가 기업 사전·사후 참여자(n=5), 만족도 응답 n=');
-    await expect(tab(page,'r6')).toHaveAttribute('aria-selected','true');expect(aggCalls()).toBe(2);
+    await expect(tab(page,'r6')).toHaveAttribute('aria-selected','true');expect(aggCalls()).toBe(4);
     await expect(page.getByRole('button',{name:'주소 저장'})).toBeVisible();
     const text=await sec(page).innerText();
     for(const hidden of ['개인-','응답원문','자유의견원문','다른 의견'])expect(text).not.toContain(hidden);
@@ -282,7 +293,7 @@ test.describe('admin aggregate screens 4-6',()=>{
     await expect(sec(page).locator('[data-agg-base]')).toContainText('만족도 응답 n=7');
     await page.evaluate(()=>logout());await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();
     await open(page,seed(list.map(p=>({...p,sat:null}))).h);await open1(page);
-    for(const k of ['r4','r5','r6']){await tab(page,k).click();await expect(sec(page).locator('[data-agg-empty]')).toHaveText('사후 만족도 설문에 응답한 참여자가 아직 없습니다.');await expect(sec(page).locator('.topitem, .tiles, .sidechart')).toHaveCount(0)}
+    for(const k of ['r4','r5','r6','r7']){await tab(page,k).click();await expect(sec(page).locator('[data-agg-empty]')).toHaveText('사후 만족도 설문에 응답한 참여자가 아직 없습니다.');await expect(sec(page).locator('.topitem, .tiles, .sidechart')).toHaveCount(0)}
     await page.evaluate(()=>logout());await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();
     await open(page,seed(list.map(p=>({...p,sat:{...p.sat,d33:['없는 보기']}}))).h);await open1(page);
     await tab(page,'r4').click();await expect(sec(page).locator('[data-agg-empty]')).toHaveText('만족도와 사전 기대 응답이 모두 완전한 참여자가 아직 없습니다.');
@@ -290,6 +301,22 @@ test.describe('admin aggregate screens 4-6',()=>{
     await page.evaluate(()=>logout());await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();
     await open(page,seed([],{extras:false}).h);await open1Zero(page);
     async function open1Zero(p){await login(p);await sec(p).getByRole('button',{name:'통합 분석보고서 열기'}).click();await expect(sec(p).locator('[data-agg-empty]')).toBeVisible()}
-    for(const k of ['r4','r5','r6']){await tab(page,k).click();await expect(sec(page).locator('[data-agg-empty]')).toHaveText('사전·사후를 모두 완료한 참여자가 아직 없습니다.');await expect(sec(page)).not.toContainText('NaN')}
+    for(const k of ['r4','r5','r6','r7']){await tab(page,k).click();await expect(sec(page).locator('[data-agg-empty]')).toHaveText('사전·사후를 모두 완료한 참여자가 아직 없습니다.');await expect(sec(page)).not.toContainText('NaN')}
   });
+});
+
+test('screen 7 matches legacy counts, order, means and bar widths including missing, whitespace and company filtering',async({page})=>{
+  const {r7View,validAggregate}=await views(), options=['상담 시간·회기 수','진단 문항 수·소요시간','결과 리포트 내용','상담 후 사후 지원·정보 제공','온라인 시스템 사용성','상담 일정 조율','특별히 없음'];
+  for(const [name,indices] of Object.entries({varied:[[0,1],[0,2],[],[3],[2,3],[6],[6]],ties:[[0],[1],[2],[3],[4],[5],[6]],extreme:[[6],[6],[6],[6],[6],[6],[6]],missing:[[],[],[],[],[],[],[]],one:[[0,1]]})){
+    const source=name==='one'?datasets().varied.slice(0,1):datasets().varied;
+    const list=source.map((p,i)=>({...p,sat:p.sat?{...p.sat,q7:name==='missing'&&i%2===0?undefined:(indices[i%indices.length]).map(j=>options[j]),q7txt:i%3===0?'  의견  ':i%3===1?'   ':''}:null}));
+    const {h}=seed(list);
+    for(const company of ['전체','가 기업']){
+      const data=(await get(h,ids.admin,company==='전체'?'':'?company='+encodeURIComponent(company))).data,L=await legacy(page,list,{company});
+      expect(validAggregate(data),name).toBe(true);expect(data.analyses.r7.n).toBe(L.sv);
+      const clean=x=>norm(x.split('<p class="fnote">')[0]);
+      same(clean(r7View(data)),clean(L.rp7),name+' '+company+' rp7');
+      expect(JSON.stringify(data)).not.toContain('의견  ');
+    }
+  }
 });
