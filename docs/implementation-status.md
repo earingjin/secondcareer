@@ -6,6 +6,8 @@
 
 **갱신 (2026-11-05, 관리자 핵심 기능 개발 01)**: HEAD `992d0b8` 위에서 REQ-A-004를 구현하고 해당 행, 4절 집계, 10~13절을 갱신했다. 다른 요구사항의 판정은 바꾸지 않았다. 이 갱신에서는 자동화 테스트를 실행했다(13절). 다른 행의 "미실행" 표기는 원래 점검 당시 기준이다.
 
+**갱신 (2026-11-06, STEP 14-A 고객사 마스터)**: 개발 브랜치·원격 기준 `7e55bd1`에서 `feat/client-company-management`를 생성했다. REQ-A-001에 독립 고객사 마스터 등록·조회·수정·상태 전환을 추가했다. 로고·보고서 설정·조직 운영 설정의 나머지 범위가 없어 부분 구현을 유지한다. SQL은 검토 제안만 작성했고 DB·배포는 미적용이다. REQ-A-002·003 및 REQ-M-001~006 판정은 그대로 유지한다.
+
 **갱신 (2026-11-05, STEP 13 통합 분석보고서 전체 인쇄)**: HEAD `7fbcb48` 위에서 REQ-A-016(인쇄)을 구현하고 REQ-A-016·REQ-A-006 행, 4절 집계, 11·13절을 갱신했다. REQ-A-006은 생성·관리 행위와 감사 기록이 없어 부분 구현, REQ-A-015는 원문 조회 제외로 부분 구현을 유지한다. 서버·DB 변경과 배포는 없다.
 
 **갱신 (2026-11-05, STEP 12-C 통합 분석 9번 화면)**: HEAD `9eaab77` 위에서 REQ-A-015의 의견 건수·키워드 집계를 구현했다. 레거시 원문 조회를 의도적으로 제외하므로 REQ-A-015는 부분 구현이다. REQ-A-006은 인쇄·관리 미구현으로 부분 구현, REQ-A-016은 미구현을 유지한다.
@@ -56,6 +58,8 @@ STEP 12-C에서는 REQ-A-015 미구현 → 부분 구현으로 관리자 10/4/2,
 
 STEP 13에서는 REQ-A-016 미구현 → 구현으로 관리자 11/4/1(68.8%), 합계 20/18/5(46.5%)가 됐다. 인쇄만 확정 범위이며 PPT 등 추가 형식은 미확정이라 계산에 넣지 않는다.
 
+STEP 14-A에서는 REQ-A-001의 고객사 마스터 구현 근거를 확장했지만 전체 수용 범위는 부분 구현을 유지한다. 역할별·전체 집계는 재확인 결과 관리자 11/4/1(68.8%), 합계 20/18/5(46.5%)로 변하지 않았다. REQ-A-002·003과 고객사 담당자 REQ-M-001~006도 그대로다.
+
 ## 5. 참여자 요구사항별 점검표
 
 표의 `live/`는 `src/live/`, `assessment`는 `supabase/functions/secondcareer-assessment/index.ts`, `account`는 `supabase/functions/secondcareer-account/index.ts`, `register`는 `supabase/functions/secondcareer-register-participant/index.ts`다. 테스트 경로는 `tests/` 아래이며 `미실행`은 이번 점검 기준이다. 모든 행은 정적 확인, 운영 미검증이다.
@@ -94,7 +98,7 @@ STEP 13에서는 REQ-A-016 미구현 → 구현으로 관리자 11/4/1(68.8%), �
 
 | ID | 기능명 | 구현 상태 | 코드 근거 | 테스트 근거·이번 실행 | 운영 검증 | 부족한 부분 | 우선순위 |
 |---|---|---|---|---|---|---|---|
-| REQ-A-001 | 기업과 세컨플래닝 운영 정보 관리 | 부분 구현 | 관리(쓰기): `account`의 조직 진단 URL 설정, `live/app.js` saveAssessmentUrl. 조회: 관리자 전용 읽기 API `supabase/functions/secondcareer-admin-directory/index.ts`가 운영 조직명(`organizations.name`)과 소속기업별(`participants.company_name`, 빈 값은 미지정) 참여자 수·담당 상담사 수를 반환, `live/admin-directory-view.js` 소속기업 현황. 인증·조직 범위는 진단 현황과 공용인 `_shared/admin-access.ts` | `live/admin-directory.spec.mjs` 10건, `live/registration-server.spec.mjs` **실행·통과**(모의) | 미검증: 함수 미배포, 실제 DB·RLS 미확인 | 기업 생성·수정·삭제와 기업 단위 운영 정보 관리 없음(기업은 참여자 등록 시 입력한 문자열이며 별도 기업 테이블 없음). 운영 조직 정보 수정은 진단 URL 외 없음 | P1 |
+| REQ-A-001 | 기업과 세컨플래닝 운영 정보 관리 | 부분 구현 | `secondcareer-admin-companies`가 서버 admin·organization_id로 고객사 마스터 등록·목록/상세·수정·비활성화/재활성화를 제공. `live/admin-companies.js` 검색·상태 필터·서버 페이지 조회(기본 20개)와 ID별 편집. SQL 제안 `proposals/client-companies.sql`: 조직 FK·정규화 이름 유일 제약·기간/필수값·RLS·클라이언트 직접 접근 차단, service_role 최소 권한. 기존 조직 진단 URL 설정과 `admin-directory`의 company_name 현황도 유지 | `live/admin-companies-server.spec.mjs`·`admin-companies-browser.spec.mjs` 신규 모의 검증과 기존 운영 관리·등록·보고서 회귀(13절 참조) | SQL 미적용·함수 미배포, 실제 Postgres 제약·RLS·트리거·Auth·서버 동작 미검증 | 고객사 마스터는 기존 company_name/참여자와 아직 미연결(14-B 범위). 로고·기업별 보고서 설정·진단 URL 외 조직 운영 정보 수정 등 미구현. 물리적 삭제는 의도적으로 미제공. 감사 기록 미구현 | P1 |
 | REQ-A-002 | 상담사·참여자 계정 관리 | 부분 구현 | 관리(쓰기): `live/participant-registration.js`, `register`(참여자 등록), `src/admin/account-operations.cjs`(운영자 CLI: TEST 참여자 생성·비밀번호 교체). 조회: `secondcareer-admin-directory`가 같은 조직의 상담사 목록(이름·로그인 아이디·담당 참여자 수)과 참여자 목록(등록 이름·로그인 아이디·소속기업·담당 상담사·사전진단 상태), 담당 미배정·담당 확인 필요 인원을 반환. `live/admin-directory-view.js` 상담사 현황·참여자 목록·필터 | `live/admin-directory.spec.mjs` 10건, `live/registration-browser.spec.mjs`, `admin/account-operations.spec.mjs` **실행·통과**(모의) | 미검증: 함수 미배포, 실제 DB·RLS 미확인 | 웹의 상담사 계정 생성·비활성화, 담당 상담사 변경, 참여자 계정 초기화·삭제 없음(안전한 서버 계약과 계정 상태·재배정 정책 미확정). 목록 페이지네이션 없음 | P1 |
 | REQ-A-003 | 고객사 담당자 계정 관리 | 미구현 | 레거시 `mgrSection`만 확인 | 관련 live 관리자 계정 테스트 확인 못함; 미실행 | 미검증 | 운영 계정 관리 UI·서버 API 부재 | P1 |
 | REQ-A-004 | 전체 진단 진행·완료율·미완료 현황 조회 | 구현 | 관리자 전용 읽기 API `supabase/functions/secondcareer-admin-progress/index.ts`(서버 프로필의 admin 역할·`organization_id`만 범위로 사용, 요청 파라미터 거부, `participants.id,company_name`과 `assessments.participant_id,phase,status`만 읽어 집계); `live/admin-progress-view.js`, `live/app.js` loadProgress, `live/api.js` adminProgress. 기존 `assessment`의 역할 검사는 변경하지 않음 | `live/admin-progress-server.spec.mjs` 8건, `live/admin-progress-browser.spec.mjs` 6건 **실행·통과**(모의 하네스) | 미검증: 함수 미배포, 실제 Auth·DB·RLS·직접 Data API 경로 미확인 | 범위는 관리자 소속 조직 단위만 적용(업무 범위 세분화는 요구사항 10절 3번 미확정). 사후 완료율은 분모 미확정(10절 7번)으로 계산하지 않고 상태별 인원만 표시. 조회 감사 기록 없음(REQ-N-003). Deno 타입 검사·실행 미수행 | P1 |
@@ -137,6 +141,8 @@ STEP 13에서는 REQ-A-016 미구현 → 구현으로 관리자 11/4/1(68.8%), �
 
 ## 10. 코드·문서 간 불일치
 
+- STEP 14-A(2026-11-06): 고객사 마스터 `client_companies`를 별도 운영 데이터로 추가했다. 아래 STEP 07의 "별도 기업 테이블 없음/기업 관리 후속" 기록은 당시 조사 이력이다. 이번 SQL은 아직 미적용이며 기존 운영 관리·진단 현황·분석의 기업 목록은 계속 `participants.company_name`에서 나온다. 두 목록을 자동 동기화하거나 고객사를 자동 생성하지 않는다.
+
 - 상담사 목록은 `assessment`의 `readAll`이 서버 응답을 나눠 읽지만 `counselorView`는 검색·필터 후 전체 `rows.map`을 렌더링한다. 페이지 상태·이동 UI가 없어 사용자 목록 페이지네이션은 완료되지 않았다. 테스트의 “pagination”은 서버 읽기 분할을 검증한다.
 - 통합 보고서는 레거시의 관리자·상담사 데모에 있으나 최신 정책은 관리자 전용이다. 운영 관리자 통합 API와 9개 분석 경로는 확인되지 않았다. 레거시 메뉴가 현행 권한을 부여하지 않는다.
 - `supabase/proposals/INTEGRATION.md`는 과거 시점에 assessment 원본이 없었다고 기록하지만 현재 기준 커밋에는 `supabase/functions/secondcareer-assessment/index.ts`가 있다. 과거 기록을 현재 상태로 취급하지 않는다. 실제 배포본과의 일치도 추정하지 않는다.
@@ -151,6 +157,8 @@ STEP 13에서는 REQ-A-016 미구현 → 구현으로 관리자 11/4/1(68.8%), �
 - README의 과거 비공개 저장소 설명은 `decisions.md`의 공개 유지 결정과 다르다. 본 점검에서 공개 범위를 변경하거나 원격 공개 설정을 확인하지 않았다.
 
 ## 11. 미검증 항목 및 운영 위험
+
+- **STEP 14-A 고객사 마스터 미적용 조건**: Supabase CLI와 로컬 Postgres/Docker가 준비되어 있지 않아 `supabase/proposals/client-companies.sql`로 작성했다. 적용 완료 마이그레이션 이력을 만들지 않았다. SQL은 BEGIN/COMMIT 안에서 신규 설치하며 기존 같은 테이블·함수가 발견되면 변경 전에 거부한다. 반복 실행은 조용히 스키마를 덮어쓰지 않고 실패하므로 재적용 전 상태를 검토해야 한다. 실패 시 ROLLBACK하며, 적용 이후 되돌리기는 새 고객사 데이터 보존을 고려한 별도 승인 작업이다. 실제 DB에서 제약·생성 열·트리거·권한·인덱스·페이지 조회를 검증하지 않았다. 서버 API는 service_role이 RLS를 우회하므로 모든 대상 요청의 조직 조건이 필수다. PM 정보·요청 본문은 로그에 기록하지 않는다. SQL 적용·API 배포·운영 검증·고객사 ID 연계는 수행하지 않았다.
 
 - **사후 활성화 네 층**: 프런트 `post-test-gate.js`는 `true`; 서버는 `SECONDCAREER_POST_DRAFT_ENABLED === 'true'`를 검사하나 실제 값 미확인; 승인 상태는 `post_approvals`와 상담사 승인 확인에 의존; `post-approval.sql`, `post-draft.sql`, `post-submit.sql`은 미적용·미실행으로 표시된 제안이며 실제 DB·RPC 적용 여부는 미확인이다. 기존 승인 기록의 적용 여부도 미확인이다.
 - `SECONDCAREER_REGISTRATION_ENABLED` 및 등록 SQL 제안의 실제 적용·권한, 로그인 함수 원본, 서버 배포 버전, DB 스키마·RLS·직접 RPC 우회, 조직·담당 변경 반영을 확인하지 않았다.
@@ -178,6 +186,10 @@ STEP 13에서는 REQ-A-016 미구현 → 구현으로 관리자 11/4/1(68.8%), �
 진행 기록(2026-11-05): P1 중 REQ-A-004를 먼저 구현했다. REQ-C-004(상담사 목록 페이지네이션)는 사용자 결정에 따라 사용성 개선으로 보류하고 이번 관리자 개발에서 제외했다. 사유는 관리자 핵심 기능을 먼저 개발하기로 한 작업 순서 결정이다. REQ-C-004의 요구사항(확정)과 구현 판정(부분 구현)은 그대로 유지한다.
 
 ## 13. 테스트 결과 및 근거
+
+**STEP 14-A 고객사 마스터 검증(2026-11-06, 개발·원격 기준 `7e55bd1` + `feat/client-company-management` 작업본)**: 신규 13건(서버 9·Chromium UI 4) 실행·통과. 빈 참여자 상태에서 첫 고객사 및 다중 등록·목록/상세, 공백·영문 대소문자 중복 및 비활성 이름 점유·경합, 다른 조직의 동명 등록, 날짜·이메일·연락처·필수값·임의 필드 거부, ID별 수정·상태 전환·동시 수정 충돌, 다른 조직 ID와 관리자 외 역할·무인증·무효/만료 토큰 거부, DB 조회/쓰기 실패·결과 미확인 시 성공 미표시를 모의로 확인했다. 260개 마스터의 서버 검색·상태 필터·페이지 조회와 UI 페이지 전환, HTML 이스케이프, 로딩 차단·세션 만료/로그아웃 시 입력 폐기·저장 오류 후 값 유지도 확인했다. 기존 참여자·진단 응답·보고서·프로필·이력이 있는 합성 데이터에서 상태 전환 후 해당 데이터가 그대로임을 확인했다.
+
+최종 `npm run build` 통과. 커밋 전 전체 자동화 `npx playwright test --reporter=line --timeout=30000 --global-timeout=270000` 1회는 **356건 중 351건 통과·기존 조건부 5건 건너뜀, 실패 0건, 약 3.4분**으로 종료했다. 골든·계약·스냅샷, 기존 관리자 현황/운영 관리, 통합 분석 1~9·통합 인쇄, 개인 보고서 3/5쪽, 내담자 등록·사전/사후 진단 회귀를 포함한다. 테스트의 문항 수 상수 참조 정리 후 신규 서버 9건도 재실행·통과했다. 레거시 SHA256 기준을 유지했고 정답표·스냅샷 기준선을 갱신하지 않았다. SQL은 정적 구조(트랜잭션·충돌 시 중단·FK·중복/날짜/필수값 제약·RLS·클라이언트 권한 회수·서비스 역할 최소 권한)만 확인했으며 실제 DB에서 실행하지 않았다. 모의 DB는 프로토콜과 제약 일부를 흉내 내는 도구이므로 Postgres·RLS 통과 증거가 아니다. 운영 DB·RLS·Auth·Edge Function·Vercel 변경/배포는 수행하지 않았다.
 
 **STEP 13 통합 분석보고서 전체 인쇄 검증(2026-11-05, HEAD `7fbcb48` + 작업본)**: `npm run build` 통과(인쇄 CSS가 번들에 포함됨을 확인). 전체 `npx playwright test` 343건 중 338건 통과·기존 조건부 5건 건너뜀, 실패 0건, 종료 코드 0(약 3.2분). 신규 8건(`tests/live/admin-aggregate-print.spec.mjs`): 인쇄본 1~9번 순서·제목과 각 탭 화면 마크업의 문자열 동일(모듈 단위·실제 화면 양쪽), 어느 탭에서 인쇄해도 같은 인쇄본, 기업 필터 후 해당 기업 Base·인원만 포함, 화면별 Base·분모 유지, 0명·만족도 무응답·사후 비활성 시 사유만 표시하고 수치·그래프 없음, 조회 중·조회 실패·선택 불일치 시 `window.print` 미호출, 이름·연락처·로그인 ID·참여자 ID·응답 원문·자유 의견 원문 미포함, 인쇄 후 탭·기업 선택·저장소 내용 유지와 재조회 없음, 상담사 화면에 인쇄 경로 없음, 로그아웃 시 인쇄본 제거. PDF는 Chromium `page.pdf`(A4, `preferCSSPageSize`)로 생성해 쪽수 9~18, 인쇄 미디어·A4 본문 폭(733px)에서 인쇄본 요소의 가로 넘침 0건, `.scroll` 숨김 폭 0, 그래프·표·타일 높이가 한 쪽 미만, 분석별 새 쪽 시작을 확인했다. 첫 실행에서 2번 요인 표(21열)의 가로 넘침이 검출되어 인쇄 CSS에서 해당 표를 고정 열 너비·칸 안 줄바꿈으로 보정했다. 인쇄 미디어 전체 화면 캡처를 직접 확인해 제목·Base·범례·축 눈금·표 머리글·차트 문자가 잘리거나 중복되지 않음을 봤다(PDF 자체의 쪽별 이미지 확인은 렌더러가 없어 하지 않음). 기존 1~9번 레거시 대조, 개인 보고서 5쪽·3쪽 PDF 쪽수(`admin-report.spec.mjs`, `reports.spec.mjs`), 골든·스냅샷·e2e는 같은 실행에서 통과했다. 실제 인쇄 대화상자·실서버·DB 검증은 하지 않았다.
 

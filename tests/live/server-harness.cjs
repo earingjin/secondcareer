@@ -10,14 +10,38 @@ function harness(){
   const loginIds={[ids.counselor]:'consult01',[ids.admin]:'admin01',[ids.participant]:'client01',[ids.other]:'other01'};
   const tables={user_profiles:profiles,organizations:[{id:ids.org,name:'테스트 기업'}],server_login_lookup:profiles.map(p=>({user_id:p.user_id,login_id:loginIds[p.user_id],internal_email:users[p.user_id].email})),participant_registration_requests:[],participants:[{id:'existing-participant',auth_user_id:ids.participant,counselor_user_id:ids.counselor,organization_id:ids.org,display_name:'기존참여자',company_name:'테스트기업'}],assessments:[],assessment_history:[]};
   // pageSize caps each read like the Data API row limit; reads/failReadsOf record and fail reads per table.
-  const state={tables,users,created:[],updated:[],enabled:true,postEnabled:false,pageSize:Infinity,reads:[],failReadsOf:null,failCreate:false,failComplete:false,failProfile:false,failUpdate:false};
+  tables.client_companies=[];
+  const state={tables,users,created:[],updated:[],enabled:true,postEnabled:false,pageSize:Infinity,reads:[],writes:[],failWritesOf:null,failReadsOf:null,failCreate:false,failComplete:false,failProfile:false,failUpdate:false,companyClock:0};
   const db={from(name){
-    let filters=[],insert=null,update=null,columns=null,order=null,limit=Infinity;
-    const q={select(c){columns=c;return q},eq(k,v){filters.push([k,v,'eq']);return q},in(k,v){filters.push([k,[...v],'in']);return q},gt(k,v){filters.push([k,v,'gt']);return q},order(k){order=k;return q},limit(n){limit=n;return q},insert(row){insert=row;return q},update(row){update=row;return q},async maybeSingle(){return run(true)},then(resolve,reject){return run(false).then(resolve,reject)}};
+    let filters=[],insert=null,update=null,columns=null,order=null,limit=Infinity,range=null,orders=[];
+    const q={select(c){columns=c;return q},eq(k,v){filters.push([k,v,'eq']);return q},in(k,v){filters.push([k,[...v],'in']);return q},gt(k,v){filters.push([k,v,'gt']);return q},ilike(k,v){filters.push([k,v,'ilike']);return q},order(k,o){order=k;orders.push([k,o?.ascending!==false]);return q},limit(n){limit=n;return q},range(a,b){range=[a,b];return q},insert(row){insert=row;return q},update(row){update=row;return q},async single(){const result=await run(true);return result.data?result:{...result,error:result.error||{code:'PGRST116'}}},async maybeSingle(){return run(true)},then(resolve,reject){return run(false).then(resolve,reject)}};
     const match=(r,[k,v,op])=>op==='in'?v.includes(r[k]):op==='gt'?r[k]>v:r[k]===v;
     async function run(single){
       if(name==='user_profiles'&&state.failProfile)return {error:{code:'QUERY_ERROR'},data:null};
       if(!tables[name])return {error:{code:'MISSING_TABLE'},data:null};
+      if(name==='client_companies'){
+        // Protocol model only: pagination, projection, scoped writes, DB unique-name race.
+        const nameKey=s=>s.trim().replace(/\s+/g,' ').replace(/[A-Z]/g,c=>c.toLowerCase());
+        const like=(s,pattern)=>{let source='';for(let i=0;i<pattern.length;i++){let c=pattern[i];if(c==='\\'&&i+1<pattern.length){c=pattern[++i];source+=c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}else source+=c==='%'?'.*':c==='_'?'.':c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}return new RegExp('^'+source+'$','iu').test(s)};
+        const matches=r=>filters.every(f=>f[2]==='ilike'?like(r[f[0]],f[1]):match(r,f));
+        const log={table:name,columns,filters:filters.map(f=>[...f]),range};
+        if(insert||update)state.writes.push({...log,operation:insert?'insert':'update'});else state.reads.push(log);
+        if((insert||update)&&state.failWritesOf===name||!insert&&!update&&state.failReadsOf===name)return {error:{code:'QUERY_ERROR'},data:null};
+        let rows=tables[name].filter(matches);
+        const nextTime=()=>new Date(Date.UTC(2026,10,6,0,0,0,++state.companyClock)).toISOString();
+        if(insert){
+          if(tables[name].some(r=>r.organization_id===insert.organization_id&&nameKey(r.name)===nameKey(insert.name)))return {error:{code:'23505'},data:null};
+          const t=nextTime(),row={...insert,id:webcrypto.randomUUID(),status:'active',created_at:t,updated_at:t};tables[name].push(row);rows=[row];
+        }else if(update){
+          if(rows.some(row=>tables[name].some(r=>r.id!==row.id&&r.organization_id===row.organization_id&&nameKey(r.name)===nameKey(update.name??row.name))))return {error:{code:'23505'},data:null};
+          rows.forEach(row=>Object.assign(row,update,{updated_at:nextTime()}));
+        }
+        const count=rows.length;
+        for(const [key,ascending] of [...orders].reverse())rows=[...rows].sort((a,b)=>(a[key]<b[key]?-1:a[key]>b[key]?1:0)*(ascending?1:-1));
+        if(range&&!single)rows=rows.slice(range[0],range[1]+1);
+        const data=rows.map(r=>Object.fromEntries(columns.split(',').map(k=>[k,r[k]])));
+        return {error:null,data:state.companyNoReturn&&(insert||update)?null:single?(data[0]||null):data,count};
+      }
       if(insert){
         if(name==='participant_registration_requests'&&tables[name].some(r=>r.id===insert.id||r.login_id===insert.login_id))return {error:{code:'23505'}};
         tables[name].push({...insert});return {error:null,data:null};
@@ -77,6 +101,7 @@ function harness(){
   const directory=load(path.join(root,'secondcareer-admin-directory/index.ts'));
   const adminReport=load(path.join(root,'secondcareer-admin-report/index.ts'));
   const aggregate=load(path.join(root,'secondcareer-admin-aggregate/index.ts'));
+  const companies=load(path.join(root,'secondcareer-admin-companies/index.ts'));
   // The counselor assessment function has no exported handler; take the one it passes to Deno.serve.
   load(path.join(root,'secondcareer-assessment/index.ts'));const assessment=served;
   async function call(handler,token,body,method=body?'POST':'GET',url='https://fixture.invalid/'){
@@ -88,6 +113,6 @@ function harness(){
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
-  return {state,ids,registration,account,access,progress,directory,adminReport,aggregate,assessment,call,signIn};
+  return {state,ids,registration,account,access,progress,directory,adminReport,aggregate,companies,assessment,call,signIn};
 }
 module.exports={harness,ids};
