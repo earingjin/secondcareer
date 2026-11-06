@@ -1,5 +1,5 @@
 import {APIError, failure, headers, readBody} from '../_shared/registration-http.ts';
-import {authenticateAdmin} from '../_shared/admin-access.ts';
+import {authenticateAdmin, readAll} from '../_shared/admin-access.ts';
 
 // REQ-A-001: separate client-company master. No participant/account/assessment writes.
 const cors = {...headers, 'Access-Control-Allow-Methods':'GET, POST, PATCH, OPTIONS'};
@@ -27,8 +27,35 @@ export async function handleAdminCompanies(req: Request) {
   if (req.method === 'OPTIONS') return new Response(null, {status:204, headers:cors});
   if (!['GET','POST','PATCH'].includes(req.method)) return reply({error:'METHOD_NOT_ALLOWED'}, 405);
   try {
-    const {profile, admin, params} = await authenticateAdmin(req, ['id','search','status','page','pageSize']);
+    const {profile, admin, params} = await authenticateAdmin(req, ['id','search','status','page','pageSize','section']);
     const org = profile.organization_id, id = params.get('id');
+    if (params.has('section')) {
+      if (params.get('section') !== 'counselors' || params.size !== 2 || !UUID.test(id || '') || !['GET','PATCH'].includes(req.method)) throw new APIError('INVALID_REQUEST');
+      // A target ID never establishes scope. Inactive masters retain relationships;
+      // this relation does not grant participant/report access or registration rights.
+      const {data:company,error:companyError} = await admin.from('client_companies').select('id').eq('organization_id',org).eq('id',id?.toLowerCase()).maybeSingle();
+      dbError(companyError); if (!company) throw new APIError('FORBIDDEN',403);
+      if (req.method === 'GET') {
+        const counselors = await readAll(()=>admin.from('user_profiles').select('user_id,display_name').eq('organization_id',org).eq('role','counselor'),'user_id');
+        const assignments = await readAll(()=>admin.from('client_company_counselors').select('counselor_user_id,created_at').eq('organization_id',org).eq('company_id',company.id),'counselor_user_id');
+        const allowed = new Set(counselors.map(c=>c.user_id));
+        if (counselors.some(c=>typeof c.display_name !== 'string') || assignments.some(a=>!allowed.has(a.counselor_user_id)||typeof a.created_at !== 'string')) throw new APIError('ASSIGNMENT_QUERY_FAILED',503);
+        return reply({companyId:company.id,counselors:counselors.map(c=>({id:c.user_id,name:c.display_name})),assignments:assignments.map(a=>({counselorUserId:a.counselor_user_id,createdAt:a.created_at}))});
+      }
+      const body = await readBody(req);
+      if (Object.keys(body).some(k=>!['action','counselorUserId'].includes(k)) || !['assign','unassign'].includes(body.action) || typeof body.counselorUserId !== 'string' || !UUID.test(body.counselorUserId)) throw new APIError('INVALID_REQUEST');
+      const counselorId = body.counselorUserId.toLowerCase();
+      const {data:counselor,error:counselorError} = await admin.from('user_profiles').select('user_id').eq('organization_id',org).eq('role','counselor').eq('user_id',counselorId).maybeSingle();
+      dbError(counselorError); if (!counselor) throw new APIError('FORBIDDEN',403);
+      // Single relational writes. Composite FKs recheck org/role under concurrent changes.
+      let query = body.action === 'assign'
+        ? admin.from('client_company_counselors').insert({organization_id:org,company_id:company.id,counselor_user_id:counselorId})
+        : admin.from('client_company_counselors').delete().eq('organization_id',org).eq('company_id',company.id).eq('counselor_user_id',counselorId);
+      const {data,error} = await query.select('counselor_user_id').maybeSingle();
+      if (error) throw new APIError(error.code === '23505' ? 'ASSIGNMENT_EXISTS' : error.code === '23503' ? 'ASSIGNMENT_CONFLICT' : 'ASSIGNMENT_QUERY_FAILED', ['23505','23503'].includes(error.code)?409:503);
+      if (body.action === 'assign' && !data) throw new APIError('ASSIGNMENT_OUTCOME_UNKNOWN',503);
+      return reply({companyId:company.id,counselorUserId:counselorId,assigned:body.action==='assign',changed:!!data},body.action==='assign'?201:200);
+    }
     if (params.has('id') && (!UUID.test(id || '') || params.size !== 1)) throw new APIError('INVALID_REQUEST');
     if (req.method === 'GET' && !id) {
       const search = (params.get('search') || '').trim().replace(/\s+/gu, ' '), status = params.get('status') || 'all';

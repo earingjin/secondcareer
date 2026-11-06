@@ -10,15 +10,31 @@ function harness(){
   const loginIds={[ids.counselor]:'consult01',[ids.admin]:'admin01',[ids.participant]:'client01',[ids.other]:'other01'};
   const tables={user_profiles:profiles,organizations:[{id:ids.org,name:'테스트 기업'}],server_login_lookup:profiles.map(p=>({user_id:p.user_id,login_id:loginIds[p.user_id],internal_email:users[p.user_id].email})),participant_registration_requests:[],participants:[{id:'existing-participant',auth_user_id:ids.participant,counselor_user_id:ids.counselor,organization_id:ids.org,display_name:'기존참여자',company_name:'테스트기업'}],assessments:[],assessment_history:[]};
   // pageSize caps each read like the Data API row limit; reads/failReadsOf record and fail reads per table.
-  tables.client_companies=[];
+  tables.client_companies=[];tables.client_company_counselors=[];
   const state={tables,users,created:[],updated:[],enabled:true,postEnabled:false,pageSize:Infinity,reads:[],writes:[],failWritesOf:null,failReadsOf:null,failCreate:false,failComplete:false,failProfile:false,failUpdate:false,companyClock:0};
   const db={from(name){
-    let filters=[],insert=null,update=null,columns=null,order=null,limit=Infinity,range=null,orders=[],selectOptions={};
-    const q={select(c,o={}){columns=c;selectOptions=o;return q},is(k,v){filters.push([k,v,'is']);return q},eq(k,v){filters.push([k,v,'eq']);return q},in(k,v){filters.push([k,[...v],'in']);return q},gt(k,v){filters.push([k,v,'gt']);return q},ilike(k,v){filters.push([k,v,'ilike']);return q},order(k,o){order=k;orders.push([k,o?.ascending!==false]);return q},limit(n){limit=n;return q},range(a,b){range=[a,b];return q},insert(row){insert=row;return q},update(row){update=row;return q},async single(){const result=await run(true);return result.data?result:{...result,error:result.error||{code:'PGRST116'}}},async maybeSingle(){return run(true)},then(resolve,reject){return run(false).then(resolve,reject)}};
+    let filters=[],insert=null,update=null,columns=null,order=null,limit=Infinity,range=null,orders=[],selectOptions={},deleting=false;
+    const q={delete(){deleting=true;return q},select(c,o={}){columns=c;selectOptions=o;return q},is(k,v){filters.push([k,v,'is']);return q},eq(k,v){filters.push([k,v,'eq']);return q},in(k,v){filters.push([k,[...v],'in']);return q},gt(k,v){filters.push([k,v,'gt']);return q},ilike(k,v){filters.push([k,v,'ilike']);return q},order(k,o){order=k;orders.push([k,o?.ascending!==false]);return q},limit(n){limit=n;return q},range(a,b){range=[a,b];return q},insert(row){insert=row;return q},update(row){update=row;return q},async single(){const result=await run(true);return result.data?result:{...result,error:result.error||{code:'PGRST116'}}},async maybeSingle(){return run(true)},then(resolve,reject){return run(false).then(resolve,reject)}};
     const match=(r,[k,v,op])=>op==='is'?(r[k]??null)===v:op==='in'?v.includes(r[k]):op==='gt'?r[k]>v:r[k]===v;
     async function run(single){
       if(name==='user_profiles'&&state.failProfile)return {error:{code:'QUERY_ERROR'},data:null};
       if(!tables[name])return {error:{code:'MISSING_TABLE'},data:null};
+      if(name==='client_company_counselors'){
+        const operation=insert?'insert':deleting?'delete':'select',log={table:name,operation,columns,filters:filters.map(f=>[...f])};
+        (operation==='select'?state.reads:state.writes).push(log);
+        if(operation==='select'?state.failReadsOf===name:state.failWritesOf===name)return {error:{code:'QUERY_ERROR'},data:null};
+        if(operation!=='select'&&state.beforeAssignmentWrite)state.beforeAssignmentWrite();
+        let rows=tables[name].filter(r=>filters.every(f=>match(r,f)));
+        if(insert){
+          if(!tables.client_companies.some(c=>c.id===insert.company_id&&c.organization_id===insert.organization_id)||!tables.user_profiles.some(c=>c.user_id===insert.counselor_user_id&&c.organization_id===insert.organization_id&&c.role==='counselor'))return {error:{code:'23503'},data:null};
+          if(tables[name].some(r=>r.organization_id===insert.organization_id&&r.company_id===insert.company_id&&r.counselor_user_id===insert.counselor_user_id))return {error:{code:'23505'},data:null};
+          const row={...insert,created_at:'2026-11-06T00:00:00Z'};tables[name].push(row);rows=[row];
+        }else if(deleting){tables[name]=tables[name].filter(r=>!rows.includes(r))}
+        else{if(order)rows=[...rows].sort((a,b)=>a[order]<b[order]?-1:a[order]>b[order]?1:0);rows=rows.slice(0,Math.min(limit,state.pageSize))}
+        if(state.assignmentNoReturn&&operation!=='select')return {data:null,error:null};
+        const data=rows.map(r=>Object.fromEntries(columns.split(',').map(k=>[k,r[k]])));
+        return {data:single?(data[0]||null):data,error:null};
+      }
       if(name==='client_companies'){
         // Protocol model only: pagination, projection, scoped writes, DB unique-name race.
         const nameKey=s=>s.trim().replace(/\s+/g,' ').replace(/[A-Z]/g,c=>c.toLowerCase());

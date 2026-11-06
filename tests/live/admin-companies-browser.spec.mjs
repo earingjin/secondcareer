@@ -35,6 +35,57 @@ async function login(page,id='admin01'){await page.locator('#lg-id').fill(id);aw
 async function fill(page,name){for(const [k,v] of Object.entries({name,start_date:'2026-11-01',end_date:'2027-01-31',pm_name:'가상 PM',pm_email:'pm@example.invalid',pm_phone:'010-0000-0000'}))await field(page,k).fill(v)}
 const companyCalls=calls=>calls.filter(c=>c.path.endsWith('admin-companies'));
 
+async function seedAssignmentCompanies(h){
+  const companies=[];
+  for(const name of ['배정 고객사 A','배정 고객사 B']){
+    const r=await h.call(h.companies.handleAdminCompanies,ids.admin,{name,start_date:'2026-11-01',end_date:'2027-01-31',pm_name:'합성 PM',pm_email:'pm@example.invalid',pm_phone:'01000000000'});companies.push(r.data.company);
+  }
+  return companies;
+}
+async function openAssignments(page,id){
+  await sec(page).locator(`[data-company-id="${id}"]`).getByRole('button',{name:'상세 관리'}).click();
+  await sec(page).getByRole('button',{name:'상담사 배정 조회',exact:true}).click();
+}
+
+test('company detail assigns multiple counselors to multiple masters, escapes names and keeps participant assignments unchanged',async({page})=>{
+  const h=harness(),[a,b]=await seedAssignmentCompanies(h),second=crypto.randomUUID();
+  h.state.tables.user_profiles.push({user_id:second,organization_id:ids.org,role:'counselor',display_name:'<img src=x onerror=alert(1)>'});
+  const before=structuredClone(h.state.tables.participants),calls=await open(page,h);await login(page);
+  await sec(page).getByRole('button',{name:'고객사 목록 조회',exact:true}).click();await openAssignments(page,a.id);
+  const area=sec(page).locator('[data-company-assignments]');await expect(area).toContainText('배정된 상담사가 없습니다');await expect(area).toContainText('신규 참여자 등록의 상담사 선택 범위도 유지');
+  for(const id of [ids.counselor,second]){
+    await area.getByLabel('같은 조직 상담사 선택').selectOption(id);await area.getByRole('button',{name:'상담사 배정',exact:true}).click();await expect(current(page)).toHaveText('상담사를 배정했습니다.');
+  }
+  await expect(area.locator('tbody tr')).toHaveCount(2);await expect(area.locator('img')).toHaveCount(0);await expect(area).toContainText('<img src=x onerror=alert(1)>');await expect(area).toContainText('추가 배정할 상담사가 없습니다');
+  await openAssignments(page,b.id);await expect(area).toContainText('배정된 상담사가 없습니다');await area.getByLabel('같은 조직 상담사 선택').selectOption(ids.counselor);await area.getByRole('button',{name:'상담사 배정',exact:true}).click();await expect(current(page)).toHaveText('상담사를 배정했습니다.');
+  await openAssignments(page,a.id);await sec(page).getByRole('button',{name:'고객사 비활성화',exact:true}).click();await expect(sec(page).getByRole('button',{name:'고객사 재활성화'})).toBeVisible();
+  await expect(area.locator('tbody tr')).toHaveCount(2);await area.locator(`[data-counselor="${ids.counselor}"]`).click();await expect(current(page)).toHaveText('상담사 배정을 해제했습니다.');await expect(area.locator('tbody tr')).toHaveCount(1);
+  expect(h.state.tables.client_company_counselors.filter(r=>r.company_id===b.id)).toHaveLength(1);expect(h.state.tables.participants).toEqual(before);
+  expect(calls.filter(c=>c.body?.action==='unassign')[0].body).toEqual({action:'unassign',counselorUserId:ids.counselor});
+  expect(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).not.toContain(second);
+});
+
+test('assignment duplicates, DB failures and failed refresh never claim an unconfirmed success or edit another company',async({page})=>{
+  const h=harness(),[a,b]=await seedAssignmentCompanies(h);await open(page,h);await login(page);await sec(page).getByRole('button',{name:'고객사 목록 조회',exact:true}).click();await openAssignments(page,a.id);
+  const area=sec(page).locator('[data-company-assignments]');await expect(area.getByLabel('같은 조직 상담사 선택')).toBeVisible();
+  h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:a.id,counselor_user_id:ids.counselor,created_at:'2026-11-06T00:00:00Z'});
+  await area.getByLabel('같은 조직 상담사 선택').selectOption(ids.counselor);await area.getByRole('button',{name:'상담사 배정',exact:true}).click();await expect(current(page)).toContainText('이미 배정된 상담사');await expect(area.getByRole('button',{name:'배정 해제'})).toHaveCount(0);
+  await area.getByRole('button',{name:'상담사 배정 조회'}).click();await expect(area.getByRole('button',{name:'배정 해제'})).toBeVisible();
+  h.state.failWritesOf='client_company_counselors';await area.getByRole('button',{name:'배정 해제'}).click();await expect(current(page)).toContainText('배정 결과를 확인하지 못했습니다');expect(h.state.tables.client_company_counselors).toHaveLength(1);
+  h.state.failWritesOf=null;await area.getByRole('button',{name:'상담사 배정 조회'}).click();await expect(area.getByRole('button',{name:'배정 해제'})).toBeVisible();
+  h.state.failReadsOf='client_company_counselors';await area.getByRole('button',{name:'배정 해제'}).click();await expect(current(page)).toContainText('배정 변경은 완료했지만 목록을 확인하지 못했습니다');expect(h.state.tables.client_company_counselors).toHaveLength(0);
+  await expect(sec(page).getByRole('button',{name:'고객사 정보 저장'})).toBeVisible();h.state.failReadsOf=null;
+  await openAssignments(page,b.id);await expect(area).toContainText('배정된 상담사가 없습니다');await expect(area.getByLabel('같은 조직 상담사 선택')).toHaveValue('');
+});
+
+test('loading assignment operations are guarded and logout discards delayed results and selected counselor',async({page})=>{
+  const h=harness(),[a]=await seedAssignmentCompanies(h),options={};await open(page,h,options);await login(page);await sec(page).getByRole('button',{name:'고객사 목록 조회',exact:true}).click();await openAssignments(page,a.id);
+  await expect(sec(page).getByLabel('같은 조직 상담사 선택')).toBeVisible();
+  let release;options.hold=new Promise(resolve=>{release=resolve});await sec(page).getByRole('button',{name:'상담사 배정 조회'}).click();await expect(sec(page).getByRole('button',{name:'고객사 정보 저장'})).toBeDisabled();
+  await page.getByRole('button',{name:'로그아웃',exact:true}).click();release();await expect(page.locator('#lg-id')).toBeVisible();options.hold=null;
+  await login(page);await expect(sec(page).locator('[data-company-assignments]')).toHaveCount(0);expect(h.state.tables.client_company_counselors).toHaveLength(0);
+});
+
 test('admin registers first and subsequent masters with zero participants, edits the exact ID and toggles without changing existing screens',async({page})=>{
   const h=harness();h.state.tables.participants.length=0;const errors=[];page.on('pageerror',e=>errors.push(String(e)));
   const calls=await open(page,h);await login(page);

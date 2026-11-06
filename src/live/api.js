@@ -66,6 +66,10 @@ export function createAPI(onExpired,env=runtimeEnv()){
         throw Error(response.status===403?'운영 관리 목록을 조회할 권한이 없습니다.':'운영 관리 목록을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
       }
       if(path.startsWith('/functions/v1/secondcareer-admin-companies')&&response.status!==401){
+        if(path.includes('section=counselors')){
+          const assignmentErrors={ASSIGNMENT_EXISTS:'이미 배정된 상담사입니다. 배정 목록을 다시 조회해 주세요.',ASSIGNMENT_CONFLICT:'고객사 또는 상담사 소속이 변경되었습니다. 배정 목록을 다시 조회해 주세요.',INVALID_REQUEST:'고객사와 상담사 선택을 확인해 주세요.',FORBIDDEN:'이 고객사 또는 상담사에 접근할 권한이 없습니다.'};
+          throw Error(assignmentErrors[data?.error]||'상담사 배정 결과를 확인하지 못했습니다. 다시 조회해 상태를 확인해 주세요.');
+        }
         const errors={INVALID_REQUEST:'필수값·날짜·이메일·연락처와 조회 조건을 확인해 주세요.',COMPANY_NAME_UNAVAILABLE:'같은 이름의 고객사가 이미 등록되어 있습니다. 비활성 고객사도 확인해 주세요.',COMPANY_CONFLICT:'다른 변경이 먼저 저장되었습니다. 상세를 다시 조회한 뒤 수정해 주세요.',FORBIDDEN:'이 고객사에 접근할 권한이 없습니다.'};
         throw Error(errors[data?.error]||'고객사 요청을 처리하지 못했습니다. 저장 여부를 조회한 뒤 다시 시도해 주세요.');
       }
@@ -138,6 +142,8 @@ export function createAPI(onExpired,env=runtimeEnv()){
     companies:({search='',status='all',page=1,pageSize=20}={})=>request('/functions/v1/secondcareer-admin-companies?'+new URLSearchParams({search,status,page:String(page),pageSize:String(pageSize)})),
     company:id=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)),
     saveCompany:(id,body)=>request('/functions/v1/secondcareer-admin-companies'+(id?'?id='+encodeURIComponent(id):''),{body,method:id?'PATCH':'POST'}),
+    companyCounselors:id=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)+'&section=counselors'),
+    assignCompanyCounselor:(id,counselorUserId,assigned)=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)+'&section=counselors',{method:'PATCH',body:{action:assigned?'assign':'unassign',counselorUserId}}),
     // REQ-A-006/007: server-side aggregate; company narrows inside the server-checked organization.
     adminAggregate:(company=null)=>request('/functions/v1/secondcareer-admin-aggregate'+(company?'?company='+encodeURIComponent(company):'')),
     // REQ-A-005: the server re-checks the participant's organization and final submission.
