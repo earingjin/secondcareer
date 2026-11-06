@@ -73,6 +73,10 @@ export function createAPI(onExpired,env=runtimeEnv()){
         const errors={INVALID_REQUEST:'필수값·날짜·이메일·연락처와 조회 조건을 확인해 주세요.',COMPANY_NAME_UNAVAILABLE:'같은 이름의 고객사가 이미 등록되어 있습니다. 비활성 고객사도 확인해 주세요.',COMPANY_CONFLICT:'다른 변경이 먼저 저장되었습니다. 상세를 다시 조회한 뒤 수정해 주세요.',FORBIDDEN:'이 고객사에 접근할 권한이 없습니다.'};
         throw Error(errors[data?.error]||'고객사 요청을 처리하지 못했습니다. 저장 여부를 조회한 뒤 다시 시도해 주세요.');
       }
+      if(path.startsWith('/functions/v1/secondcareer-company-manager-progress?')&&response.status!==401){
+        const errors={PASSWORD_CHANGE_REQUIRED:'먼저 임시 비밀번호를 변경해 주세요.',FORBIDDEN:'이 고객사 현황을 조회할 권한이 없습니다.',MANAGER_NOT_CONFIGURED:'고객사 현황 기능을 사용할 수 없습니다.',INVALID_REQUEST:'고객사 선택을 확인해 주세요.'};
+        throw Object.assign(Error(errors[data?.error]||'고객사 현황을 불러오지 못했습니다. 잠시 후 새로고침해 주세요.'),{forbidden:response.status===403});
+      }
       if(path.startsWith('/functions/v1/secondcareer-admin-company-managers')&&response.status!==401){
         const errors={MANAGER_ALREADY_REQUESTED:'이미 발급 요청된 이메일입니다. 재발급하지 말고 처리 결과를 확인해 주세요.',MANAGER_NOT_CONFIGURED:'담당자 계정 연동 검증 전에는 사용할 수 없습니다.',INVALID_REQUEST:'담당자 이름·이메일·연락처를 확인해 주세요.',FORBIDDEN:'고객사 담당자를 관리할 권한이 없습니다.'};
         throw Error(errors[data?.error]||'담당자 처리 결과 미확인: 다시 발급하지 말고 관리자에게 확인해 주세요.');
@@ -151,6 +155,8 @@ export function createAPI(onExpired,env=runtimeEnv()){
     companyManagers:id=>request('/functions/v1/secondcareer-admin-company-managers?companyId='+encodeURIComponent(id)),
     issueCompanyManager:(id,body)=>request('/functions/v1/secondcareer-admin-company-managers?companyId='+encodeURIComponent(id),{body}),
     manageCompanyManager:(id,body)=>request('/functions/v1/secondcareer-admin-company-managers?companyId='+encodeURIComponent(id),{method:'PATCH',body}),
+    // STEP 14-D: counts for one allowed company; the server re-checks account, password state and access.
+    managerProgress:id=>request('/functions/v1/secondcareer-company-manager-progress?companyId='+encodeURIComponent(id)),
     assignCompanyCounselor:(id,counselorUserId,assigned)=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)+'&section=counselors',{method:'PATCH',body:{action:assigned?'assign':'unassign',counselorUserId}}),
     // REQ-A-006/007: server-side aggregate; company narrows inside the server-checked organization.
     adminAggregate:(company=null)=>request('/functions/v1/secondcareer-admin-aggregate'+(company?'?company='+encodeURIComponent(company):'')),

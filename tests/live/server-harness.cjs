@@ -180,6 +180,7 @@ function harness(){
   const companies=load(path.join(root,'secondcareer-admin-companies/index.ts'));
   const managers=load(path.join(root,'secondcareer-admin-company-managers/index.ts'));
   const manager=load(path.join(root,'secondcareer-company-manager/index.ts'));
+  const managerProgress=load(path.join(root,'secondcareer-company-manager-progress/index.ts'));
   // The counselor assessment function has no exported handler; take the one it passes to Deno.serve.
   load(path.join(root,'secondcareer-assessment/index.ts'));const assessment=served;
   async function call(handler,token,body,method=body?'POST':'GET',url='https://fixture.invalid/'){
@@ -191,6 +192,6 @@ function harness(){
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
-  return {state,ids,registration,account,access,progress,directory,adminReport,aggregate,companies,managers,manager,assessment,call,signIn};
+  return {state,ids,registration,account,access,progress,directory,adminReport,aggregate,companies,managers,manager,managerProgress,assessment,call,signIn};
 }
 module.exports={harness,ids};

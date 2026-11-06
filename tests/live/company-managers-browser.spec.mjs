@@ -19,7 +19,7 @@ async function setup(page){
     else if(u.pathname==='/auth/v1/token'){const id=body.refresh_token.replace(/^refresh-/,'');r={status:200,data:{access_token:id,refresh_token:'refresh-'+id,expires_in:3600}}}
     else if(u.pathname==='/auth/v1/logout')return route.fulfill({status:204,headers});
     else{
-      const handlers={'secondcareer-account':h.account.handleAccount,'secondcareer-admin-companies':h.companies.handleAdminCompanies,'secondcareer-admin-company-managers':h.managers.handleAdminCompanyManagers,'secondcareer-company-manager':h.manager.handleCompanyManager,'secondcareer-admin-progress':h.progress.handleAdminProgress,'secondcareer-admin-directory':h.directory.handleAdminDirectory,'secondcareer-assessment':h.assessment};
+      const handlers={'secondcareer-account':h.account.handleAccount,'secondcareer-admin-companies':h.companies.handleAdminCompanies,'secondcareer-admin-company-managers':h.managers.handleAdminCompanyManagers,'secondcareer-company-manager':h.manager.handleCompanyManager,'secondcareer-company-manager-progress':h.managerProgress.handleCompanyManagerProgress,'secondcareer-admin-progress':h.progress.handleAdminProgress,'secondcareer-admin-directory':h.directory.handleAdminDirectory,'secondcareer-assessment':h.assessment};
       const handler=handlers[u.pathname.split('/').at(-1)];if(!handler)throw Error('Unexpected request '+u.pathname);
       r=await h.call(handler,token,body,req.method(),'https://fixture.invalid/'+u.search);
     }
@@ -53,10 +53,10 @@ test('company manager uses existing login/session contract, changes temporary pa
   await page.goto(server.url+'?entry=company-manager');await expect(page.getByRole('heading',{name:'고객사 담당자 로그인'})).toBeVisible();
   await login(page,r.data.loginId,r.data.temporaryPassword);await expect(page.getByRole('heading',{name:'최초 비밀번호 변경'})).toBeVisible();await expect(page.getByText(c.name,{exact:true})).toHaveCount(0);
   await page.getByLabel('새 비밀번호 (12~128자)',{exact:true}).fill('Changed-browser-123!');await page.getByLabel('새 비밀번호 확인',{exact:true}).fill('Changed-browser-123!');await page.getByRole('button',{name:'변경하고 고객사 확인'}).click();
-  await expect(page.getByRole('heading',{name:'고객사 현황 화면 준비 중'})).toBeVisible();await expect(page.getByText(c.name,{exact:true})).toBeVisible();
-  expect(calls.filter(c=>/secondcareer-assessment|secondcareer-admin-progress|secondcareer-admin-directory/.test(c.path))).toHaveLength(0);
-  await page.reload();await expect(page.getByRole('heading',{name:'고객사 현황 화면 준비 중'})).toBeVisible();
-  h.state.tables.company_manager_accounts[0].status='suspended';await page.getByRole('button',{name:'접근 권한 다시 확인'}).click();await expect(page.locator('#lg-id')).toBeVisible();await expect(page.getByText(c.name,{exact:true})).toHaveCount(0);
+  await expect(page.getByRole('heading',{name:'고객사 진단 현황'})).toBeVisible();await expect(page.getByText(c.name,{exact:true})).toBeVisible();
+  expect(calls.filter(c=>/secondcareer-assessment|secondcareer-admin-progress|secondcareer-admin-directory|secondcareer-admin-aggregate|secondcareer-admin-report/.test(c.path))).toHaveLength(0);
+  await page.reload();await expect(page.getByRole('heading',{name:'고객사 진단 현황'})).toBeVisible();
+  h.state.tables.company_manager_accounts[0].status='suspended';await page.getByRole('button',{name:'새로고침'}).click();await expect(page.locator('#lg-id')).toBeVisible();await expect(page.getByText(c.name,{exact:true})).toHaveCount(0);
 });
 
 test('issuance DB failures and duplicate requests never show success or repeat a secret',async({page})=>{

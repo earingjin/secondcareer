@@ -102,6 +102,8 @@ test('admin selects paginated active company ID, rejects file conflicts and regi
   await fillRow(page,['선택검증','01012345678','','다른기업']);await page.getByRole('button',{name:'입력 확인',exact:true}).click();
   await expect(page.locator('[data-preview]')).toContainText('선택한 고객사명과 일치');
   await page.getByLabel('등록 고객사 검색').fill('없는고객사');await page.getByRole('button',{name:'활성 고객사 조회'}).click();
+  // Wait for the search to finish: its re-render replaces the grid, and an edit made before then can land on a detached input.
+  await expect(page.getByText('1페이지 · 총 0개')).toBeVisible();
   await expect(page.getByLabel('소속 고객사 선택')).toHaveValue(c.id); // selected ID survives pagination/search
   await page.getByLabel('1행 소속기업').fill('');await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();
   await expect(page.getByLabel('선택검증 임시 비밀번호')).toBeVisible();
