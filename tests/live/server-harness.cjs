@@ -13,9 +13,9 @@ function harness(){
   tables.client_companies=[];
   const state={tables,users,created:[],updated:[],enabled:true,postEnabled:false,pageSize:Infinity,reads:[],writes:[],failWritesOf:null,failReadsOf:null,failCreate:false,failComplete:false,failProfile:false,failUpdate:false,companyClock:0};
   const db={from(name){
-    let filters=[],insert=null,update=null,columns=null,order=null,limit=Infinity,range=null,orders=[];
-    const q={select(c){columns=c;return q},eq(k,v){filters.push([k,v,'eq']);return q},in(k,v){filters.push([k,[...v],'in']);return q},gt(k,v){filters.push([k,v,'gt']);return q},ilike(k,v){filters.push([k,v,'ilike']);return q},order(k,o){order=k;orders.push([k,o?.ascending!==false]);return q},limit(n){limit=n;return q},range(a,b){range=[a,b];return q},insert(row){insert=row;return q},update(row){update=row;return q},async single(){const result=await run(true);return result.data?result:{...result,error:result.error||{code:'PGRST116'}}},async maybeSingle(){return run(true)},then(resolve,reject){return run(false).then(resolve,reject)}};
-    const match=(r,[k,v,op])=>op==='in'?v.includes(r[k]):op==='gt'?r[k]>v:r[k]===v;
+    let filters=[],insert=null,update=null,columns=null,order=null,limit=Infinity,range=null,orders=[],selectOptions={};
+    const q={select(c,o={}){columns=c;selectOptions=o;return q},is(k,v){filters.push([k,v,'is']);return q},eq(k,v){filters.push([k,v,'eq']);return q},in(k,v){filters.push([k,[...v],'in']);return q},gt(k,v){filters.push([k,v,'gt']);return q},ilike(k,v){filters.push([k,v,'ilike']);return q},order(k,o){order=k;orders.push([k,o?.ascending!==false]);return q},limit(n){limit=n;return q},range(a,b){range=[a,b];return q},insert(row){insert=row;return q},update(row){update=row;return q},async single(){const result=await run(true);return result.data?result:{...result,error:result.error||{code:'PGRST116'}}},async maybeSingle(){return run(true)},then(resolve,reject){return run(false).then(resolve,reject)}};
+    const match=(r,[k,v,op])=>op==='is'?(r[k]??null)===v:op==='in'?v.includes(r[k]):op==='gt'?r[k]>v:r[k]===v;
     async function run(single){
       if(name==='user_profiles'&&state.failProfile)return {error:{code:'QUERY_ERROR'},data:null};
       if(!tables[name])return {error:{code:'MISSING_TABLE'},data:null};
@@ -49,6 +49,7 @@ function harness(){
       if(!update)state.reads.push({table:name,columns,filters:filters.map(f=>[...f])});
       if(!update&&state.failReadsOf===name)return {data:null,error:{code:'QUERY_ERROR'}};
       let rows=tables[name].filter(r=>filters.every(f=>match(r,f)));
+      const count=rows.length;
       if(update)rows.forEach(row=>Object.assign(row,update));
       if(single&&rows.length>1)return {data:null,error:{code:'MULTIPLE_ROWS'}};
       if(order)rows=[...rows].sort((a,b)=>a[order]<b[order]?-1:a[order]>b[order]?1:0);
@@ -58,7 +59,7 @@ function harness(){
       // (missing parts give null, as a JSON path does).
       const pick=(r,spec)=>{const m=/^(?:(\w+):)?(\w+)((?:->\w+)+)$/.exec(spec);if(!m)return [spec,r[spec]];const keys=m[3].slice(2).split('->');return [m[1]||keys[keys.length-1],keys.reduce((v,k)=>v?.[k],r[m[2]])??null]};
       if(columns&&!update)rows=rows.map(r=>Object.fromEntries(columns.split(',').map(k=>pick(r,k))));
-      return {data:single?(rows[0]||null):rows,error:null};
+      return {data:selectOptions.head?null:single?(rows[0]||null):rows,error:null,...(selectOptions.count?{count}:{})};
     }
     return q;
   },auth:{getUser:async token=>({data:{user:users[token]||null},error:null}),admin:{
@@ -68,20 +69,37 @@ function harness(){
       const user={id:webcrypto.randomUUID(),email:input.email,app_metadata:{...input.app_metadata}};
       users[user.id]=user;credentials.set(user.id,input.password);state.created.push({...input,id:user.id});return {data:{user},error:null};
     },
+    async deleteUser(id){
+      if(state.failDelete)return {error:{code:'DELETE_FAILED'}};
+      if(!state.created.some(u=>u.id===id)||tables.user_profiles.some(p=>p.user_id===id))throw Error('Unsafe Auth cleanup');
+      delete users[id];credentials.delete(id);(state.deleted??=[]).push(id);return {error:null};
+    },
     async updateUserById(id,input){
       if(state.failUpdate)return {data:{user:null},error:{message:'private upstream error'}};
       state.updated.push({id,...input});credentials.set(id,input.password);users[id].app_metadata={...input.app_metadata};return {data:{user:users[id]},error:null};
     }
   }},async rpc(name,args){
-    if(state.failComplete)return {error:{message:'private upstream error'}};
-    if(name!=='secondcareer_complete_registration')throw Error('Unexpected RPC');
     const r=tables.participant_registration_requests.find(r=>r.id===args.request_id);
+    if(name==='secondcareer_recover_company_registration'){
+      if(state.failRecovery)return {error:{code:'RECOVERY_FAILED'}};
+      if(r.status==='complete'&&r.auth_user_id===args.new_user_id)return {data:{outcome:'complete',participantId:r.participant_id,companyId:r.company_id,companyName:r.company_name},error:null};
+      if(r.status==='complete'||users[args.new_user_id]?.app_metadata.registration_request_id!==r.id||tables.user_profiles.some(p=>p.user_id===args.new_user_id))return {error:{code:'UNSAFE_RECOVERY'}};
+      r.company_cancelled_auth_user_id=args.new_user_id;return {data:{outcome:'cancelled'},error:null};
+    }
+    const linked=name==='secondcareer_complete_company_registration';
+    if(!linked&&name!=='secondcareer_complete_registration')throw Error('Unexpected RPC');
+    if(linked&&state.beforeCompanyCompletion)state.beforeCompanyCompletion();
+    if(state.failComplete)return {error:{message:'private upstream error'}};
+    const company=linked&&tables.client_companies.find(c=>c.id===r.company_id&&c.organization_id===r.organization_id&&c.status==='active');
+    if(linked&&(!company||r.company_cancelled_auth_user_id||r.status==='complete'))return {error:{code:'COMPANY_UNAVAILABLE'}};
+    if(linked)r.company_name=company.name;
     const id=webcrypto.randomUUID();
     tables.user_profiles.push({user_id:args.new_user_id,organization_id:r.organization_id,role:'participant',display_name:r.display_name});
     tables.server_login_lookup.push({user_id:args.new_user_id,login_id:r.login_id,internal_email:args.new_internal_email});
-    tables.participants.push({id,organization_id:r.organization_id,auth_user_id:args.new_user_id,counselor_user_id:r.counselor_user_id,display_name:r.display_name,phone:r.phone,company_name:r.company_name});
+    tables.participants.push({id,organization_id:r.organization_id,auth_user_id:args.new_user_id,counselor_user_id:r.counselor_user_id,display_name:r.display_name,phone:r.phone,company_name:r.company_name,...(linked?{company_id:r.company_id}:{})});
     r.status='complete';r.auth_user_id=args.new_user_id;r.participant_id=id;
-    return {data:id,error:null};
+    if(linked&&state.loseCompanyResponse)return {error:{code:'RESPONSE_LOST'}};
+    return {data:linked?{participantId:id,companyId:r.company_id,companyName:r.company_name}:id,error:null};
   }};
   const cache=new Map(),root=path.resolve('supabase/functions');
   const context=vm.createContext({Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,btoa,crypto:webcrypto,Deno:{env:{get:key=>key==='SECONDCAREER_REGISTRATION_ENABLED'?(state.enabled?'true':'false'):key==='SECONDCAREER_POST_DRAFT_ENABLED'?(state.postEnabled?'true':'false'):'fixture'},serve:f=>{served=f}}});

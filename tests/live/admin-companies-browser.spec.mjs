@@ -39,7 +39,7 @@ test('admin registers first and subsequent masters with zero participants, edits
   const h=harness();h.state.tables.participants.length=0;const errors=[];page.on('pageerror',e=>errors.push(String(e)));
   const calls=await open(page,h);await login(page);
   await expect(sec(page).getByRole('heading',{name:'고객사 관리',exact:true})).toBeVisible();expect(companyCalls(calls)).toHaveLength(0);
-  await expect(sec(page).locator('[data-company-separation]')).toContainText('아직 이 마스터와 연결되지 않았습니다');
+  await expect(sec(page).locator('[data-company-separation]')).toContainText('고객사 ID 연결 등록과 기존 미연결 참여자는 별도로 관리');
   await sec(page).getByRole('button',{name:'고객사 목록 조회'}).click();await expect(sec(page).locator('[data-company-list]')).toContainText('조건에 맞는 고객사가 없습니다');
   for(const name of ['합성 고객사 A','합성 고객사 B']){
     await sec(page).getByRole('button',{name:'고객사 등록',exact:true}).click();await fill(page,name);await sec(page).getByRole('button',{name:'고객사 저장',exact:true}).click();
@@ -47,6 +47,7 @@ test('admin registers first and subsequent masters with zero participants, edits
   }
   const a=h.state.tables.client_companies.find(c=>c.name==='합성 고객사 A'),b=h.state.tables.client_companies.find(c=>c.name==='합성 고객사 B');
   await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:'상세 관리'}).click();
+  await expect(sec(page).locator('[data-company-linkage]')).toContainText('고객사 ID로 연결된 참여자: 0명');
   await expect(sec(page).locator('[data-company-target]')).toContainText(a.id);await field(page,'pm_name').fill('수정 PM');
   await sec(page).getByRole('button',{name:'고객사 정보 저장'}).click();await expect(current(page)).toHaveText('고객사 정보를 저장했습니다.');expect(a.pm_name).toBe('수정 PM');expect(b.pm_name).toBe('가상 PM');
   await sec(page).getByRole('button',{name:'고객사 비활성화'}).click();await expect(sec(page).getByRole('button',{name:'고객사 재활성화'})).toBeVisible();expect(a.status).toBe('inactive');

@@ -55,7 +55,13 @@ export async function handleAdminCompanies(req: Request) {
     if (!id) throw new APIError('INVALID_REQUEST');
     const {data:previous, error:readError} = await admin.from('client_companies').select(DETAIL).eq('organization_id', org).eq('id', id).maybeSingle();
     dbError(readError); if (!previous) throw new APIError('FORBIDDEN', 403);
-    if (req.method === 'GET') return reply({company:previous});
+    if (req.method === 'GET') {
+      const linked = await admin.from('participants').select('id',{count:'exact',head:true}).eq('organization_id',org).eq('company_id',id);
+      const unlinked = await admin.from('participants').select('id',{count:'exact',head:true}).eq('organization_id',org).is('company_id',null);
+      dbError(linked.error); dbError(unlinked.error);
+      if (![linked.count,unlinked.count].every(n=>Number.isSafeInteger(n)&&n>=0)) throw new APIError('COMPANY_QUERY_FAILED',503);
+      return reply({company:previous,linkage:{linkedParticipants:linked.count,unlinkedParticipants:unlinked.count}});
+    }
     const body = await readBody(req), keys = Object.keys(body).filter(k => k !== 'expectedUpdatedAt');
     if (!keys.length || keys.some(k => ![...FIELDS,'status'].includes(k as any)) || typeof body.expectedUpdatedAt !== 'string' || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?(?:Z|[+-][0-9]{2}:[0-9]{2})$/.test(body.expectedUpdatedAt) || !Number.isFinite(Date.parse(body.expectedUpdatedAt))) throw new APIError('INVALID_REQUEST');
     if (body.status !== undefined && !['active','inactive'].includes(body.status)) throw new APIError('INVALID_REQUEST');

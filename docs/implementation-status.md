@@ -2,6 +2,8 @@
 
 ## 1. 점검 목적 및 기준 커밋
 
+**갱신 (2026-11-06, STEP 14-B1 고객사·참여자 연결)**: 기능 브랜치 `feat/client-company-management`의 로컬·원격 기준 `d988e0fb4880598c160a0d3e66f64a6ae5b04a76` 위에서 구현했다. 관리자 활성 고객사 ID 선택 등록과 서버 검증, NULL 허용 복합 FK·연결/복구 RPC SQL 제안, 읽기 전용 이관 후보 검토와 고객사 상세 연결 인원 조회를 추가했다. DB 이관·SQL 적용·배포는 하지 않았다. REQ-A-001·002·C-001은 부분 구현, REQ-A-003과 REQ-M-001~006은 기존 상태를 유지한다. 최초 44건 조사 기준을 변경한 것은 아니다.
+
 점검일: **2026-11-05**. 조사 기준 HEAD: `1caebc76e9317c56757a7d17c5a6553887ddbbfd`, 브랜치 `dev-005-counselor-pagination`. 원격 참조를 가져온 뒤 해당 브랜치의 로컬과 원격이 같았으며 STEP 03 커밋이 포함됐다. 이 문서는 요구사항과 기준 커밋의 코드 경로를 비교한 정적 조사이며, 구현 판정은 운영 준비나 배포 승인이 아니다.
 
 **갱신 (2026-11-05, 관리자 핵심 기능 개발 01)**: HEAD `992d0b8` 위에서 REQ-A-004를 구현하고 해당 행, 4절 집계, 10~13절을 갱신했다. 다른 요구사항의 판정은 바꾸지 않았다. 이 갱신에서는 자동화 테스트를 실행했다(13절). 다른 행의 "미실행" 표기는 원래 점검 당시 기준이다.
@@ -60,6 +62,8 @@ STEP 13에서는 REQ-A-016 미구현 → 구현으로 관리자 11/4/1(68.8%), �
 
 STEP 14-A에서는 REQ-A-001의 고객사 마스터 구현 근거를 확장했지만 전체 수용 범위는 부분 구현을 유지한다. 역할별·전체 집계는 재확인 결과 관리자 11/4/1(68.8%), 합계 20/18/5(46.5%)로 변하지 않았다. REQ-A-002·003과 고객사 담당자 REQ-M-001~006도 그대로다.
 
+STEP 14-B1에서도 상태 전환은 없다. 재계산 결과 참여자 5/8(62.5%), 상담사 4/9(44.4%), 관리자 11/16(68.8%), 고객사 담당자 0/6, 공통 비기능 0/4, 전체 20/43(46.5%)를 유지한다. 고객사 마스터와 기존 참여자는 자동 연결하지 않으며 새 ID 선택 등록 경로만 추가됐다.
+
 ## 5. 참여자 요구사항별 점검표
 
 표의 `live/`는 `src/live/`, `assessment`는 `supabase/functions/secondcareer-assessment/index.ts`, `account`는 `supabase/functions/secondcareer-account/index.ts`, `register`는 `supabase/functions/secondcareer-register-participant/index.ts`다. 테스트 경로는 `tests/` 아래이며 `미실행`은 이번 점검 기준이다. 모든 행은 정적 확인, 운영 미검증이다.
@@ -81,7 +85,7 @@ STEP 14-A에서는 REQ-A-001의 고객사 마스터 구현 근거를 확장했�
 
 | ID | 기능명 | 구현 상태 | 코드 근거 | 테스트 근거·이번 실행 | 운영 검증 | 부족한 부분 | 우선순위 |
 |---|---|---|---|---|---|---|---|
-| REQ-C-001 | 내담자 등록·조회·관리 | 부분 구현 | `live/participant-registration.js`, `register`, `assessment` participantQuery | `live/registration-browser.spec.mjs`, `live/registration-server.spec.mjs` 미실행 | 미검증 | 등록 플래그·SQL·실 DB 적용 및 관리 범위 검증 필요 | P0 |
+| REQ-C-001 | 내담자 등록·조회·관리 | 부분 구현 | `live/participant-registration.js`, `register`, `assessment` participantQuery. 상담사 본인 담당 문자열 등록은 유지하며 고객사 ID 선택 권한은 확대하지 않음 | 기존 등록 서버·Chromium 회귀 및 `company-link-server.spec.mjs` 상담사 ID 요청 거부(13절) | 로컬 모의 확인, 실제 서버·DB 미검증 | 등록 플래그·SQL·실 DB 적용 및 관리 범위 검증 필요. 고객사별 상담사 배정은 미구현 | P0 |
 | REQ-C-002 | 담당 내담자 사전·사후 진행 상태 확인 | 부분 구현 | `live/counselor-view.js` counselorView, `assessment` postStatus | `live/post-survey.spec.mjs` 미실행 | 미검증 | 사후 상태는 프런트·서버 게이트와 DB에 의존 | P1 |
 | REQ-C-003 | 이름 검색과 상태 필터 | 구현 | `live/counselor-view.js` rows 필터, `live/app.js` filterCounselor | `live/assessment-notice-server.spec.mjs` 미실행 | 미검증 | 클라이언트의 담당 목록에서 필터, 실제 대량 데이터 검증 필요 | P1 |
 | REQ-C-004 | 내담자 목록 페이지네이션 | 부분 구현 | `assessment` readAll의 제한 단위 반복 조회; `live/counselor-view.js` rows.map | `live/assessment-notice-server.spec.mjs` 미실행 | 미검증 | 서버 내부 읽기 분할만 존재; 화면 페이지 상태·이동 UI·필터 연계 없음 | P1 |
@@ -98,8 +102,8 @@ STEP 14-A에서는 REQ-A-001의 고객사 마스터 구현 근거를 확장했�
 
 | ID | 기능명 | 구현 상태 | 코드 근거 | 테스트 근거·이번 실행 | 운영 검증 | 부족한 부분 | 우선순위 |
 |---|---|---|---|---|---|---|---|
-| REQ-A-001 | 기업과 세컨플래닝 운영 정보 관리 | 부분 구현 | `secondcareer-admin-companies`가 서버 admin·organization_id로 고객사 마스터 등록·목록/상세·수정·비활성화/재활성화를 제공. `live/admin-companies.js` 검색·상태 필터·서버 페이지 조회(기본 20개)와 ID별 편집. SQL 제안 `proposals/client-companies.sql`: 조직 FK·정규화 이름 유일 제약·기간/필수값·RLS·클라이언트 직접 접근 차단, service_role 최소 권한. 기존 조직 진단 URL 설정과 `admin-directory`의 company_name 현황도 유지 | `live/admin-companies-server.spec.mjs`·`admin-companies-browser.spec.mjs` 신규 모의 검증과 기존 운영 관리·등록·보고서 회귀(13절 참조) | SQL 미적용·함수 미배포, 실제 Postgres 제약·RLS·트리거·Auth·서버 동작 미검증 | 고객사 마스터는 기존 company_name/참여자와 아직 미연결(14-B 범위). 로고·기업별 보고서 설정·진단 URL 외 조직 운영 정보 수정 등 미구현. 물리적 삭제는 의도적으로 미제공. 감사 기록 미구현 | P1 |
-| REQ-A-002 | 상담사·참여자 계정 관리 | 부분 구현 | 관리(쓰기): `live/participant-registration.js`, `register`(참여자 등록), `src/admin/account-operations.cjs`(운영자 CLI: TEST 참여자 생성·비밀번호 교체). 조회: `secondcareer-admin-directory`가 같은 조직의 상담사 목록(이름·로그인 아이디·담당 참여자 수)과 참여자 목록(등록 이름·로그인 아이디·소속기업·담당 상담사·사전진단 상태), 담당 미배정·담당 확인 필요 인원을 반환. `live/admin-directory-view.js` 상담사 현황·참여자 목록·필터 | `live/admin-directory.spec.mjs` 10건, `live/registration-browser.spec.mjs`, `admin/account-operations.spec.mjs` **실행·통과**(모의) | 미검증: 함수 미배포, 실제 DB·RLS 미확인 | 웹의 상담사 계정 생성·비활성화, 담당 상담사 변경, 참여자 계정 초기화·삭제 없음(안전한 서버 계약과 계정 상태·재배정 정책 미확정). 목록 페이지네이션 없음 | P1 |
+| REQ-A-001 | 기업과 세컨플래닝 운영 정보 관리 | 부분 구현 | `secondcareer-admin-companies` 조직 범위 마스터 등록·조회·수정·상태 전환과 상세 ID 연결 인원·조직 전체 미연결 인원. `live/admin-companies.js` 검색·상태·페이지·ID별 편집. `proposals/client-companies.sql` 및 `participant-company-link.sql` 조직 복합 FK·NULL 호환·직접 ID 변경 차단. 기존 조직 URL·company_name 현황 유지 | 고객사 서버·Chromium UI와 신규 연결 테스트(13절) | 로컬 모의 확인. SQL 미적용·함수 미배포, 실제 Postgres 제약·RLS·트리거·Auth 미검증 | 기존 참여자는 자동 이관하지 않아 NULL·문자열 집계와 새 ID 연결이 공존. 로고·보고서 설정·나머지 조직 운영 설정·감사 기록 미구현 | P1 |
+| REQ-A-002 | 상담사·참여자 계정 관리 | 부분 구현 | 기존 등록·CLI·운영 관리 조회 유지. `participant-registration.js` 관리자 명시적 미연결/활성 고객사 선택, `registration-input.js` 파일 기업명 충돌 검증, `register` 서버 조직·활성·상담사 검증과 마스터명 확정. 전용 RPC는 프로필/로그인/참여자/요청 완료를 원자적 연결하고 응답 유실 복구·확정 취소의 신규 Auth만 정리 | 기존 등록·운영 관리·CLI 회귀와 `company-link-server.spec.mjs`·선택형 등록 Chromium(13절) | 로컬 모의 확인. SQL/RPC 미적용·함수 미배포·실제 Auth/DB 미검증 | 상담사 계정 생성·비활성화, 담당 변경·배정, 기존 참여자 계정 초기화·삭제 없음. 외부 Auth 생성 응답 불명/복구·정리 실패는 수동 확인 필요. 기존 목록 페이지네이션 없음 | P1 |
 | REQ-A-003 | 고객사 담당자 계정 관리 | 미구현 | 레거시 `mgrSection`만 확인 | 관련 live 관리자 계정 테스트 확인 못함; 미실행 | 미검증 | 운영 계정 관리 UI·서버 API 부재 | P1 |
 | REQ-A-004 | 전체 진단 진행·완료율·미완료 현황 조회 | 구현 | 관리자 전용 읽기 API `supabase/functions/secondcareer-admin-progress/index.ts`(서버 프로필의 admin 역할·`organization_id`만 범위로 사용, 요청 파라미터 거부, `participants.id,company_name`과 `assessments.participant_id,phase,status`만 읽어 집계); `live/admin-progress-view.js`, `live/app.js` loadProgress, `live/api.js` adminProgress. 기존 `assessment`의 역할 검사는 변경하지 않음 | `live/admin-progress-server.spec.mjs` 8건, `live/admin-progress-browser.spec.mjs` 6건 **실행·통과**(모의 하네스) | 미검증: 함수 미배포, 실제 Auth·DB·RLS·직접 Data API 경로 미확인 | 범위는 관리자 소속 조직 단위만 적용(업무 범위 세분화는 요구사항 10절 3번 미확정). 사후 완료율은 분모 미확정(10절 7번)으로 계산하지 않고 상태별 인원만 표시. 조회 감사 기록 없음(REQ-N-003). Deno 타입 검사·실행 미수행 | P1 |
 | REQ-A-005 | 개인 결과보고서 관리 | 구현(조회·인쇄) | 관리자 전용 `supabase/functions/secondcareer-admin-report/index.ts`(서버 프로필의 admin 역할·`organization_id`로 대상 참여자를 매 요청 재조회, 사전진단 최종 제출·결과 있을 때만 `{html}` 반환, 범위 밖·미제출은 같은 403). 보고서는 상담사 경로와 공용인 `secondcareer-assessment/shared/report.ts`(기존 `index.ts`에서 그대로 옮김)로 렌더링하며 계산·판정·저장 코멘트/키워드·5쪽/3쪽 구성은 기존 `shared/profile.js`·`js/*` 그대로. 상담사용 `?id=` 경로의 상담사 전용 조건은 유지. 관리자 화면은 `live/admin-directory-view.js` 보고서 열(제출 완료만 활성), `live/app.js` openAdminReport·보고서 보기·목록 복귀 | `live/admin-report.spec.mjs` 9건 **실행·통과**(모의): 정상 조회, 타 조직·없음·임시저장·미시작 거부, 참여자·타 담당 상담사·고객사 역할 거부, 상담사와 인쇄 쪽 HTML 동일, 화면 PDF 5쪽·3쪽(상담사 화면과 같음), 목록 복귀·필터 유지, 실패·세션 만료 | 미검증: 함수 미배포, 실제 DB·RLS·Auth, 실제 브라우저 인쇄 장치 | 세부 "관리" 행위(재발행·배포 등)는 요구사항 10절 2번 미확정이라 조회·인쇄만 구현. 조직 내 업무 범위 세분화 미확정(조직 단위). 보고서 조회 감사 기록 없음(REQ-N-003, 운영 배포 전 조건) | P1 |
@@ -186,6 +190,12 @@ STEP 14-A에서는 REQ-A-001의 고객사 마스터 구현 근거를 확장했�
 진행 기록(2026-11-05): P1 중 REQ-A-004를 먼저 구현했다. REQ-C-004(상담사 목록 페이지네이션)는 사용자 결정에 따라 사용성 개선으로 보류하고 이번 관리자 개발에서 제외했다. 사유는 관리자 핵심 기능을 먼저 개발하기로 한 작업 순서 결정이다. REQ-C-004의 요구사항(확정)과 구현 판정(부분 구현)은 그대로 유지한다.
 
 ## 13. 테스트 결과 및 근거
+
+**STEP 14-B1 검증(2026-11-06, 기준 `d988e0f` + 기능 브랜치 작업본)**: 신규 9건(서버·오프라인 이관/SQL 구조 7, Chromium 2)과 관련 기존 테스트 43건을 합쳐 52건 실행·통과했다. 조직 내 활성 ID 등록·서버 마스터명 확정·중복 요청/로그인 ID, 비활성·타 조직·없는/비정상 ID·기업명 불일치·타 조직 상담사·관리자 외·무인증/만료 토큰 거부, 다수 고객사별 신규 참여자 분류, NULL·company_name·진단 데이터 보존, 연결/미연결 인원과 조직 범위, DB 조회/완료 실패·완료 직전 비활성·응답 유실 복구·복구/정리 실패·새 Auth만 보상 정리를 모의로 검증했다. UI는 활성 25개 마스터의 페이지 조회·검색 후 선택 유지·미선택/파일 기업명 충돌 차단·CSV 유지·조회 실패 시 ID 없이 자동 등록하지 않음을 확인했다. 기존 XLSX·붙여넣기·상담사 등록·비밀번호 전달/재시도 흐름도 관련 회귀를 통과했다. 읽기 전용 후보 검토는 공백·대소문자·조직·불일치·빈 값·모호성·비활성을 합성 데이터로 확인했다.
+
+SQL은 `supabase/proposals/participant-company-link.sql`(NULL 열·복합 FK·가드·전용 완료/복구 RPC)과 `participant-company-link-preview.sql`(읽기 전용 인원/후보 보고서)이며 적용하지 않았다. Supabase CLI·Postgres/Docker 실행 환경이 없어 마이그레이션 적용 이력을 만들지 않았다. 실제 배포 RPC 정의·권한·RLS·Auth 훅·FK·트리거·동시성·DB locale/POSIX 공백 규칙은 미검증이다. 구조 검사와 모의 원자성 결과를 실제 DB 통과로 판정하지 않는다. 기존 완료 RPC·참여자 데이터·company_name 집계·분석 계산 엔진·레거시는 변경하지 않았다. 신규 ID 등록은 SQL 검토·적용 및 배포 전에는 운영에서 사용할 수 없다.
+
+`npm run build` 통과. 커밋 전 전체 자동화 `npx playwright test --reporter=line --timeout=30000 --global-timeout=270000` 1회는 **365건 중 360건 통과·기존 조건부 5건 건너뜀, 실패 0건, 종료 코드 0(약 3.5분)**이다. 관리자 현황·운영 관리, 상담사 담당 내담자, 기존 등록·사전/사후, 통합 분석 1~9·통합 인쇄, 개인 보고서 3/5쪽, 골든·계약·스냅샷 회귀를 포함한다. 최종 대문자 UUID 정규화·기업명 타입 거부와 SQL의 NULL 조직 방어/연결 전용 조직 합계 보완 후 신규 서버 7건도 재확인했다. 레거시 SHA256은 `62fc9dd4c0c0515e204c1697085dec655d59fbac8e495d78676f982d401ad310`으로 기준과 일치한다. 기준선은 갱신하지 않았으며 운영 DB·Auth·RLS·Edge Function·Vercel 변경/배포·데이터 이관은 하지 않았다. 감사 기록 미구현과 소수 집단 재식별 공개 정책 미확정도 유지한다.
 
 **STEP 14-A 고객사 마스터 검증(2026-11-06, 개발·원격 기준 `7e55bd1` + `feat/client-company-management` 작업본)**: 신규 13건(서버 9·Chromium UI 4) 실행·통과. 빈 참여자 상태에서 첫 고객사 및 다중 등록·목록/상세, 공백·영문 대소문자 중복 및 비활성 이름 점유·경합, 다른 조직의 동명 등록, 날짜·이메일·연락처·필수값·임의 필드 거부, ID별 수정·상태 전환·동시 수정 충돌, 다른 조직 ID와 관리자 외 역할·무인증·무효/만료 토큰 거부, DB 조회/쓰기 실패·결과 미확인 시 성공 미표시를 모의로 확인했다. 260개 마스터의 서버 검색·상태 필터·페이지 조회와 UI 페이지 전환, HTML 이스케이프, 로딩 차단·세션 만료/로그아웃 시 입력 폐기·저장 오류 후 값 유지도 확인했다. 기존 참여자·진단 응답·보고서·프로필·이력이 있는 합성 데이터에서 상태 전환 후 해당 데이터가 그대로임을 확인했다.
 
