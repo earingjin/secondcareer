@@ -52,6 +52,19 @@ export function createAPI(onExpired,env=runtimeEnv()){
         const messages={400:'보고서 종류 또는 조회 요청을 확인해 주세요.',401:'세션이 만료되었습니다. 다시 로그인해 주세요.',403:'보고서를 조회할 권한이 없거나 최종 제출이 완료되지 않았습니다.',404:'보고서를 찾을 수 없습니다.'};
         throw Error(messages[response.status]||'보고서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
       }
+      if(path==='/functions/v1/secondcareer-admin-progress'&&response.status!==401){
+        throw Error(response.status===403?'진단 현황을 조회할 권한이 없습니다.':'진단 현황을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
+      }
+      if(path.startsWith('/functions/v1/secondcareer-admin-report?')&&response.status!==401){
+        const reportMessages={400:'보고서 종류 또는 조회 요청을 확인해 주세요.',403:'보고서를 조회할 권한이 없거나 최종 제출이 완료되지 않았습니다.'};
+        throw Error(reportMessages[response.status]||'보고서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      }
+      if((path==='/functions/v1/secondcareer-admin-aggregate'||path.startsWith('/functions/v1/secondcareer-admin-aggregate?'))&&response.status!==401){
+        throw Error(response.status===403?'통합 분석보고서를 조회할 권한이 없습니다.':response.status===400?'기업 선택을 확인한 뒤 다시 불러와 주세요.':'통합 분석을 불러오지 못했습니다. 잠시 후 다시 불러와 주세요.');
+      }
+      if(path==='/functions/v1/secondcareer-admin-directory'&&response.status!==401){
+        throw Error(response.status===403?'운영 관리 목록을 조회할 권한이 없습니다.':'운영 관리 목록을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
+      }
       if(body?.action==='post-approve'&&response.status!==401){
         const approveMessages={PRE_REQUIRED:'사전진단을 최종 제출한 내담자만 사후진단을 허용할 수 있습니다.',LOCKED:'이미 사후진단을 제출한 내담자입니다.',FORBIDDEN:'담당 내담자만 사후진단을 허용할 수 있습니다.',POST_NOT_CONFIGURED:'사후진단 기능을 사용할 수 없습니다. 관리자에게 문의해 주세요.'};
         throw Error(approveMessages[data?.error]||'사후진단 허용 여부를 확인하지 못했습니다. 새로 조회해 상태를 확인해 주세요.');
@@ -113,6 +126,14 @@ export function createAPI(onExpired,env=runtimeEnv()){
     },
     updateAssessmentUrl:assessmentUrl=>request('/functions/v1/secondcareer-account',{body:{action:'update-assessment-url',assessmentUrl}}),
     register:body=>request('/functions/v1/secondcareer-register-participant',{body}),
+    // REQ-A-004: counts only; the server derives the scope from the signed-in profile.
+    adminProgress:()=>request('/functions/v1/secondcareer-admin-progress'),
+    // REQ-A-001/002 read only: organization, companies, counselors and participants in the server-checked scope.
+    adminDirectory:()=>request('/functions/v1/secondcareer-admin-directory'),
+    // REQ-A-006/007: server-side aggregate; company narrows inside the server-checked organization.
+    adminAggregate:(company=null)=>request('/functions/v1/secondcareer-admin-aggregate'+(company?'?company='+encodeURIComponent(company):'')),
+    // REQ-A-005: the server re-checks the participant's organization and final submission.
+    adminReport:(id,kind='c')=>{if(!['c','p'].includes(kind))throw Error('보고서 종류를 확인해 주세요.');return request('/functions/v1/secondcareer-admin-report?id='+encodeURIComponent(id)+'&kind='+kind)},
     postDraft:()=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?phase=post')},
     compare:id=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?compare='+encodeURIComponent(id))},
     write:(action,body)=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment',{body:{action,...body}})},
