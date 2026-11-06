@@ -10,8 +10,8 @@ function harness(){
   const loginIds={[ids.counselor]:'consult01',[ids.admin]:'admin01',[ids.participant]:'client01',[ids.other]:'other01'};
   const tables={user_profiles:profiles,organizations:[{id:ids.org,name:'테스트 기업'}],server_login_lookup:profiles.map(p=>({user_id:p.user_id,login_id:loginIds[p.user_id],internal_email:users[p.user_id].email})),participant_registration_requests:[],participants:[{id:'existing-participant',auth_user_id:ids.participant,counselor_user_id:ids.counselor,organization_id:ids.org,display_name:'기존참여자',company_name:'테스트기업'}],assessments:[],assessment_history:[]};
   // pageSize caps each read like the Data API row limit; reads/failReadsOf record and fail reads per table.
-  tables.client_companies=[];tables.client_company_counselors=[];
-  const state={tables,users,created:[],updated:[],enabled:true,postEnabled:false,pageSize:Infinity,reads:[],writes:[],failWritesOf:null,failReadsOf:null,failCreate:false,failComplete:false,failProfile:false,failUpdate:false,companyClock:0};
+  tables.client_companies=[];tables.client_company_counselors=[];tables.company_manager_accounts=[];tables.company_manager_access=[];tables.company_manager_registration_requests=[];
+  const state={tables,users,created:[],updated:[],enabled:true,postEnabled:false,managerEnabled:false,pageSize:Infinity,reads:[],writes:[],failWritesOf:null,failReadsOf:null,failCreate:false,failComplete:false,failProfile:false,failUpdate:false,companyClock:0};
   const db={from(name){
     let filters=[],insert=null,update=null,columns=null,order=null,limit=Infinity,range=null,orders=[],selectOptions={},deleting=false;
     const q={delete(){deleting=true;return q},select(c,o={}){columns=c;selectOptions=o;return q},is(k,v){filters.push([k,v,'is']);return q},eq(k,v){filters.push([k,v,'eq']);return q},in(k,v){filters.push([k,[...v],'in']);return q},gt(k,v){filters.push([k,v,'gt']);return q},ilike(k,v){filters.push([k,v,'ilike']);return q},order(k,o){order=k;orders.push([k,o?.ascending!==false]);return q},limit(n){limit=n;return q},range(a,b){range=[a,b];return q},insert(row){insert=row;return q},update(row){update=row;return q},async single(){const result=await run(true);return result.data?result:{...result,error:result.error||{code:'PGRST116'}}},async maybeSingle(){return run(true)},then(resolve,reject){return run(false).then(resolve,reject)}};
@@ -19,6 +19,24 @@ function harness(){
     async function run(single){
       if(name==='user_profiles'&&state.failProfile)return {error:{code:'QUERY_ERROR'},data:null};
       if(!tables[name])return {error:{code:'MISSING_TABLE'},data:null};
+      if(name.startsWith('company_manager_')){
+        const operation=insert?'insert':update?'update':deleting?'delete':'select';
+        (operation==='select'?state.reads:state.writes).push({table:name,operation,columns,filters:filters.map(f=>[...f])});
+        if(operation==='select'?state.failReadsOf===name:state.failWritesOf===name)return {data:null,error:{code:'QUERY_ERROR'}};
+        let rows=tables[name].filter(r=>filters.every(f=>match(r,f)));
+        if(insert){
+          if(name==='company_manager_registration_requests'&&tables[name].some(r=>r.id===insert.id||r.login_id===insert.login_id||r.organization_id===insert.organization_id&&r.email.toLowerCase()===insert.email.toLowerCase()))return {error:{code:'23505'},data:null};
+          if(name==='company_manager_access'){
+            if(!tables.client_companies.some(c=>c.organization_id===insert.organization_id&&c.id===insert.company_id)||!tables.company_manager_accounts.some(a=>a.organization_id===insert.organization_id&&a.user_id===insert.manager_user_id))return {error:{code:'23503'},data:null};
+            if(tables[name].some(r=>r.organization_id===insert.organization_id&&r.company_id===insert.company_id&&r.manager_user_id===insert.manager_user_id))return {error:{code:'23505'},data:null};
+          }
+          const row={...insert,created_at:'2026-11-06T00:00:00Z',...(name==='company_manager_registration_requests'?{status:'pending'}:{})};tables[name].push(row);rows=[row];
+        }else if(update)rows.forEach(r=>Object.assign(r,update));
+        else if(deleting)tables[name]=tables[name].filter(r=>!rows.includes(r));
+        else{if(order)rows=[...rows].sort((a,b)=>a[order]<b[order]?-1:a[order]>b[order]?1:0);rows=rows.slice(0,Math.min(limit,state.pageSize))}
+        const data=rows.map(r=>Object.fromEntries((columns||'').split(',').filter(Boolean).map(k=>[k,r[k]])));
+        return {error:null,data:single?(data[0]||null):data};
+      }
       if(name==='client_company_counselors'){
         const operation=insert?'insert':deleting?'delete':'select',log={table:name,operation,columns,filters:filters.map(f=>[...f])};
         (operation==='select'?state.reads:state.writes).push(log);
@@ -95,6 +113,30 @@ function harness(){
       state.updated.push({id,...input});credentials.set(id,input.password);users[id].app_metadata={...input.app_metadata};return {data:{user:users[id]},error:null};
     }
   }},async rpc(name,args){
+    if(name==='secondcareer_manager_password_changed'){
+      if(state.failManagerPassword)return {error:{code:'PASSWORD_DB_FAILED'}};
+      const a=tables.company_manager_accounts.find(a=>a.user_id===args.manager_user_id&&a.status==='active');
+      if(!a||users[a.user_id].app_metadata.must_change_password!==false)return {error:{code:'INVALID_STATE'}};
+      a.must_change_password=false;return {data:true,error:null};
+    }
+    if(name==='secondcareer_complete_manager_registration'||name==='secondcareer_recover_manager_registration'){
+      const r=tables.company_manager_registration_requests.find(r=>r.id===args.request_id);
+      if(!r)return {error:{code:'MISSING_REQUEST'}};
+      if(name==='secondcareer_recover_manager_registration'){
+        if(state.failManagerRecovery)return {error:{code:'RECOVERY_FAILED'}};
+        if(r.status==='complete'&&r.auth_user_id===args.new_user_id)return {data:{outcome:'complete',managerId:r.auth_user_id,loginId:r.login_id},error:null};
+        if(r.status!=='pending')return {error:{code:'CONFLICT'}};
+        r.status='cancelled';r.auth_user_id=args.new_user_id;return {data:{outcome:'cancelled'},error:null};
+      }
+      if(state.failManagerComplete)return {error:{code:'COMPLETE_FAILED'}};
+      if(r.status!=='pending'||!tables.client_companies.some(c=>c.id===r.company_id&&c.organization_id===r.organization_id)||!tables.user_profiles.some(p=>p.user_id===r.actor_user_id&&p.role==='admin'&&p.organization_id===r.organization_id))return {error:{code:'FORBIDDEN'}};
+      tables.user_profiles.push({user_id:args.new_user_id,organization_id:r.organization_id,role:'company_manager',display_name:r.display_name});
+      tables.server_login_lookup.push({user_id:args.new_user_id,login_id:r.login_id,internal_email:args.new_internal_email});
+      tables.company_manager_accounts.push({user_id:args.new_user_id,organization_id:r.organization_id,email:r.email,phone:r.phone,status:'active',must_change_password:true});
+      tables.company_manager_access.push({organization_id:r.organization_id,company_id:r.company_id,manager_user_id:args.new_user_id});
+      r.status='complete';r.auth_user_id=args.new_user_id;
+      return state.loseManagerResponse?{error:{code:'LOST'}}:{data:{managerId:args.new_user_id,loginId:r.login_id},error:null};
+    }
     const r=tables.participant_registration_requests.find(r=>r.id===args.request_id);
     if(name==='secondcareer_recover_company_registration'){
       if(state.failRecovery)return {error:{code:'RECOVERY_FAILED'}};
@@ -118,7 +160,7 @@ function harness(){
     return {data:linked?{participantId:id,companyId:r.company_id,companyName:r.company_name}:id,error:null};
   }};
   const cache=new Map(),root=path.resolve('supabase/functions');
-  const context=vm.createContext({Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,btoa,crypto:webcrypto,Deno:{env:{get:key=>key==='SECONDCAREER_REGISTRATION_ENABLED'?(state.enabled?'true':'false'):key==='SECONDCAREER_POST_DRAFT_ENABLED'?(state.postEnabled?'true':'false'):'fixture'},serve:f=>{served=f}}});
+  const context=vm.createContext({Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,btoa,crypto:webcrypto,Deno:{env:{get:key=>key==='SECONDCAREER_COMPANY_MANAGER_ENABLED'?(state.managerEnabled?'true':'false'):key==='SECONDCAREER_REGISTRATION_ENABLED'?(state.enabled?'true':'false'):key==='SECONDCAREER_POST_DRAFT_ENABLED'?(state.postEnabled?'true':'false'):'fixture'},serve:f=>{served=f}}});
   let served=null;
   function load(filename){
     filename=path.resolve(filename);if(cache.has(filename))return cache.get(filename).exports;
@@ -136,6 +178,8 @@ function harness(){
   const adminReport=load(path.join(root,'secondcareer-admin-report/index.ts'));
   const aggregate=load(path.join(root,'secondcareer-admin-aggregate/index.ts'));
   const companies=load(path.join(root,'secondcareer-admin-companies/index.ts'));
+  const managers=load(path.join(root,'secondcareer-admin-company-managers/index.ts'));
+  const manager=load(path.join(root,'secondcareer-company-manager/index.ts'));
   // The counselor assessment function has no exported handler; take the one it passes to Deno.serve.
   load(path.join(root,'secondcareer-assessment/index.ts'));const assessment=served;
   async function call(handler,token,body,method=body?'POST':'GET',url='https://fixture.invalid/'){
@@ -147,6 +191,6 @@ function harness(){
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
-  return {state,ids,registration,account,access,progress,directory,adminReport,aggregate,companies,assessment,call,signIn};
+  return {state,ids,registration,account,access,progress,directory,adminReport,aggregate,companies,managers,manager,assessment,call,signIn};
 }
 module.exports={harness,ids};

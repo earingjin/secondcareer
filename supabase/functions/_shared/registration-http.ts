@@ -25,7 +25,7 @@ export async function readBody(req: Request) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new APIError('INVALID_REQUEST');
   return body;
 }
-export async function authenticate(req: Request) {
+export async function authenticate(req: Request, allowedRoles = ['admin','counselor','participant']) {
   const token = req.headers.get('authorization')?.match(/^Bearer (.+)$/i)?.[1];
   if (!token) throw new APIError('AUTH_REQUIRED', 401);
   const url = Deno.env.get('SUPABASE_URL'), key = Deno.env.get('SUPABASE_ANON_KEY'), secret = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -36,7 +36,7 @@ export async function authenticate(req: Request) {
   if (error || !user) throw new APIError('AUTH_INVALID', 401);
   const {data:profile, error:profileError} = await admin.from('user_profiles').select('user_id,role,organization_id,display_name').eq('user_id', user.id).maybeSingle();
   if (profileError) throw new APIError('PROFILE_QUERY_FAILED', 503);
-  if (!profile || !profile.organization_id || !['admin','counselor','participant'].includes(profile.role)) throw new APIError('FORBIDDEN', 403);
+  if (!profile || !profile.organization_id || !allowedRoles.includes(profile.role)) throw new APIError('FORBIDDEN', 403);
   return {user, profile, admin};
 }
 export function failure(error: unknown) {

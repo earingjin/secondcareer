@@ -1,3 +1,4 @@
+import {createAdminCompanyManagers} from './admin-company-managers.js';
 import {esc} from './fields.js';
 
 const FIELDS=[['name','기업명','text',200],['start_date','시작일','date'],['end_date','종료일','date'],['pm_name','PM 이름','text',100],['pm_email','PM 이메일','email',254],['pm_phone','PM 연락처','tel',30]];
@@ -16,9 +17,11 @@ function assignmentView(s,off){
 // State lives only for this signed-in session. No participant writes or persistent storage.
 export function createAdminCompanies({api,canUse}){
   let state=initial(),container=null,generation=0;
+  const managers=createAdminCompanyManagers({api,canUse});
   const statusLabel=s=>s==='active'?'활성':'비활성';
   function draw(){
     if(!container)return;
+    managers.unmount();
     const s=state,off=s.working?'disabled':'';
     container.innerHTML=`<h2>고객사 관리</h2><p class="sub">고객사 마스터의 사업 기간과 PM 정보를 관리합니다. 참여자가 없는 고객사도 등록할 수 있습니다.</p>
       <p class="hintline" data-company-separation>이 목록은 별도 고객사 마스터입니다. 기존 운영 관리·진단 현황의 소속기업 목록은 참여자의 기업명 입력값 기준입니다. 고객사 ID 연결 등록과 기존 미연결 참여자는 별도로 관리되며 기존 기업명 필터는 유지됩니다.</p>
@@ -30,7 +33,8 @@ export function createAdminCompanies({api,canUse}){
       ${s.detail&&s.linkage?`<p data-company-linkage>고객사 ID로 연결된 참여자: ${s.linkage.linkedParticipants}명 · 조직 전체 미연결 참여자: ${s.linkage.unlinkedParticipants}명. 미연결 인원은 기업명 일치 여부와 무관한 조직 전체 수이며 자동 이관하지 않습니다.</p>`:''}
       <div class="row3">${FIELDS.map(([key,label,type,max])=>`<div class="field"><label for="company-${key}">${label} *</label><input class="in" id="company-${key}" data-company-field="${key}" type="${type}" ${max?`maxlength="${max}"`:''} required value="${esc(s.form[key])}" ${off}></div>`).join('')}</div>
       <p class="hintline">기업명은 앞뒤 공백을 제거하고 연속 공백을 한 칸으로 정리합니다. 같은 조직에서 공백·영문 대소문자 차이만 있는 이름은 중복 등록할 수 없습니다.</p>
-      <div class="acts"><button class="btn" ${off}>${s.detail?'고객사 정보 저장':'고객사 저장'}</button>${s.detail?`<button class="btn ghost" type="button" data-company-action="status" ${off}>${s.detail.status==='active'?'고객사 비활성화':'고객사 재활성화'}</button>`:''}<button class="btn ghost" type="button" data-company-action="close" ${off}>닫기</button></div></form>`:''}${assignmentView(s,off)}`;
+      <div class="acts"><button class="btn" ${off}>${s.detail?'고객사 정보 저장':'고객사 저장'}</button>${s.detail?`<button class="btn ghost" type="button" data-company-action="status" ${off}>${s.detail.status==='active'?'고객사 비활성화':'고객사 재활성화'}</button>`:''}<button class="btn ghost" type="button" data-company-action="close" ${off}>닫기</button></div></form>`:''}${assignmentView(s,off)}${s.detail?'<section data-company-manager-host></section>':''}`;
+    if(s.detail)managers.mount(container.querySelector('[data-company-manager-host]'),s.detail.id);
   }
   function checkList(data,q){
     if(!data||!Array.isArray(data.companies)||!data.companies.every(rowOK)||!Number.isSafeInteger(data.total)||data.total<0||data.page!==q.page||data.pageSize!==q.pageSize||data.search!==q.search||data.status!==q.status||data.companies.length>q.pageSize)throw Error('고객사 목록 응답을 확인하지 못했습니다. 다시 조회해 주세요.');
@@ -106,6 +110,6 @@ export function createAdminCompanies({api,canUse}){
         const q={...state.query,page:1};try{const data=await load(q);if(current(run)){state.data=data;state.query=q;state.search=q.search;state.status=q.status}}catch{if(current(run))state.message='상태는 변경했지만 목록을 불러오지 못했습니다. 다시 조회해 주세요.'}});
     }
   }
-  function unmount(){if(container){container.removeEventListener('input',onInput);container.removeEventListener('change',onInput);container.removeEventListener('click',onClick);container.removeEventListener('submit',onSubmit)}container=null}
-  return {mount(el){unmount();if(!el||!canUse())return;container=el;draw();el.addEventListener('input',onInput);el.addEventListener('change',onInput);el.addEventListener('click',onClick);el.addEventListener('submit',onSubmit)},unmount,reset(){unmount();generation++;state=initial()}};
+  function unmount(){managers.unmount();if(container){container.removeEventListener('input',onInput);container.removeEventListener('change',onInput);container.removeEventListener('click',onClick);container.removeEventListener('submit',onSubmit)}container=null}
+  return {mount(el){unmount();if(!el||!canUse())return;container=el;draw();el.addEventListener('input',onInput);el.addEventListener('change',onInput);el.addEventListener('click',onClick);el.addEventListener('submit',onSubmit)},unmount,reset(){unmount();managers.reset();generation++;state=initial()}};
 }

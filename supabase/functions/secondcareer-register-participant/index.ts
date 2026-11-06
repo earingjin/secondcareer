@@ -1,10 +1,8 @@
 import {authenticate, APIError, failure, headers, readBody, respond, secretDigest} from '../_shared/registration-http.ts';
+import {generateTemporaryPassword} from '../_shared/temporary-password.ts';
+export {generateTemporaryPassword};
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export function generateTemporaryPassword() {
-  const bytes = crypto.getRandomValues(new Uint8Array(24));
-  return 'Aa1!' + btoa(String.fromCharCode(...bytes)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-}
 export async function handleRegistration(req: Request) {
   if (req.method === 'OPTIONS') return new Response(null, {status:204, headers});
   if (req.method !== 'POST') return respond({error:'METHOD_NOT_ALLOWED'}, 405);

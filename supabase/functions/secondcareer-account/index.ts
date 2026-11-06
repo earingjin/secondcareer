@@ -1,11 +1,16 @@
 import {authenticate, APIError, failure, headers, readBody, respond, secretDigest} from '../_shared/registration-http.ts';
 import {participantAccessError} from '../_shared/participant-access.ts';
+import {managerContext} from '../_shared/company-manager-access.ts';
 
 export async function handleAccount(req: Request) {
   if (req.method === 'OPTIONS') return new Response(null, {status:204, headers});
   if (!['GET','POST'].includes(req.method)) return respond({error:'METHOD_NOT_ALLOWED'}, 405);
   try {
-    const {user, profile, admin} = await authenticate(req);
+    const {user, profile, admin} = await authenticate(req,['admin','counselor','participant','company_manager']);
+    if(profile.role==='company_manager'){
+      if(req.method!=='GET'||new URL(req.url).search)throw new APIError('FORBIDDEN',403);
+      return respond(await managerContext({user,profile,admin}));
+    }
     const accessError=participantAccessError(user);
     if(accessError==='ACCOUNT_STATE_INVALID')throw new APIError(accessError,403);
     if(profile.role==='participant'){
