@@ -9,24 +9,40 @@ export async function handleAdminCompanyManagers(req:Request){
   if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors});
   if(!['GET','POST','PATCH'].includes(req.method))return reply({error:'METHOD_NOT_ALLOWED'},405);
   try{
-    const {admin,profile,user,params}=await authenticateAdmin(req,['companyId']);managerEnabled();
-    const id=params.get('companyId');if(params.size!==1||!uuid(id))throw new APIError('INVALID_REQUEST');
+    const {admin,profile,user,params}=await authenticateAdmin(req,['companyId','view']);managerEnabled();
+    const id=params.get('companyId'),view=params.get('view');
+    if(!uuid(id)||(view===null?params.size!==1:params.size!==2||view!=='available'||req.method!=='GET'))throw new APIError('INVALID_REQUEST');
     const companyId=id!.toLowerCase(),org=profile.organization_id;
     const company=await admin.from('client_companies').select('id').eq('organization_id',org).eq('id',companyId).maybeSingle();
     if(company.error)throw new APIError('MANAGER_QUERY_FAILED',503);if(!company.data)throw new APIError('FORBIDDEN',403);
     if(req.method==='GET'){
-      const accounts=await readAll(()=>admin.from('company_manager_accounts').select('user_id,email,phone,status').eq('organization_id',org),'user_id');
+      // Default list is strictly scoped to the selected company. No account from
+      // another company may be included unless an admin explicitly requests
+      // the separate "available existing managers" view.
       const links=await readAll(()=>admin.from('company_manager_access').select('manager_user_id').eq('organization_id',org).eq('company_id',companyId),'manager_user_id');
+      if(view==='available'){
+        const accounts=await readAll(()=>admin.from('company_manager_accounts').select('user_id,email,status').eq('organization_id',org).eq('status','active'),'user_id');
+        const linked=new Set(links.map(x=>x.manager_user_id));
+        const availableManagers=[];
+        for(const a of accounts){
+          if(linked.has(a.user_id))continue;
+          const {data:p,error}=await admin.from('user_profiles').select('display_name').eq('organization_id',org).eq('role','company_manager').eq('user_id',a.user_id).maybeSingle();
+          if(error||!p)throw new APIError('MANAGER_QUERY_FAILED',503);
+          availableManagers.push({id:a.user_id,name:p.display_name,email:a.email});
+        }
+        return reply({companyId,availableManagers});
+      }
       const managers=[];
-      for(const a of accounts){
-        const p=await admin.from('user_profiles').select('display_name').eq('organization_id',org).eq('role','company_manager').eq('user_id',a.user_id).maybeSingle();
-        const l=await admin.from('server_login_lookup').select('login_id').eq('user_id',a.user_id).maybeSingle();
-        if(p.error||l.error||!p.data||!l.data)throw new APIError('MANAGER_QUERY_FAILED',503);
-        managers.push({id:a.user_id,name:p.data.display_name,email:a.email,phone:a.phone,status:a.status,loginId:a.email,hasAccess:links.some(x=>x.manager_user_id===a.user_id)});
+      for(const link of links){
+        const {data:a,error:accountError}=await admin.from('company_manager_accounts').select('user_id,email,phone,status').eq('organization_id',org).eq('user_id',link.manager_user_id).maybeSingle();
+        if(accountError||!a)throw new APIError('MANAGER_QUERY_FAILED',503);
+        const {data:p,error:profileError}=await admin.from('user_profiles').select('display_name').eq('organization_id',org).eq('role','company_manager').eq('user_id',a.user_id).maybeSingle();
+        if(profileError||!p)throw new APIError('MANAGER_QUERY_FAILED',503);
+        managers.push({id:a.user_id,name:p.display_name,email:a.email,phone:a.phone,status:a.status,loginId:a.email,hasAccess:true});
       }
       return reply({companyId,managers});
     }
-    const body=await readBody(req);
+        const body=await readBody(req);
     if(req.method==='PATCH'){
       if(Object.keys(body).some(k=>!['action','managerId','status'].includes(k))||!uuid(body.managerId)||!['status','grant','revoke'].includes(body.action)||(body.action==='status'?!['active','suspended'].includes(body.status):Object.hasOwn(body,'status')))throw new APIError('INVALID_REQUEST');
       const managerId=body.managerId.toLowerCase();
