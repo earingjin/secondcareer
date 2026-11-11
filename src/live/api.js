@@ -153,6 +153,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
     saveCompany:(id,body)=>request('/functions/v1/secondcareer-admin-companies'+(id?'?id='+encodeURIComponent(id):''),{body,method:id?'PATCH':'POST'}),
     companyCounselors:id=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)+'&section=counselors'),
     companyManagers:id=>request('/functions/v1/secondcareer-admin-company-managers?companyId='+encodeURIComponent(id)),
+    availableCompanyManagers:id=>request('/functions/v1/secondcareer-admin-company-managers?companyId='+encodeURIComponent(id)+'&view=available'),
     issueCompanyManager:(id,body)=>request('/functions/v1/secondcareer-admin-company-managers?companyId='+encodeURIComponent(id),{body}),
     manageCompanyManager:(id,body)=>request('/functions/v1/secondcareer-admin-company-managers?companyId='+encodeURIComponent(id),{method:'PATCH',body}),
     // STEP 14-D: counts for one allowed company; the server re-checks account, password state and access.
