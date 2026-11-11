@@ -77,6 +77,10 @@ export function createAPI(onExpired,env=runtimeEnv()){
         const errors={PASSWORD_CHANGE_REQUIRED:'먼저 임시 비밀번호를 변경해 주세요.',FORBIDDEN:'이 고객사 현황을 조회할 권한이 없습니다.',MANAGER_NOT_CONFIGURED:'고객사 현황 기능을 사용할 수 없습니다.',INVALID_REQUEST:'고객사 선택을 확인해 주세요.'};
         throw Object.assign(Error(errors[data?.error]||'고객사 현황을 불러오지 못했습니다. 잠시 후 새로고침해 주세요.'),{forbidden:response.status===403});
       }
+      if(path.startsWith('/functions/v1/secondcareer-admin-counselors')&&response.status!==401){
+        const errors={LOGIN_ID_UNAVAILABLE:'이미 사용 중인 로그인 아이디입니다.',COUNSELOR_ALREADY_REQUESTED:'이미 발급 요청되었습니다. 요청 ID로 처리 결과를 확인하세요.',COUNSELOR_NOT_CONFIGURED:'상담사 발급은 서버 설정과 DB 검증 후 사용할 수 있습니다.',INVALID_REQUEST:'상담사 이름과 로그인 아이디를 확인해 주세요.',FORBIDDEN:'상담사 계정을 관리할 권한이 없습니다.'};
+        throw Object.assign(Error(errors[data?.error]||'상담사 처리 결과를 확인하지 못했습니다. 다시 발급하지 말고 서버 기록을 확인하세요.'),{code:data?.error});
+      }
       if(path.startsWith('/functions/v1/secondcareer-admin-company-managers')&&response.status!==401){
         const errors={MANAGER_ALREADY_REQUESTED:'이미 발급 요청된 이메일입니다. 재발급하지 말고 처리 결과를 확인해 주세요.',MANAGER_NOT_CONFIGURED:'담당자 계정 연동 검증 전에는 사용할 수 없습니다.',INVALID_REQUEST:'담당자 이름·이메일·연락처를 확인해 주세요.',FORBIDDEN:'고객사 담당자를 관리할 권한이 없습니다.'};
         throw Error(errors[data?.error]||'담당자 처리 결과 미확인: 다시 발급하지 말고 관리자에게 확인해 주세요.');
@@ -152,6 +156,8 @@ export function createAPI(onExpired,env=runtimeEnv()){
     company:id=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)),
     saveCompany:(id,body)=>request('/functions/v1/secondcareer-admin-companies'+(id?'?id='+encodeURIComponent(id):''),{body,method:id?'PATCH':'POST'}),
     companyCounselors:id=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)+'&section=counselors'),
+    adminCounselors:()=>request('/functions/v1/secondcareer-admin-counselors'),
+    issueCounselor:body=>request('/functions/v1/secondcareer-admin-counselors',{body}),
     companyManagers:id=>request('/functions/v1/secondcareer-admin-company-managers?companyId='+encodeURIComponent(id)),
     availableCompanyManagers:id=>request('/functions/v1/secondcareer-admin-company-managers?companyId='+encodeURIComponent(id)+'&view=available'),
     issueCompanyManager:(id,body)=>request('/functions/v1/secondcareer-admin-company-managers?companyId='+encodeURIComponent(id),{body}),

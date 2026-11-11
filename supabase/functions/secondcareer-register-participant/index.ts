@@ -1,5 +1,6 @@
 import {authenticate, APIError, failure, headers, readBody, respond, secretDigest} from '../_shared/registration-http.ts';
 import {generateTemporaryPassword} from '../_shared/temporary-password.ts';
+import {participantAccessError} from '../_shared/participant-access.ts';
 export {generateTemporaryPassword};
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -9,6 +10,8 @@ export async function handleRegistration(req: Request) {
   try {
     const {user, profile, admin} = await authenticate(req);
     if (!['admin','counselor'].includes(profile.role)) throw new APIError('FORBIDDEN', 403);
+    const accessError=participantAccessError(user);
+    if(accessError)throw new APIError(accessError,403);
     // Enable only after SQL review and the existing assessment guard/RLS
     // integration. Frontend routing alone cannot enforce the first change.
     if (Deno.env.get('SECONDCAREER_REGISTRATION_ENABLED') !== 'true') throw new APIError('REGISTRATION_NOT_CONFIGURED', 503);

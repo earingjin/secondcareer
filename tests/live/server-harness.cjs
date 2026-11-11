@@ -10,7 +10,7 @@ function harness(){
   const loginIds={[ids.counselor]:'consult01',[ids.admin]:'admin01',[ids.participant]:'client01',[ids.other]:'other01'};
   const tables={user_profiles:profiles,organizations:[{id:ids.org,name:'테스트 기업'}],server_login_lookup:profiles.map(p=>({user_id:p.user_id,login_id:loginIds[p.user_id],internal_email:users[p.user_id].email})),participant_registration_requests:[],participants:[{id:'existing-participant',auth_user_id:ids.participant,counselor_user_id:ids.counselor,organization_id:ids.org,display_name:'기존참여자',company_name:'테스트기업'}],assessments:[],assessment_history:[]};
   // pageSize caps each read like the Data API row limit; reads/failReadsOf record and fail reads per table.
-  tables.client_companies=[];tables.client_company_counselors=[];tables.company_manager_accounts=[];tables.company_manager_access=[];tables.company_manager_registration_requests=[];
+  tables.counselor_registration_requests=[];tables.client_companies=[];tables.client_company_counselors=[];tables.company_manager_accounts=[];tables.company_manager_access=[];tables.company_manager_registration_requests=[];
   const state={tables,users,created:[],updated:[],enabled:true,postEnabled:false,managerEnabled:false,pageSize:Infinity,reads:[],writes:[],failWritesOf:null,failReadsOf:null,failCreate:false,failComplete:false,failProfile:false,failUpdate:false,companyClock:0};
   const db={from(name){
     let filters=[],insert=null,update=null,columns=null,order=null,limit=Infinity,range=null,orders=[],selectOptions={},deleting=false;
@@ -19,6 +19,13 @@ function harness(){
     async function run(single){
       if(name==='user_profiles'&&state.failProfile)return {error:{code:'QUERY_ERROR'},data:null};
       if(!tables[name])return {error:{code:'MISSING_TABLE'},data:null};
+      if(name==='counselor_registration_requests'){
+        if(insert){
+          if(state.failCounselorReserve)return {error:{code:'QUERY_ERROR'}};
+          if(tables[name].some(r=>r.id===insert.id||r.login_id===insert.login_id))return {error:{code:'23505'}};
+          tables[name].push({...insert,status:'pending'});return {error:null};
+        }
+      }
       if(name.startsWith('company_manager_')){
         const operation=insert?'insert':update?'update':deleting?'delete':'select';
         (operation==='select'?state.reads:state.writes).push({table:name,operation,columns,filters:filters.map(f=>[...f])});
@@ -113,6 +120,17 @@ function harness(){
       state.updated.push({id,...input});credentials.set(id,input.password);users[id].app_metadata={...input.app_metadata};return {data:{user:users[id]},error:null};
     }
   }},async rpc(name,args){
+    if(name==='secondcareer_complete_counselor_registration'){
+      if(state.throwCounselorComplete)throw Error('transport failure');
+      if(state.failCounselorComplete)return {error:{code:'COMPLETE_FAILED'}};
+      const r=tables.counselor_registration_requests.find(r=>r.id===args.request_id),u=users[args.new_user_id];
+      if(!r||!u||u.email!==args.new_internal_email||u.app_metadata.registration_request_id!==r.id||u.app_metadata.must_change_password!==true||!tables.user_profiles.some(p=>p.user_id===r.actor_user_id&&p.role==='admin'&&p.organization_id===r.organization_id))return {error:{code:'FORBIDDEN'}};
+      if(r.status==='complete')return r.auth_user_id===args.new_user_id?{data:{counselorId:r.auth_user_id,loginId:r.login_id},error:null}:{error:{code:'CONFLICT'}};
+      if(tables.server_login_lookup.some(l=>l.login_id===r.login_id||l.user_id===u.id||l.internal_email===u.email)||tables.user_profiles.some(p=>p.user_id===u.id))return {error:{code:'23505'}};
+      tables.user_profiles.push({user_id:u.id,organization_id:r.organization_id,role:'counselor',display_name:r.display_name});
+      tables.server_login_lookup.push({user_id:u.id,login_id:r.login_id,internal_email:u.email});r.status='complete';r.auth_user_id=u.id;
+      return state.loseCounselorResponse?{error:{code:'LOST'}}:{data:{counselorId:u.id,loginId:r.login_id},error:null};
+    }
     if(name==='secondcareer_manager_password_changed'){
       if(state.failManagerPassword)return {error:{code:'PASSWORD_DB_FAILED'}};
       const a=tables.company_manager_accounts.find(a=>a.user_id===args.manager_user_id&&a.status==='active');
@@ -159,8 +177,21 @@ function harness(){
     if(linked&&state.loseCompanyResponse)return {error:{code:'RESPONSE_LOST'}};
     return {data:linked?{participantId:id,companyId:r.company_id,companyName:r.company_name}:id,error:null};
   }};
+  // Login endpoint protocol model, including its private rate-limit table.
+  tables.login_attempt_limits=[];
+  const originalFrom=db.from;
+  db.from=function(name){
+    if(name!=='login_attempt_limits')return originalFrom.call(db,name);
+    let hash=null;
+    const q={select(){return q},eq(k,v){hash=v;return q},async maybeSingle(){return {data:tables.login_attempt_limits.find(r=>r.login_hash===hash)||null,error:null}},async upsert(row){tables.login_attempt_limits=tables.login_attempt_limits.filter(r=>r.login_hash!==row.login_hash);tables.login_attempt_limits.push({...row});return {error:null}},delete(){return q},then(resolve){tables.login_attempt_limits=tables.login_attempt_limits.filter(r=>r.login_hash!==hash);return Promise.resolve({error:null}).then(resolve)}};
+    return q;
+  };
+  db.auth.signInWithPassword=async({email,password})=>{
+    const u=Object.values(users).find(u=>u.email===email&&credentials.get(u.id)===password);
+    return u?{data:{user:u,session:{access_token:u.id,refresh_token:'refresh-'+u.id,expires_at:Math.floor(Date.now()/1000)+3600}},error:null}:{data:{},error:{code:'INVALID'}};
+  };
   const cache=new Map(),root=path.resolve('supabase/functions');
-  const context=vm.createContext({Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,btoa,crypto:webcrypto,Deno:{env:{get:key=>key==='SECONDCAREER_COMPANY_MANAGER_ENABLED'?(state.managerEnabled?'true':'false'):key==='SECONDCAREER_REGISTRATION_ENABLED'?(state.enabled?'true':'false'):key==='SECONDCAREER_POST_DRAFT_ENABLED'?(state.postEnabled?'true':'false'):'fixture'},serve:f=>{served=f}}});
+  const context=vm.createContext({Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,btoa,crypto:webcrypto,Deno:{env:{get:key=>key==='SECONDCAREER_COUNSELOR_REGISTRATION_ENABLED'?(state.counselorEnabled?'true':'false'):key==='SECONDCAREER_COMPANY_MANAGER_ENABLED'?(state.managerEnabled?'true':'false'):key==='SECONDCAREER_REGISTRATION_ENABLED'?(state.enabled?'true':'false'):key==='SECONDCAREER_POST_DRAFT_ENABLED'?(state.postEnabled?'true':'false'):'fixture'},serve:f=>{served=f}}});
   let served=null;
   function load(filename){
     filename=path.resolve(filename);if(cache.has(filename))return cache.get(filename).exports;
@@ -170,6 +201,7 @@ function harness(){
     vm.runInContext('(function(require,module,exports){'+code+'\n})',context,{filename})(requireMock,module,module.exports);
     return module.exports;
   }
+  load(path.join(root,'secondcareer-login/index.ts'));const login=served;
   const registration=load(path.join(root,'secondcareer-register-participant/index.ts'));
   const account=load(path.join(root,'secondcareer-account/index.ts'));
   const access=load(path.join(root,'_shared/participant-access.ts'));
@@ -178,6 +210,7 @@ function harness(){
   const adminReport=load(path.join(root,'secondcareer-admin-report/index.ts'));
   const aggregate=load(path.join(root,'secondcareer-admin-aggregate/index.ts'));
   const companies=load(path.join(root,'secondcareer-admin-companies/index.ts'));
+  const counselors=load(path.join(root,'secondcareer-admin-counselors/index.ts'));
   const managers=load(path.join(root,'secondcareer-admin-company-managers/index.ts'));
   const manager=load(path.join(root,'secondcareer-company-manager/index.ts'));
   const managerProgress=load(path.join(root,'secondcareer-company-manager-progress/index.ts'));
@@ -192,6 +225,6 @@ function harness(){
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
-  return {state,ids,registration,account,access,progress,directory,adminReport,aggregate,companies,managers,manager,managerProgress,assessment,call,signIn};
+  return {state,ids,login,registration,account,access,progress,directory,adminReport,aggregate,companies,counselors,managers,manager,managerProgress,assessment,call,signIn};
 }
 module.exports={harness,ids};
