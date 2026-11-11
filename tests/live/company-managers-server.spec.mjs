@@ -11,7 +11,10 @@ const change=(h,id,password='Changed-manager-123!')=>h.call(h.manager.handleComp
 
 test('admin issues multiple managers; private mapping, initial change and minimal authorized context',async()=>{
   const {h,company:c}=setup();const first=await adminCall(h,c,issueBody());expect(first.status).toBe(201);
-  const {managerId,loginId,temporaryPassword}=first.data;expect(loginId).toMatch(/^cm_[a-f0-9]{16}$/);expect(h.signIn(loginId,temporaryPassword)?.id).toBe(managerId);
+  const {managerId,loginId,temporaryPassword}=first.data;expect(loginId).toBe('synthetic@example.invalid');
+  const mapping=h.state.tables.server_login_lookup.find(m=>m.user_id===managerId),account=h.state.tables.company_manager_accounts.find(a=>a.user_id===managerId);
+  expect(account.email_key).toBe(loginId);expect(mapping.login_id).toMatch(/^cm_[a-f0-9]{16}$/);expect(mapping.internal_email).not.toBe(loginId);
+  expect(h.state.users[managerId].email).toBe(mapping.internal_email);expect(h.signIn(loginId,temporaryPassword)?.id).toBe(managerId);
   expect((await context(h,managerId)).data).toEqual({profile:{role:'company_manager'},mustChangePassword:true,companies:[]});
   expect((await change(h,managerId,temporaryPassword)).status).toBe(400);expect((await change(h,managerId,'short')).status).toBe(400);
   expect((await change(h,managerId)).data).toEqual({changed:true});expect(h.signIn(loginId,temporaryPassword)).toBeNull();
@@ -21,6 +24,25 @@ test('admin issues multiple managers; private mapping, initial change and minima
   expect((await adminCall(h,c,issueBody('another@example.invalid'))).status).toBe(201);
   const list=(await adminCall(h,c)).data;expect(list.managers).toHaveLength(2);expect(list.managers.every(m=>m.hasAccess&&m.status==='active')).toBe(true);
   expect(JSON.stringify(list)).not.toMatch(/password/i);expect(JSON.stringify(h.state.tables)).not.toContain(temporaryPassword);
+});
+
+test('mock and login handler agree on manager email mapping, incorrect credentials and identity conflicts',async()=>{
+  const {h,company:c}=setup(),issued=(await adminCall(h,c,issueBody())).data;
+  const login=async(id,password)=>h.call(h.login,null,{loginId:id,password});
+  const pw=issued.temporaryPassword,id=issued.managerId,email=issued.loginId;
+  for(const [name,password,expected] of [[email,pw,true],['  SYNTHETIC@EXAMPLE.INVALID  ',pw,true],['missing@example.invalid',pw,false],[email,'wrong-password',false],['admin01','Fixture-password-123!',true],['consult01','Fixture-password-123!',true],['client01','Fixture-password-123!',true]]){
+    expect(!!h.signIn(name,password)).toBe(expected);expect((await login(name,password)).status).toBe(expected?200:401);
+  }
+  const mapping=h.state.tables.server_login_lookup.find(m=>m.user_id===id),oldEmail=mapping.internal_email;
+  mapping.internal_email=h.state.users[ids.admin].email;
+  expect(h.signIn(email,'Fixture-password-123!')).toBeNull();expect((await login(email,'Fixture-password-123!')).status).toBe(401);
+  mapping.internal_email=oldEmail;
+  h.state.tables.company_manager_accounts.push({...h.state.tables.company_manager_accounts[0],user_id:ids.admin});
+  expect(h.signIn(email,pw)).toBeNull();expect((await login(email,pw)).status).toBe(401);
+  h.state.tables.company_manager_accounts.pop();
+  const profile=h.state.tables.user_profiles.find(p=>p.user_id===id);
+  profile.role='participant';expect((await context(h,id)).status).toBe(403);
+  profile.role='company_manager';profile.organization_id='other-org';expect((await context(h,id)).status).toBe(403);
 });
 
 test('status and access are fresh DB checks, metadata cannot widen scope; grants stay in the organization',async()=>{

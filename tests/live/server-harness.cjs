@@ -150,7 +150,7 @@ function harness(){
       if(r.status!=='pending'||!tables.client_companies.some(c=>c.id===r.company_id&&c.organization_id===r.organization_id)||!tables.user_profiles.some(p=>p.user_id===r.actor_user_id&&p.role==='admin'&&p.organization_id===r.organization_id))return {error:{code:'FORBIDDEN'}};
       tables.user_profiles.push({user_id:args.new_user_id,organization_id:r.organization_id,role:'company_manager',display_name:r.display_name});
       tables.server_login_lookup.push({user_id:args.new_user_id,login_id:r.login_id,internal_email:args.new_internal_email});
-      tables.company_manager_accounts.push({user_id:args.new_user_id,organization_id:r.organization_id,email:r.email,phone:r.phone,status:'active',must_change_password:true});
+      tables.company_manager_accounts.push({user_id:args.new_user_id,organization_id:r.organization_id,email:r.email,email_key:r.email.trim().toLowerCase(),phone:r.phone,status:'active',must_change_password:true});
       tables.company_manager_access.push({organization_id:r.organization_id,company_id:r.company_id,manager_user_id:args.new_user_id});
       r.status='complete';r.auth_user_id=args.new_user_id;
       return state.loseManagerResponse?{error:{code:'LOST'}}:{data:{managerId:args.new_user_id,loginId:r.login_id},error:null};
@@ -221,7 +221,18 @@ function harness(){
     return {status:response.status,headers:response.headers,data:await response.json()};
   }
   function signIn(loginId,password){
-    const mapping=tables.server_login_lookup.find(m=>m.login_id===loginId);
+    const id=typeof loginId==='string'?loginId.trim().toLowerCase():'';
+    if(typeof password!=='string'||password.length<8||password.length>128)return null;
+    const isEmail=id.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id);
+    if(!isEmail&&!/^[a-z0-9][a-z0-9_-]{5,31}$/.test(id))return null;
+    let mappings;
+    if(isEmail){
+      const accounts=tables.company_manager_accounts.filter(a=>a.email_key===id);
+      if(accounts.length!==1)return null;
+      mappings=tables.server_login_lookup.filter(m=>m.user_id===accounts[0].user_id);
+    }else mappings=tables.server_login_lookup.filter(m=>m.login_id===id);
+    if(mappings.length!==1)return null;
+    const mapping=mappings[0];
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
