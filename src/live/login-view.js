@@ -12,6 +12,7 @@ function forestSVG(cls,H){
 
 
 export function loginView(){
+  const companyManagerEntry=new URLSearchParams(location.search).get('entry')==='company-manager';
   return `<section class="hero"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>${forestSVG('hf',300)}
   <div class="wrap"><div class="hero-grid"><div>
     <div class="pill">Good life, Good Work</div>
@@ -20,5 +21,5 @@ export function loginView(){
     <div class="flow-mini"><span>1. 참여 동의·기본정보</span><span>2. 경력목표</span><span>3. 진단 15문항</span><span>4. 서비스 기대·검토 후 제출</span></div>
     <div class="hint">⊙ 총 36문항 · 소요시간 5~7분 · 결과는 상담에 참여하실 때 상담사가 지면으로 전달합니다</div>
   </div>
-  <form class="card" onsubmit="event.preventDefault();doLogin()" autocomplete="off"><h2>${new URLSearchParams(location.search).get('entry')==='company-manager'?'고객사 담당자 로그인':'세컨플래닝 로그인'}</h2><p class="sub">내담자·상담사에게 부여된 계정으로 로그인해 주세요.</p><div class="field"><label for="lg-id">아이디</label><input class="in" id="lg-id" autocomplete="username" autocapitalize="off" maxlength="32" required></div><div class="field"><label for="lg-pw">비밀번호 (8자리 이상)</label><input class="in" id="lg-pw" type="password" autocomplete="off" minlength="8" maxlength="128" required></div><div class="err" role="alert">${esc(S.err)}</div><button class="btn block" type="submit">로그인</button></form></div></div></section>`;
+  <form class="card" onsubmit="event.preventDefault();doLogin()" autocomplete="off"><h2>${companyManagerEntry?'고객사 담당자 로그인':'세컨플래닝 로그인'}</h2><p class="sub">${companyManagerEntry?'등록된 이메일 주소로 로그인해 주세요.':'내담자·상담사에게 부여된 계정으로 로그인해 주세요.'}</p><div class="field"><label for="lg-id">${companyManagerEntry?'이메일':'아이디'}</label><input class="in" id="lg-id" ${companyManagerEntry?'type="email"':'type="text"'} autocomplete="username" autocapitalize="off" maxlength="${companyManagerEntry?254:32}" required></div><div class="field"><label for="lg-pw">비밀번호 (8자리 이상)</label><input class="in" id="lg-pw" type="password" autocomplete="off" minlength="8" maxlength="128" required></div><div class="err" role="alert">${esc(S.err)}</div><button class="btn block" type="submit">로그인</button></form></div></div></section>`;
 }
