@@ -22,7 +22,7 @@ export async function handleAdminCompanyManagers(req:Request){
         const p=await admin.from('user_profiles').select('display_name').eq('organization_id',org).eq('role','company_manager').eq('user_id',a.user_id).maybeSingle();
         const l=await admin.from('server_login_lookup').select('login_id').eq('user_id',a.user_id).maybeSingle();
         if(p.error||l.error||!p.data||!l.data)throw new APIError('MANAGER_QUERY_FAILED',503);
-        managers.push({id:a.user_id,name:p.data.display_name,email:a.email,phone:a.phone,status:a.status,loginId:l.data.login_id,hasAccess:links.some(x=>x.manager_user_id===a.user_id)});
+        managers.push({id:a.user_id,name:p.data.display_name,email:a.email,phone:a.phone,status:a.status,loginId:a.email,hasAccess:links.some(x=>x.manager_user_id===a.user_id)});
       }
       return reply({companyId,managers});
     }
@@ -55,7 +55,7 @@ export async function handleAdminCompanyManagers(req:Request){
       if(result.error||result.data?.outcome!=='complete'||result.data.managerId!==created.data.user.id||result.data.loginId!==loginId)throw new APIError('MANAGER_OUTCOME_UNKNOWN',503);
     }
     // Sole secret disclosure. No re-read/reissue, logging, Auth deletion or automatic retry.
-    return reply({companyId,managerId:result.data.managerId,loginId,name,temporaryPassword:password},201);
+    return reply({companyId,managerId:result.data.managerId,loginId:email,name,temporaryPassword:password},201);
   }catch(error){const r=failure(error);return new Response(r.body,{status:r.status,headers:cors})}
 }
 Deno.serve(handleAdminCompanyManagers);

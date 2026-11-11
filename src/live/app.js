@@ -146,7 +146,9 @@ function nav(v){
 async function doLogin(){
   if(busy)return;
   const id=$('#lg-id').value.trim(),pw=$('#lg-pw').value;$('#lg-pw').value='';
-  if(!/^[a-zA-Z0-9][a-zA-Z0-9_-]{5,31}$/.test(id)||pw.length<8||pw.length>128){S.err='부여받은 아이디와 8자리 이상의 비밀번호를 입력해 주세요.';render();return}
+  const isManagerEntry=new URLSearchParams(location.search).get('entry')==='company-manager';
+  const loginValid=isManagerEntry?(id.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)):/^[a-zA-Z0-9][a-zA-Z0-9_-]{5,31}$/.test(id);
+  if(!loginValid||pw.length<8||pw.length>128){S.err=isManagerEntry?'담당자 이메일과 8자리 이상의 비밀번호를 입력해 주세요.':'부여받은 아이디와 8자리 이상의 비밀번호를 입력해 주세요.';render();return}
   busy=true;S.err='';render();
   try{const data=await api.login(id,pw);openAccount(data);
   }catch(e){api.clear();reset();S.err=e.message}finally{busy=false;render();if(profile?.role==='counselor')window.scrollTo(0,0)}
