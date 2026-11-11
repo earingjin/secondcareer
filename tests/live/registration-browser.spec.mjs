@@ -49,6 +49,7 @@ async function setup(page,{pending=false,enabled=true}={}){
     else if(url.pathname.endsWith('/secondcareer-register-participant'))result=await h.call(h.registration.handleRegistration,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-admin-progress'))result=await h.call(h.progress.handleAdminProgress,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-admin-directory'))result=await h.call(h.directory.handleAdminDirectory,token,body,request.method());
+    else if(url.pathname.endsWith('/secondcareer-admin-companies'))result=await h.call(h.companies.handleAdminCompanies,token,body,request.method(),'https://fixture.invalid/'+url.search);
     else if(url.pathname.endsWith('/secondcareer-assessment')){
       // Model the mandatory guard contract; original handler is not local.
       const profile=h.state.tables.user_profiles.find(p=>p.user_id===token);
@@ -82,6 +83,44 @@ async function login(page,id,password='Fixture-password-123!'){await page.locato
 async function fillRow(page,[name,phone,counselor='',company=''],index=1){
   for(const [label,value] of Object.entries({'이름':name,'연락처':phone,'담당 상담사':counselor,'소속기업':company}))await page.getByRole('textbox',{name:`${index}행 ${label}`}).fill(value);
 }
+
+test('admin selects paginated active company ID, rejects file conflicts and registers with canonical master',async({page})=>{
+  const {h}=await setup(page);
+  const now='2026-11-06T00:00:00Z';
+  for(let i=0;i<25;i++)h.state.tables.client_companies.push({id:crypto.randomUUID(),organization_id:ids.org,name:'합성고객사 '+String(i).padStart(2,'0'),status:'active',created_at:now});
+  h.state.tables.client_companies.push({id:crypto.randomUUID(),organization_id:ids.org,name:'비활성',status:'inactive',created_at:now},{id:crypto.randomUUID(),organization_id:'other-org',name:'타조직',status:'active',created_at:now});
+  await login(page,'admin01');await page.getByLabel('기본 담당 상담사').selectOption(ids.counselor);
+  expect(h.state.reads.filter(r=>r.table==='client_companies')).toHaveLength(0);
+  await page.getByLabel('고객사 연결 방식').selectOption('linked');
+  await expect(page.getByLabel('소속 고객사 선택').locator('option')).toHaveCount(21);
+  await fillRow(page,['선택검증','01012345678']);await page.getByRole('button',{name:'입력 확인',exact:true}).click();
+  await expect(page.locator('[data-preview]')).toContainText('활성 고객사를 선택');expect(h.state.created).toHaveLength(0);
+  await page.getByRole('button',{name:'고객사 다음',exact:true}).click();
+  await expect(page.getByLabel('소속 고객사 선택').locator('option')).toHaveCount(6);
+  const c=h.state.tables.client_companies.filter(c=>c.organization_id===ids.org&&c.status==='active').sort((a,b)=>b.id.localeCompare(a.id))[20];
+  await page.getByLabel('소속 고객사 선택').selectOption(c.id);
+  await fillRow(page,['선택검증','01012345678','','다른기업']);await page.getByRole('button',{name:'입력 확인',exact:true}).click();
+  await expect(page.locator('[data-preview]')).toContainText('선택한 고객사명과 일치');
+  await page.getByLabel('등록 고객사 검색').fill('없는고객사');await page.getByRole('button',{name:'활성 고객사 조회'}).click();
+  // Wait for the search to finish: its re-render replaces the grid, and an edit made before then can land on a detached input.
+  await expect(page.getByText('1페이지 · 총 0개')).toBeVisible();
+  await expect(page.getByLabel('소속 고객사 선택')).toHaveValue(c.id); // selected ID survives pagination/search
+  await page.getByLabel('1행 소속기업').fill('');await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();
+  await expect(page.getByLabel('선택검증 임시 비밀번호')).toBeVisible();
+  expect(h.state.tables.participants.at(-1)).toMatchObject({company_id:c.id,company_name:c.name});
+  expect(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).not.toContain(c.id);
+});
+
+test('linked mode preserves CSV; failed company lookup does not fall back to free-text linking',async({page})=>{
+  const {h}=await setup(page);await login(page,'admin01');await page.getByLabel('기본 담당 상담사').selectOption(ids.counselor);
+  h.state.failReadsOf='client_companies';await page.getByLabel('고객사 연결 방식').selectOption('linked');
+  await expect(page.locator('[aria-label="참여자 일괄 등록"]')).toContainText('고객사 요청을 처리하지 못했습니다');
+  await page.locator('[data-file="csv"]').setInputFiles({name:'synthetic.csv',mimeType:'text/csv',buffer:Buffer.from('이름,연락처,담당 상담사,소속기업\n합성CSV,01023456789,,')});
+  await expect(page.locator('[data-preview]')).toContainText('활성 고객사를 선택');
+  await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();expect(h.state.created).toHaveLength(0);
+  await page.getByLabel('고객사 연결 방식').selectOption('unlinked');await page.getByRole('button',{name:'입력 확인',exact:true}).click();
+  await expect(page.locator('[data-preview]')).toContainText('등록 가능');
+});
 
 for(const [id,heading] of [['admin01','관리자 참여자 등록'],['consult01','상담사 페이지']]){
   test(`${id} restores its role after refresh and logout clears the session`,async({page})=>{

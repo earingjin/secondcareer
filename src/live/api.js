@@ -65,6 +65,23 @@ export function createAPI(onExpired,env=runtimeEnv()){
       if(path==='/functions/v1/secondcareer-admin-directory'&&response.status!==401){
         throw Error(response.status===403?'운영 관리 목록을 조회할 권한이 없습니다.':'운영 관리 목록을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
       }
+      if(path.startsWith('/functions/v1/secondcareer-admin-companies')&&response.status!==401){
+        if(path.includes('section=counselors')){
+          const assignmentErrors={ASSIGNMENT_EXISTS:'이미 배정된 상담사입니다. 배정 목록을 다시 조회해 주세요.',ASSIGNMENT_CONFLICT:'고객사 또는 상담사 소속이 변경되었습니다. 배정 목록을 다시 조회해 주세요.',INVALID_REQUEST:'고객사와 상담사 선택을 확인해 주세요.',FORBIDDEN:'이 고객사 또는 상담사에 접근할 권한이 없습니다.'};
+          throw Error(assignmentErrors[data?.error]||'상담사 배정 결과를 확인하지 못했습니다. 다시 조회해 상태를 확인해 주세요.');
+        }
+        const errors={INVALID_REQUEST:'필수값·날짜·이메일·연락처와 조회 조건을 확인해 주세요.',COMPANY_NAME_UNAVAILABLE:'같은 이름의 고객사가 이미 등록되어 있습니다. 비활성 고객사도 확인해 주세요.',COMPANY_CONFLICT:'다른 변경이 먼저 저장되었습니다. 상세를 다시 조회한 뒤 수정해 주세요.',FORBIDDEN:'이 고객사에 접근할 권한이 없습니다.'};
+        throw Error(errors[data?.error]||'고객사 요청을 처리하지 못했습니다. 저장 여부를 조회한 뒤 다시 시도해 주세요.');
+      }
+      if(path.startsWith('/functions/v1/secondcareer-company-manager-progress?')&&response.status!==401){
+        const errors={PASSWORD_CHANGE_REQUIRED:'먼저 임시 비밀번호를 변경해 주세요.',FORBIDDEN:'이 고객사 현황을 조회할 권한이 없습니다.',MANAGER_NOT_CONFIGURED:'고객사 현황 기능을 사용할 수 없습니다.',INVALID_REQUEST:'고객사 선택을 확인해 주세요.'};
+        throw Object.assign(Error(errors[data?.error]||'고객사 현황을 불러오지 못했습니다. 잠시 후 새로고침해 주세요.'),{forbidden:response.status===403});
+      }
+      if(path.startsWith('/functions/v1/secondcareer-admin-company-managers')&&response.status!==401){
+        const errors={MANAGER_ALREADY_REQUESTED:'이미 발급 요청된 이메일입니다. 재발급하지 말고 처리 결과를 확인해 주세요.',MANAGER_NOT_CONFIGURED:'담당자 계정 연동 검증 전에는 사용할 수 없습니다.',INVALID_REQUEST:'담당자 이름·이메일·연락처를 확인해 주세요.',FORBIDDEN:'고객사 담당자를 관리할 권한이 없습니다.'};
+        throw Error(errors[data?.error]||'담당자 처리 결과 미확인: 다시 발급하지 말고 관리자에게 확인해 주세요.');
+      }
+      if(path==='/functions/v1/secondcareer-register-participant'&&response.status!==401&&['COMPANY_UNAVAILABLE','COMPANY_NAME_MISMATCH','COMPANY_QUERY_FAILED'].includes(data?.error))throw Error(data.error==='COMPANY_NAME_MISMATCH'?'선택한 고객사와 소속기업명이 다릅니다.':data.error==='COMPANY_UNAVAILABLE'?'선택한 고객사가 없거나 비활성 상태입니다. 고객사를 다시 조회해 주세요.':'고객사를 확인하지 못했습니다. 잠시 후 다시 조회해 주세요.');
       if(body?.action==='post-approve'&&response.status!==401){
         const approveMessages={PRE_REQUIRED:'사전진단을 최종 제출한 내담자만 사후진단을 허용할 수 있습니다.',LOCKED:'이미 사후진단을 제출한 내담자입니다.',FORBIDDEN:'담당 내담자만 사후진단을 허용할 수 있습니다.',POST_NOT_CONFIGURED:'사후진단 기능을 사용할 수 없습니다. 관리자에게 문의해 주세요.'};
         throw Error(approveMessages[data?.error]||'사후진단 허용 여부를 확인하지 못했습니다. 새로 조회해 상태를 확인해 주세요.');
@@ -102,8 +119,9 @@ export function createAPI(onExpired,env=runtimeEnv()){
     let account;
     try{account=await request('/functions/v1/secondcareer-account')}
     catch(error){if(error.accountUnavailable)return readExistingAccount();throw error}
-    if(!account.profile||!['participant','counselor','admin'].includes(account.profile.role)||typeof account.mustChangePassword!=='boolean')throw Error('계정 상태를 확인하지 못했습니다.');
+    if(!account.profile||!['participant','counselor','admin','company_manager'].includes(account.profile.role)||typeof account.mustChangePassword!=='boolean')throw Error('계정 상태를 확인하지 못했습니다.');
     passwordChangeRequired=account.mustChangePassword;
+    if(account.profile.role==='company_manager')return {...await request('/functions/v1/secondcareer-company-manager'),participants:[],assessments:[],registrationAvailable:false};
     if(passwordChangeRequired||account.profile.role==='admin')return {...account,registrationAvailable:account.registrationAvailable===true,participants:[],assessments:[]};
     const data=await request('/functions/v1/secondcareer-assessment');
     if(data.profile?.role!==account.profile.role)throw Error('계정 권한 응답이 일치하지 않습니다.');
@@ -119,8 +137,8 @@ export function createAPI(onExpired,env=runtimeEnv()){
       try{await refresh();return await read()}catch(error){clear();throw error}
     },
     read,
-    async changePassword(password){
-      const data=await request('/functions/v1/secondcareer-account',{body:{action:'change-password',password}});
+    async changePassword(password,companyManager=false){
+      const data=await request(companyManager?'/functions/v1/secondcareer-company-manager':'/functions/v1/secondcareer-account',{body:{action:'change-password',password}});
       if(data.changed!==true)throw Error('비밀번호 변경을 확인하지 못했습니다.');
       return read();
     },
@@ -130,6 +148,16 @@ export function createAPI(onExpired,env=runtimeEnv()){
     adminProgress:()=>request('/functions/v1/secondcareer-admin-progress'),
     // REQ-A-001/002 read only: organization, companies, counselors and participants in the server-checked scope.
     adminDirectory:()=>request('/functions/v1/secondcareer-admin-directory'),
+    companies:({search='',status='all',page=1,pageSize=20}={})=>request('/functions/v1/secondcareer-admin-companies?'+new URLSearchParams({search,status,page:String(page),pageSize:String(pageSize)})),
+    company:id=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)),
+    saveCompany:(id,body)=>request('/functions/v1/secondcareer-admin-companies'+(id?'?id='+encodeURIComponent(id):''),{body,method:id?'PATCH':'POST'}),
+    companyCounselors:id=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)+'&section=counselors'),
+    companyManagers:id=>request('/functions/v1/secondcareer-admin-company-managers?companyId='+encodeURIComponent(id)),
+    issueCompanyManager:(id,body)=>request('/functions/v1/secondcareer-admin-company-managers?companyId='+encodeURIComponent(id),{body}),
+    manageCompanyManager:(id,body)=>request('/functions/v1/secondcareer-admin-company-managers?companyId='+encodeURIComponent(id),{method:'PATCH',body}),
+    // STEP 14-D: counts for one allowed company; the server re-checks account, password state and access.
+    managerProgress:id=>request('/functions/v1/secondcareer-company-manager-progress?companyId='+encodeURIComponent(id)),
+    assignCompanyCounselor:(id,counselorUserId,assigned)=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)+'&section=counselors',{method:'PATCH',body:{action:assigned?'assign':'unassign',counselorUserId}}),
     // REQ-A-006/007: server-side aggregate; company narrows inside the server-checked organization.
     adminAggregate:(company=null)=>request('/functions/v1/secondcareer-admin-aggregate'+(company?'?company='+encodeURIComponent(company):'')),
     // REQ-A-005: the server re-checks the participant's organization and final submission.

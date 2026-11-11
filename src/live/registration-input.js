@@ -19,7 +19,7 @@ export function parseRegistrationText(text){
   row.push(cell.trim());if(row.some(Boolean))rows.push(row);
   return rows;
 }
-export function registrationRows(rows,{profile,counselors=[],organizationName='',defaultCounselorId=''}={}){
+export function registrationRows(rows,{profile,counselors=[],organizationName='',defaultCounselorId='',companyMode='unlinked',selectedCompany=null}={}){
   if(rows[0]&&/^(닉네임|이름|이름 또는 닉네임|참여자 이름)$/.test(rows[0][0]))rows=rows.slice(1);
   if(!rows.length)throw Error('등록할 이름과 연락처를 입력해 주세요.');
   if(rows.length>100)throw Error('한 번에 100명 이하로 나누어 등록해 주세요.');
@@ -33,6 +33,10 @@ export function registrationRows(rows,{profile,counselors=[],organizationName=''
     if(!displayName||displayName.length>12)errors.push(fieldErrors.displayName='이름은 1~12자로 입력해 주세요');
     if(phone.length<8||phone.length>20)errors.push(fieldErrors.phone='연락처는 숫자 8~20자리가 필요합니다');
     if(rawCompany.length>200)errors.push(fieldErrors.companyName='소속기업은 200자 이내로 입력해 주세요');
+    const linked=profile.role==='admin'&&companyMode==='linked';
+    const key=s=>s.trim().replace(/\s+/gu,' ').replace(/[A-Z]/g,c=>c.toLowerCase());
+    if(linked&&(!selectedCompany||selectedCompany.status!=='active'||typeof selectedCompany.id!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selectedCompany.id)||typeof selectedCompany.name!=='string'||!selectedCompany.name.trim()))errors.push(fieldErrors.companyName='활성 고객사를 선택해 주세요');
+    else if(linked&&rawCompany&&key(rawCompany)!==key(selectedCompany.name))errors.push(fieldErrors.companyName='소속기업 열은 비우거나 선택한 고객사명과 일치해야 합니다');
     if(profile.role==='admin'&&counselorName){
       const matches=counselors.filter(c=>c.id===counselorName||c.name===counselorName);
       if(matches.length===1)counselorUserId=matches[0].id;else errors.push(fieldErrors.counselorName='같은 조직의 상담사 이름 또는 ID를 확인해 주세요');
@@ -40,7 +44,7 @@ export function registrationRows(rows,{profile,counselors=[],organizationName=''
     if(!counselors.some(c=>c.id===counselorUserId))errors.push(fieldErrors.counselorName='담당 상담사를 선택해 주세요');
     if(seen.has(loginId))errors.push(fieldErrors.phone='입력 안에 같은 로그인 아이디가 있습니다');
     seen.add(loginId);
-    return {line:index+1,displayName,phone,loginId,counselorUserId,companyName:rawCompany||organizationName,error:errors.join(' · '),fieldErrors};
+    return {line:index+1,displayName,phone,loginId,counselorUserId,companyName:linked?(selectedCompany?.name||''):rawCompany||organizationName,...(linked?{companyId:selectedCompany?.id}:{}),error:errors.join(' · '),fieldErrors};
   });
 }
 
