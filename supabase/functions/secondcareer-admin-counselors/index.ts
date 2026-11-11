@@ -1,5 +1,5 @@
 import {APIError,failure,headers,readBody,secretDigest} from '../_shared/registration-http.ts';
-import {authenticateAdmin,readAll} from '../_shared/admin-access.ts';
+import {authenticateAdmin,chunks,readAll} from '../_shared/admin-access.ts';
 import {generateTemporaryPassword} from '../_shared/temporary-password.ts';
 
 const reply=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers});
@@ -10,12 +10,26 @@ export async function handleAdminCounselors(req:Request){
   try{
     const {admin,profile,user}=await authenticateAdmin(req);
     if(req.method==='GET'){
-      const counselors=[];
-      for(const p of await readAll(()=>admin.from('user_profiles').select('user_id,display_name').eq('organization_id',profile.organization_id).eq('role','counselor'),'user_id')){
-        const {data:m,error}=await admin.from('server_login_lookup').select('login_id').eq('user_id',p.user_id).maybeSingle();
-        if(error)throw new APIError('COUNSELOR_QUERY_FAILED',503);
-        counselors.push({id:p.user_id,name:p.display_name||p.user_id,loginId:m?.login_id||null});
+      const profiles=await readAll(()=>admin.from('user_profiles').select('user_id,display_name').eq('organization_id',profile.organization_id).eq('role','counselor'),'user_id');
+      const mappings=new Map<string,string>(),loginIds=new Set<string>();
+      for(const ids of chunks(profiles.map(p=>p.user_id),100)){
+        const allowed=new Set(ids);let offset=0;
+        // Offset pagination is deliberate: keyset pagination by user_id alone
+        // can silently skip duplicate mappings at a page boundary.
+        for(;;){
+          const {data,error}=await admin.from('server_login_lookup').select('user_id,login_id').in('user_id',ids)
+            .order('user_id',{ascending:true}).order('login_id',{ascending:true}).range(offset,offset+99);
+          if(error||!Array.isArray(data))throw new APIError('COUNSELOR_QUERY_FAILED',503);
+          if(!data.length)break;
+          for(const m of data){
+            if(!allowed.has(m.user_id)||mappings.has(m.user_id)||typeof m.login_id!=='string'||
+              !/^[a-z0-9][a-z0-9_-]{5,31}$/.test(m.login_id)||loginIds.has(m.login_id))throw new APIError('COUNSELOR_QUERY_FAILED',503);
+            mappings.set(m.user_id,m.login_id);loginIds.add(m.login_id);
+          }
+          offset+=data.length;
+        }
       }
+      const counselors=profiles.map(p=>({id:p.user_id,name:p.display_name||p.user_id,loginId:mappings.get(p.user_id)||null}));
       return reply({counselors,registrationAvailable:Deno.env.get('SECONDCAREER_COUNSELOR_REGISTRATION_ENABLED')==='true'});
     }
     // Enable only after the proposal, password gates, RPC permissions and Auth

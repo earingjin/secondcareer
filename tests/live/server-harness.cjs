@@ -94,7 +94,7 @@ function harness(){
       if(update)rows.forEach(row=>Object.assign(row,update));
       if(single&&rows.length>1)return {data:null,error:{code:'MULTIPLE_ROWS'}};
       if(order)rows=[...rows].sort((a,b)=>a[order]<b[order]?-1:a[order]>b[order]?1:0);
-      if(!single&&!update)rows=rows.slice(0,Math.min(limit,state.pageSize));
+      if(!single&&!update){if(range)rows=rows.slice(range[0],range[0]+Math.min(range[1]-range[0]+1,state.pageSize));else rows=rows.slice(0,Math.min(limit,state.pageSize));}
       // A real select returns only the requested columns.
       // Also models PostgREST JSON paths: 'alias:column->key(->key...)' returns {alias: column[key]...}
       // (missing parts give null, as a JSON path does).

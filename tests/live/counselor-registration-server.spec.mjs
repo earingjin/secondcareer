@@ -7,6 +7,41 @@ const setup=()=>{const h=harness();h.state.counselorEnabled=true;return h};
 const input=()=>({name:'합성 상담사',loginId:'new_counselor',requestId:randomUUID()});
 const issue=(h,b=input(),token=ids.admin)=>h.call(h.counselors.handleAdminCounselors,token,b);
 
+test('counselor list batches only scoped IDs and handles a low row limit and missing mappings',async()=>{
+  const h=setup();h.state.pageSize=17;
+  for(let i=0;i<250;i++){
+    const id=`30000000-0000-4000-8000-${String(i).padStart(12,'0')}`;
+    h.state.tables.user_profiles.push({user_id:id,organization_id:ids.org,role:'counselor',display_name:`상담사 ${i}`});
+    if(i!==20)h.state.tables.server_login_lookup.push({user_id:id,login_id:`account_${String(i).padStart(4,'0')}`,internal_email:'secret@example.invalid'});
+  }
+  const r=await h.call(h.counselors.handleAdminCounselors,ids.admin);
+  expect(r.status).toBe(200);expect(r.data.counselors).toHaveLength(251);
+  expect(r.data.counselors.find(c=>c.name==='상담사 20').loginId).toBeNull();
+  expect(r.data.counselors.find(c=>c.name==='상담사 249').loginId).toBe('account_0249');
+  expect(r.data.counselors.some(c=>c.id===ids.other)).toBe(false);
+  expect(JSON.stringify(r.data)).not.toMatch(/secret@example|internal_email|password/);
+  const queries=h.state.reads.filter(r=>r.table==='server_login_lookup');
+  expect(queries.length).toBeLessThan(30);
+  for(const q of queries){
+    expect(q.columns).toBe('user_id,login_id');
+    const filter=q.filters.find(f=>f[0]==='user_id'&&f[2]==='in');
+    expect(filter[1].length).toBeLessThanOrEqual(100);expect(filter[1]).not.toContain(ids.other);
+  }
+});
+
+test('duplicate mappings across page boundaries, invalid IDs and lookup errors fail closed',async()=>{
+  for(const kind of ['duplicate-user','duplicate-login','invalid-login','read-error']){
+    const h=setup();h.state.pageSize=1;
+    const id=randomUUID();h.state.tables.user_profiles.push({user_id:id,organization_id:ids.org,role:'counselor',display_name:'다른 상담사'});
+    h.state.tables.server_login_lookup.push({user_id:id,login_id:kind==='duplicate-login'?'consult01':'other_counselor',internal_email:'hidden'});
+    if(kind==='duplicate-user')h.state.tables.server_login_lookup.push({user_id:id,login_id:'second_login',internal_email:'hidden'});
+    if(kind==='invalid-login')h.state.tables.server_login_lookup.find(m=>m.user_id===id).login_id='BAD LOGIN';
+    if(kind==='read-error')h.state.failReadsOf='server_login_lookup';
+    const r=await h.call(h.counselors.handleAdminCounselors,ids.admin);
+    expect(r.status,kind).toBe(503);expect(r.data).toEqual({error:'COUNSELOR_QUERY_FAILED'});expect(r.data).not.toHaveProperty('counselors');
+  }
+});
+
 test('issue, first password gate, change and existing many-company assignment preserve records',async()=>{
   const h=setup(),before=JSON.stringify([h.state.tables.participants,h.state.tables.assessments,h.state.tables.assessment_history]);
   const r=await issue(h,{...input(),loginId:' New_Counselor '});expect(r.status).toBe(201);
