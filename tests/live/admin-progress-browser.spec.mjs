@@ -22,6 +22,7 @@ async function setup(page,{postEnabled=false,progressStatus=null}={}){
     else if(url.pathname.endsWith('/secondcareer-account'))result=await h.call(h.account.handleAccount,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-register-participant'))result=await h.call(h.registration.handleRegistration,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-admin-progress'))result=progressStatus?{status:progressStatus,data:{error:'FIXTURE'}}:await h.call(h.progress.handleAdminProgress,token,body,request.method(),'https://fixture.invalid/'+url.search);
+    else if(url.pathname.endsWith('/secondcareer-admin-companies'))result=await h.call(h.companies.handleAdminCompanies,token,body,request.method(),'https://fixture.invalid/'+url.search);
     else if(url.pathname.endsWith('/secondcareer-admin-directory'))result=await h.call(h.directory.handleAdminDirectory,token,body,request.method(),'https://fixture.invalid/'+url.search);
     else if(url.pathname.endsWith('/secondcareer-assessment'))result={status:200,data:{profile:{role:'counselor',display_name:'상담사'},participants:[],assessments:[],counselors:{}}};
     else if(url.pathname==='/auth/v1/logout')return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*'}});
@@ -45,7 +46,7 @@ function addPopulation(h){
 
 test('admin sees organization totals, completion rate and per-company counts; post shown only when enabled',async({page})=>{
   const {h,errors}=await setup(page,{postEnabled:true});addPopulation(h);await login(page);
-  await expect(page.getByRole('heading',{name:'관리자 참여자 등록'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'관리자 페이지'})).toBeVisible();
   await expect(kpi(page,'total')).toHaveText('5');
   await expect(kpi(page,'pre-submitted')).toHaveText('2');await expect(kpi(page,'pre-incomplete')).toHaveText('3');
   await expect(kpi(page,'pre-rate')).toHaveText('40.0%');await expect(kpi(page,'post-submitted')).toHaveText('1');

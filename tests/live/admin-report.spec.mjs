@@ -122,6 +122,7 @@ test.describe('admin report screen',()=>{
       else if(u.pathname.endsWith('/secondcareer-account'))result=await h.call(h.account.handleAccount,token,body,request.method());
       else if(u.pathname.endsWith('/secondcareer-register-participant'))result=await h.call(h.registration.handleRegistration,token,body,request.method());
       else if(u.pathname.endsWith('/secondcareer-admin-progress'))result=await h.call(h.progress.handleAdminProgress,token,body,request.method(),q);
+      else if(u.pathname.endsWith('/secondcareer-admin-companies'))result=await h.call(h.companies.handleAdminCompanies,token,body,request.method(),q);
       else if(u.pathname.endsWith('/secondcareer-admin-directory'))result=await h.call(h.directory.handleAdminDirectory,token,body,request.method(),q);
       else if(u.pathname.endsWith('/secondcareer-admin-report'))result=reportStatus?{status:reportStatus,data:{error:'FIXTURE'}}:await h.call(h.adminReport.handleAdminReport,token,body,request.method(),q);
       else if(u.pathname.endsWith('/secondcareer-assessment'))result=await h.call(h.assessment,token,body,request.method(),q);
@@ -162,7 +163,7 @@ test.describe('admin report screen',()=>{
     await expect(page.locator('section.sheet:not(.noprintpage)')).toHaveCount(3);
     expect(await pdfPages(page)).toBe(3);
     await page.getByRole('button',{name:'← 관리자 참여자 목록'}).click();
-    await expect(page.getByRole('heading',{name:'관리자 참여자 등록'})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'관리자 페이지'})).toBeVisible();
     await expect(page.locator('section.sheet')).toHaveCount(0);
     await expect(page.locator('#dir-company')).toHaveValue('0');await expect(page.locator('[data-dir-participants] tr[data-dir-participant]')).toHaveCount(2);
     await expect(page.locator('#admin-progress [data-kpi="total"] b')).toHaveText('4');

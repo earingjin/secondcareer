@@ -126,6 +126,7 @@ test.describe('admin screen',()=>{
       else if(url.pathname.endsWith('/secondcareer-account'))result=await h.call(h.account.handleAccount,token,body,request.method());
       else if(url.pathname.endsWith('/secondcareer-register-participant'))result=await h.call(h.registration.handleRegistration,token,body,request.method());
       else if(url.pathname.endsWith('/secondcareer-admin-progress'))result=await h.call(h.progress.handleAdminProgress,token,body,request.method());
+      else if(url.pathname.endsWith('/secondcareer-admin-companies'))result=await h.call(h.companies.handleAdminCompanies,token,body,request.method(),'https://fixture.invalid/'+url.search);
       else if(url.pathname.endsWith('/secondcareer-admin-directory'))result=directoryStatus?{status:directoryStatus,data:{error:'FIXTURE'}}:await h.call(h.directory.handleAdminDirectory,token,body,request.method());
       else if(url.pathname.endsWith('/secondcareer-assessment'))result={status:200,data:{profile:{role:'counselor',display_name:'상담사'},participants:[],assessments:[],counselors:{}}};
       else if(url.pathname==='/auth/v1/logout')return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*'}});
@@ -140,7 +141,7 @@ test.describe('admin screen',()=>{
 
   test('admin sees counselors, companies and participants; filters work; progress, URL and registration stay',async({page})=>{
     const h=seed(),errors=[];page.on('pageerror',e=>errors.push(String(e)));await open(page,h);await login(page);
-    await expect(page.getByRole('heading',{name:'관리자 참여자 등록'})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'관리자 페이지'})).toBeVisible();
     await expect(kpi(page,'participants')).toHaveText('5');await expect(kpi(page,'counselors')).toHaveText('2');
     await expect(kpi(page,'unassigned')).toHaveText('1');await expect(kpi(page,'unknown')).toHaveText('1');
     await expect(page.locator('#admin-progress [data-kpi="total"] b')).toHaveText('5');

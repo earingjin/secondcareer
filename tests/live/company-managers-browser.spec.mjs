@@ -28,7 +28,7 @@ async function setup(page){
   await page.goto(server.url);return {h,c,b,calls};
 }
 async function login(page,id='admin01',pw='Fixture-password-123!'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill(pw);await page.getByRole('button',{name:'로그인',exact:true}).click()}
-async function detail(page,id){await page.locator(`[data-company-id="${id}"]`).getByRole('button',{name:'상세 관리'}).click();await expect(page.locator('[data-company-manager-host] h3')).toBeVisible()}
+async function detail(page,id){if(await page.getByRole('button',{name:'고객사 목록으로'}).isVisible())await page.getByRole('button',{name:'고객사 목록으로'}).click();await page.locator(`[data-company-id="${id}"]`).getByRole('button',{name:'상세 관리'}).click();await expect(page.locator('[data-company-manager-host] h3')).toBeVisible()}
 async function issue(page,email='synthetic@example.invalid'){
   await page.getByLabel('담당자 이름',{exact:true}).fill('합성 담당자');await page.getByLabel('담당자 이메일',{exact:true}).fill(email);await page.getByLabel('담당자 연락처',{exact:true}).fill('01000000000');await page.getByRole('button',{name:'담당자 계정 발급',exact:true}).click();await expect(page.getByLabel('발급 임시 비밀번호')).toBeVisible();return page.getByLabel('발급 임시 비밀번호').inputValue();
 }

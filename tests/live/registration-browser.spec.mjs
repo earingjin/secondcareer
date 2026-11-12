@@ -89,11 +89,14 @@ test('admin selects paginated active company ID, rejects file conflicts and regi
   const now='2026-11-06T00:00:00Z';
   for(let i=0;i<25;i++)h.state.tables.client_companies.push({id:crypto.randomUUID(),organization_id:ids.org,name:'합성고객사 '+String(i).padStart(2,'0'),status:'active',created_at:now});
   h.state.tables.client_companies.push({id:crypto.randomUUID(),organization_id:ids.org,name:'비활성',status:'inactive',created_at:now},{id:crypto.randomUUID(),organization_id:'other-org',name:'타조직',status:'active',created_at:now});
+  for(const c of h.state.tables.client_companies)Object.assign(c,{start_date:'2026-11-01',end_date:'2027-01-31',pm_name:'합성 PM'});
   for(const c of h.state.tables.client_companies.filter(c=>c.organization_id===ids.org&&c.status==='active'))h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:c.id,counselor_user_id:ids.counselor,created_at:now});
   await login(page,'admin01');await page.getByLabel('기본 담당 상담사').selectOption(ids.counselor);
-  expect(h.state.reads.filter(r=>r.table==='client_companies')).toHaveLength(0);
+  await expect(page.locator('#admin-companies [data-company-list]')).toBeVisible();
+  const readsBeforeLink=h.state.reads.filter(r=>r.table==='client_companies').length;expect(readsBeforeLink).toBe(1);
   await page.getByLabel('고객사 연결 방식').selectOption('linked');
   await expect(page.getByLabel('소속 고객사 선택').locator('option')).toHaveCount(21);
+  expect(h.state.reads.filter(r=>r.table==='client_companies').length).toBeGreaterThan(readsBeforeLink);
   await fillRow(page,['선택검증','01012345678']);await page.getByRole('button',{name:'입력 확인',exact:true}).click();
   await expect(page.locator('[data-preview]')).toContainText('활성 고객사를 선택');expect(h.state.created).toHaveLength(0);
   await page.getByRole('button',{name:'고객사 다음',exact:true}).click();
@@ -178,7 +181,7 @@ test('late assignment response cannot replace counselors for a newly selected co
   await expect(page.getByLabel('소속 고객사 선택')).toHaveValue(b.id);await expect(page.getByLabel('기본 담당 상담사').locator(`option[value="${onlyA}"]`)).toHaveCount(0);
 });
 
-for(const [id,heading] of [['admin01','관리자 참여자 등록'],['consult01','상담사 페이지']]){
+for(const [id,heading] of [['admin01','관리자 페이지'],['consult01','상담사 페이지']]){
   test(`${id} restores its role after refresh and logout clears the session`,async({page})=>{
     await setup(page);await login(page,id);
     await expect(page.getByRole('heading',{name:heading})).toBeVisible();
@@ -445,7 +448,7 @@ test('registration input stays usable at desktop and mobile widths',async({page}
 test('existing participant still opens survey; administrator gets only registration screen',async({page})=>{
   const mock=await setup(page);await login(page,'client01');await expect(page.locator('#live-save')).toBeVisible();expect(mock.reads()).toBe(1);
   await page.getByRole('button',{name:'로그아웃',exact:true}).click();await login(page,'admin01');
-  await expect(page.getByRole('heading',{name:'관리자 참여자 등록'})).toBeVisible();expect(mock.reads()).toBe(1);
+  await expect(page.getByRole('heading',{name:'관리자 페이지'})).toBeVisible();expect(mock.reads()).toBe(1);
   await page.locator('#registration-counselor').selectOption(ids.counselor);
   await fillRow(page,['관리자등록','010-8765-4321','','테스트기업']);
   await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();await expect(page.getByRole('cell',{name:'등록 완료',exact:true})).toBeVisible();

@@ -24,6 +24,7 @@ async function setup(page,{answers={},role='participant',disableMobile=false}={}
     else if(url.pathname.endsWith('/secondcareer-account'))data={profile:{role,display_name:'가상 사용자'},mustChangePassword:false,registrationAvailable:false};
     else if(url.pathname.endsWith('/secondcareer-admin-directory'))data={scope:'organization',generatedAt:'2026-10-26T03:00:00Z',organizationName:'가상 조직',totals:{participants:0,counselors:0,unassigned:0,unknownCounselor:0},counselors:[],companies:[],participants:[]};
     else if(url.pathname.endsWith('/secondcareer-admin-progress'))data={scope:'organization',generatedAt:'2026-10-26T03:00:00Z',total:0,pre:{notStarted:0,draft:0,submitted:0},post:{available:false},companies:[]};
+    else if(url.pathname.endsWith('/secondcareer-admin-companies'))data={companies:[],total:0,page:1,pageSize:20,search:'',status:'all'};
     else if(url.pathname.endsWith('/secondcareer-assessment')){
       if(url.searchParams.has('id'))data={html:'<section class="sheet"><h2>모의 서버 보고서</h2><button class="noprint" onclick="window.print()">인쇄</button></section>'};
       else if(request.method()==='POST'){
@@ -41,7 +42,7 @@ async function setup(page,{answers={},role='participant',disableMobile=false}={}
   await page.locator('#lg-id').fill('client01');await page.locator('#lg-pw').fill('Fixture-password-123!');
   await page.getByRole('button',{name:'로그인',exact:true}).click();
   if(role==='participant')await expect(page.locator('#live-save')).toBeVisible();
-  else await expect(page.getByRole('heading',{name:role==='admin'?'관리자 참여자 등록':'상담사 페이지'})).toBeVisible();
+  else await expect(page.getByRole('heading',{name:role==='admin'?'관리자 페이지':'상담사 페이지'})).toBeVisible();
   return {state,errors};
 }
 const question=page=>page.locator('.single-question .q:visible');
