@@ -108,6 +108,8 @@ function harness(){
       if(state.failCreate)return {data:{user:null},error:{message:'private upstream error'}};
       if(Object.values(users).some(u=>u.email===input.email))return {data:{user:null},error:{message:'Email already exists'}};
       const user={id:webcrypto.randomUUID(),email:input.email,app_metadata:{...input.app_metadata}};
+      if(state.createdUserPatch)Object.assign(user,state.createdUserPatch);
+      if(state.createdMetadataPatch)Object.assign(user.app_metadata,state.createdMetadataPatch);
       users[user.id]=user;credentials.set(user.id,input.password);state.created.push({...input,id:user.id});return {data:{user},error:null};
     },
     async deleteUser(id){
@@ -124,8 +126,10 @@ function harness(){
       if(state.throwCounselorComplete)throw Error('transport failure');
       if(state.failCounselorComplete)return {error:{code:'COMPLETE_FAILED'}};
       const r=tables.counselor_registration_requests.find(r=>r.id===args.request_id),u=users[args.new_user_id];
-      if(!r||!u||u.email!==args.new_internal_email||u.app_metadata.registration_request_id!==r.id||u.app_metadata.must_change_password!==true||!tables.user_profiles.some(p=>p.user_id===r.actor_user_id&&p.role==='admin'&&p.organization_id===r.organization_id))return {error:{code:'FORBIDDEN'}};
-      if(r.status==='complete')return r.auth_user_id===args.new_user_id?{data:{counselorId:r.auth_user_id,loginId:r.login_id},error:null}:{error:{code:'CONFLICT'}};
+      const expectedEmail=r?'sp-'+Buffer.from(await webcrypto.subtle.digest('SHA-256',new TextEncoder().encode(r.login_id))).toString('hex')+'@accounts.example.invalid':null;
+      if(!r||!u||u.email!==args.new_internal_email||u.email!==expectedEmail||u.app_metadata.registration_request_id!==r.id||r.status==='pending'&&u.app_metadata.must_change_password!==true||!tables.user_profiles.some(p=>p.user_id===r.actor_user_id&&p.role==='admin'&&p.organization_id===r.organization_id))return {error:{code:'FORBIDDEN'}};
+      if(r.status==='complete')return r.auth_user_id===args.new_user_id&&tables.user_profiles.some(p=>p.user_id===u.id&&p.organization_id===r.organization_id&&p.role==='counselor'&&p.display_name===r.display_name)&&tables.server_login_lookup.some(l=>l.user_id===u.id&&l.login_id===r.login_id&&l.internal_email===args.new_internal_email)?{data:{counselorId:r.auth_user_id,loginId:r.login_id},error:null}:{error:{code:'CONFLICT'}};
+      if(r.status!=='pending')return {error:{code:'CONFLICT'}};
       if(tables.server_login_lookup.some(l=>l.login_id===r.login_id||l.user_id===u.id||l.internal_email===u.email)||tables.user_profiles.some(p=>p.user_id===u.id))return {error:{code:'23505'}};
       tables.user_profiles.push({user_id:u.id,organization_id:r.organization_id,role:'counselor',display_name:r.display_name});
       tables.server_login_lookup.push({user_id:u.id,login_id:r.login_id,internal_email:u.email});r.status='complete';r.auth_user_id=u.id;
@@ -238,6 +242,6 @@ function harness(){
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
-  return {state,ids,login,registration,account,access,progress,directory,adminReport,aggregate,companies,counselors,managers,manager,managerProgress,assessment,call,signIn};
+  return {state,ids,login,registration,account,access,progress,directory,adminReport,aggregate,companies,counselors,managers,manager,managerProgress,assessment,call,signIn,completeCounselor:args=>db.rpc('secondcareer_complete_counselor_registration',args)};
 }
 module.exports={harness,ids};

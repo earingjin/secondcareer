@@ -107,6 +107,47 @@ test('completion response loss is confirmed for the same Auth user without creat
   expect((await issue(h)).status).toBe(201);expect(h.state.created).toHaveLength(1);expect(h.state.tables.user_profiles.filter(p=>p.role==='counselor'&&p.organization_id===ids.org)).toHaveLength(2);
 });
 
+test('untrusted Auth creation response remains pending without linking, disclosure, retry or deletion',async()=>{
+  for(const patch of [{createdUserPatch:{id:'not-a-uuid'}},{createdUserPatch:{email:'wrong@example.invalid'}},{createdUserPatch:{app_metadata:{}}},{createdMetadataPatch:{registration_request_id:randomUUID()}},{createdMetadataPatch:{must_change_password:false}},{createdMetadataPatch:{temporary_password_digest:'0'.repeat(64)}}]){
+    const h=setup(),b=input();Object.assign(h.state,patch);
+    const before=structuredClone([h.state.tables.user_profiles,h.state.tables.server_login_lookup,h.state.tables.participants]);
+    const r=await issue(h,b);expect(r.status).toBe(503);expect(r.data).toEqual({error:'COUNSELOR_OUTCOME_UNKNOWN'});
+    expect(h.state.tables.counselor_registration_requests[0].status).toBe('pending');
+    expect([h.state.tables.user_profiles,h.state.tables.server_login_lookup,h.state.tables.participants]).toEqual(before);
+    expect((await issue(h,b)).status).toBe(409);expect(h.state.created).toHaveLength(1);expect(h.state.deleted||[]).toEqual([]);
+  }
+});
+
+test('administrator password readiness rejects issuance and listing before reservation or Auth creation',async()=>{
+  for(const metadata of [{must_change_password:true},{registration_request_id:randomUUID()},{must_change_password:'false'}]){
+    const h=setup();h.state.users[ids.admin].app_metadata=metadata;
+    expect((await issue(h)).status).toBe(403);expect((await h.call(h.counselors.handleAdminCounselors,ids.admin)).status).toBe(403);
+    expect(h.state.tables.counselor_registration_requests).toHaveLength(0);expect(h.state.created).toHaveLength(0);
+  }
+});
+
+test('mock completion replay after password change validates stored profile, mapping and exact Auth request',async()=>{
+  const h=setup(),b=input(),r=await issue(h,b),id=r.data.counselorId;
+  await h.call(h.account.handleAccount,id,{action:'change-password',password:'Changed-password-123!'});
+  const args={request_id:b.requestId,new_user_id:id,new_internal_email:h.state.users[id].email};
+  const before=structuredClone(h.state.tables);expect((await h.completeCounselor(args)).data).toEqual({counselorId:id,loginId:b.loginId});expect(h.state.tables).toEqual(before);
+  expect((await h.completeCounselor({...args,new_user_id:ids.counselor})).error).toBeTruthy();
+  h.state.tables.server_login_lookup.find(l=>l.user_id===id).internal_email='wrong@example.invalid';expect((await h.completeCounselor(args)).error).toBeTruthy();
+  h.state.tables.server_login_lookup.find(l=>l.user_id===id).internal_email=args.new_internal_email;
+  h.state.users[id].app_metadata.registration_request_id=randomUUID();expect((await h.completeCounselor(args)).error).toBeTruthy();
+  expect(h.state.created).toHaveLength(1);expect(h.state.deleted||[]).toEqual([]);
+});
+
+test('SQL review uses installed Auth helper and preserves restricted atomic completion without Auth SELECT',async()=>{
+  const sql=fs.readFileSync('supabase/proposals/counselor-registration.sql','utf8');
+  expect(sql).not.toMatch(/(?:from|join)\s+auth\.users|auth\.users%rowtype|grant\s+select[^;]*auth\.users|security definer/i);
+  expect(sql).toContain("secondcareer_company_private.auth_matches(new_user_id,new_internal_email,request_id,r.status='pending') is not true");
+  expect(sql).toContain("p.organization_id=r.organization_id and p.role='admin' for share");
+  expect(sql).toContain("and p.display_name=r.display_name and l.login_id=r.login_id and l.internal_email=new_internal_email");
+  expect(sql.indexOf('SCHEMA_REVIEW_REQUIRED')).toBeLessThan(sql.indexOf('create table'));
+  for(const part of ['begin;','commit;',"lock_timeout='5s'","statement_timeout='30s'",'enable row level security','id uuid primary key','login_id text not null unique','security invoker',"set search_path=''",'from public,anon,authenticated','to service_role'])expect(sql).toContain(part);
+});
+
 test('existing roles and passwords remain usable; SQL is explicitly blocked pending review',async()=>{
   const h=setup();await issue(h);
   for(const id of ['admin01','consult01','client01'])expect(h.signIn(id,'Fixture-password-123!')).toBeTruthy();

@@ -2,6 +2,8 @@
 
 ## 1. 점검 목적 및 기준 커밋
 
+**갱신 (2026-11-12, 상담사 발급 Auth 계약 호환)**: 최신 `origin/main` `52ab1092904dba41372222cf91ab0530e98efa48`에서 만든 `fix/counselor-registration-auth-contract`의 로컬 작업. REQ-A-002 상담사 등록 SQL의 Auth 직접 SELECT를 기존 `secondcareer_company_private.auth_matches`로 교체하고 Edge의 신규 Auth 응답 ID·이메일·요청 ID·최초 변경 플래그·digest 대조를 추가했다. 기존 관리자 readiness 검사는 재사용한다. SQL 트랜잭션 내 Auth 행 잠금/readiness/digest 검사와 동등한 보장은 아니며 배포 전 권한·경합·RLS 시험이 필요하다. 변경 전 상담사 12건 통과, 수정 후 상담사 15건 통과, 추가·보완한 2건 재실행 통과, 배정·참여자 등록·담당자 회귀 27건 통과(모의/Chromium·SQL 정적 검사, 명령 모두 정상 종료). 구현 판정·집계는 부분 구현 그대로다. 사용자 제공 DB 계약을 사용했으며 실제 DB·Auth 접속, SQL 적용, 배포·기능 활성화는 수행하지 않았다. 수동 복구/적용 조건은 `supabase/proposals/counselor-registration.md`에 기록했다.
+
 **갱신 (2026-11-12, 관리자 고객사 중심 화면)**: `feat/admin-registration-flow`의 HEAD `b68dea637f0ccf3ec55e0fd912bb14ab1a5821f9` 위 작업. REQ-A-001의 기존 고객사 목록을 관리자 화면 첫 영역에 자동 조회하고 상세·목록 전환 및 기존 관리자 기능 이동을 연결했다. `src/live/app.js`, `src/live/admin-companies.js`와 모의 API·Chromium 회귀로 확인했다. REQ-A-001~003의 구현 판정과 집계는 유지한다. 관련 165건 실행은 163건 통과, 2건 실패였고 그중 등록 화면 모의 데이터 수정 후 등록·모바일 35건을 재실행해 통과했다. 나머지 1건은 이 작업 전 HEAD의 복구 SQL 제안과 정적 테스트 기대값 불일치다. 실제 서버·DB·Auth 및 배포 환경은 검증하지 않았다.
 
 **갱신 (2026-11-06, STEP 14-D 고객사 담당자 집계 대시보드)**: `feat/client-company-management`의 로컬·원격 기준 `b26bdb525f121fba37cb21c18ec4ab5229dd1e7c` 위에서 허용 고객사 집계 API `secondcareer-company-manager-progress`와 담당자 대시보드를 추가했다. REQ-M-002~004를 미구현→부분 구현으로 변경한다. 기능 플래그 비활성, SQL/RLS/RPC 미적용, 소수 집단 기준 미확정(검토용 임시 5명), 실제 서버·DB·Auth 미검증이 남아 완전 구현으로 판정하지 않는다. M-005·006은 새 API의 개인 정보 부재·쓰기 거부 근거를 추가하되 부분 구현을 유지한다.
