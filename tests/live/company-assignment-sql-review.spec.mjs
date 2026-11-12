@@ -42,7 +42,8 @@ test('completion locks request, company and scoped assignment before Auth and wr
   let prev=-1;
   for(const marker of markers){const pos=complete.indexOf(marker);expect(pos,marker).toBeGreaterThan(prev);prev=pos}
   expect(recovery).not.toContain('from public.client_company_counselors');
-  expect(recovery).toContain('p.counselor_user_id=r.counselor_user_id');
+  expect(recovery).not.toContain('p.counselor_user_id=r.counselor_user_id');
+  expect(recovery).toContain('p.company_id=r.company_id');
   expect(recovery).toContain('set company_cancelled_auth_user_id=new_user_id');
   expect(sql).not.toMatch(/\bdelete\s+from|\btruncate\b|\bdrop\b/i);
 });
