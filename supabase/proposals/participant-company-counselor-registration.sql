@@ -109,7 +109,7 @@ begin
   -- Never recheck today's assignment to undo yesterday's completed account.
   if r.status='complete' then
     if r.auth_user_id<>new_user_id or not exists(select 1 from public.participants p
-      where p.id=r.participant_id and p.auth_user_id=new_user_id and p.organization_id=r.organization_id and p.company_id=r.company_id and p.counselor_user_id=r.counselor_user_id) then
+      where p.id=r.participant_id and p.auth_user_id=new_user_id and p.organization_id=r.organization_id and p.company_id=r.company_id) then
       raise exception 'RECOVERY_CONFLICT';
     end if;
     return pg_catalog.jsonb_build_object('outcome','complete','participantId',r.participant_id,'companyId',r.company_id,'companyName',r.company_name);
