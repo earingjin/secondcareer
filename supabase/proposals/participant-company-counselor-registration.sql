@@ -53,6 +53,9 @@ end $$;
 -- SELECT ... FOR SHARE requires UPDATE privilege on at least one column.
 -- Existing B2 proposal grants SELECT/DELETE/INSERT only. Review and approve
 -- this service-only column grant; never grant it to anon/authenticated.
+-- Candidate A remains an unapproved review placeholder, not a selected
+-- permission. Candidate B (UPDATE(counselor_role), a STORED generated
+-- column) requires catalog, privilege and trigger testing before any choice.
 grant update(counselor_user_id) on public.client_company_counselors to service_role;
 
 create or replace function public.secondcareer_complete_company_registration(request_id uuid,new_user_id uuid,new_internal_email text)
@@ -102,11 +105,6 @@ declare r public.participant_registration_requests%rowtype;
 begin
   select * into strict r from public.participant_registration_requests where id=request_id for update;
   if r.company_id is null then raise exception 'COMPANY_LINK_REQUIRED'; end if;
-  -- Verify Auth identity for BOTH committed and pending recovery. false allows
-  -- recovery after the user's first password change without weakening identity.
-  if secondcareer_company_private.auth_matches(new_user_id,new_internal_email,request_id,false) is not true then
-    raise exception 'RECOVERY_CONFLICT';
-  end if;
   -- A committed registration remains valid after a later unassignment.
   -- Never recheck today's assignment to undo yesterday's completed account.
   if r.status='complete' then
@@ -117,7 +115,9 @@ begin
     return pg_catalog.jsonb_build_object('outcome','complete','participantId',r.participant_id,'companyId',r.company_id,'companyName',r.company_name);
   end if;
   if r.company_cancelled_auth_user_id is not null and r.company_cancelled_auth_user_id<>new_user_id then raise exception 'RECOVERY_CONFLICT'; end if;
-  if exists(select 1 from public.user_profiles where user_id=new_user_id)
+  -- Pending cancellation alone requires current Auth identity confirmation.
+  if secondcareer_company_private.auth_matches(new_user_id,new_internal_email,request_id,false) is not true
+    or exists(select 1 from public.user_profiles where user_id=new_user_id)
     or exists(select 1 from public.server_login_lookup where user_id=new_user_id)
     or exists(select 1 from public.participants where auth_user_id=new_user_id) then raise exception 'RECOVERY_CONFLICT'; end if;
   update public.participant_registration_requests set company_cancelled_auth_user_id=new_user_id where id=request_id;

@@ -19,12 +19,19 @@ test('review RPCs keep baseline signatures, return types, invoker mode and inser
   expect(complete).toContain("set status='complete',auth_user_id=new_user_id,participant_id=participant,company_name=c.name");
 });
 
-test('Auth uses the existing helper for pending completion and every recovery outcome',()=>{
+test('Auth uses the existing helper for completion and pending cancellation, not committed recovery',()=>{
   expect(sql).not.toMatch(/\b(?:from|join)\s+auth\.users\b/i);
   expect(sql).not.toMatch(/grant[\s\S]*?on\s+(?:table\s+)?auth\.users/i);
   expect(complete).toContain('auth_matches(new_user_id,new_internal_email,request_id,true) is not true');
   expect(recovery).toContain('auth_matches(new_user_id,new_internal_email,request_id,false) is not true');
-  expect(recovery.indexOf('auth_matches(')).toBeLessThan(recovery.indexOf("if r.status='complete'"));
+  const committedStart=recovery.indexOf("if r.status='complete'"),committedEnd=recovery.indexOf('end if;',recovery.indexOf('return pg_catalog.jsonb_build_object',committedStart));
+  expect(committedStart).toBeGreaterThan(-1);expect(committedEnd).toBeGreaterThan(committedStart);
+  expect(recovery.slice(committedStart,committedEnd)).not.toContain('auth_matches(');
+  expect(recovery.slice(committedStart,committedEnd)).toContain('r.auth_user_id<>new_user_id');
+  expect(recovery.slice(committedStart,committedEnd)).toContain('p.auth_user_id=new_user_id');
+  expect(recovery.slice(committedStart,committedEnd)).toContain("'outcome','complete'");
+  expect(recovery.indexOf('auth_matches(')).toBeGreaterThan(committedEnd);
+  expect(recovery.indexOf('auth_matches(')).toBeLessThan(recovery.indexOf('set company_cancelled_auth_user_id=new_user_id'));
   expect(sql).not.toMatch(/create(?: or replace)? function secondcareer_company_private|security definer/i);
 });
 

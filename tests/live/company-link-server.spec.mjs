@@ -132,6 +132,29 @@ test('mock ordering: committed registration recovers after unassignment and lost
   expect(h.state.tables.participants.find(p=>p.id===r.data.participantId)).toMatchObject({company_id:c.id,counselor_user_id:ids.counselor});
 });
 
+test('mock committed recovery returns stored result after Auth email changes and response is lost',async()=>{
+  const h=harness(),c=master();addCompany(h,c);h.state.loseCompanyResponse=true;
+  h.state.afterCompanyCompletion=()=>{h.state.users[h.state.created.at(-1).id].email='changed@example.invalid'};
+  const r=await call(h,body(c));expect(r.status).toBe(201);expect(h.state.deleted||[]).toHaveLength(0);
+  expect(h.state.tables.participant_registration_requests[0].status).toBe('complete');
+  expect(h.state.tables.participants.find(p=>p.id===r.data.participantId)).toMatchObject({company_id:c.id,counselor_user_id:ids.counselor});
+});
+
+test('mock pending recovery refuses cancellation and Auth deletion when Auth identity no longer matches',async()=>{
+  for(const change of ['email','request','missing']){
+    const h=harness(),c=master();addCompany(h,c);h.state.failComplete=true;
+    h.state.beforeCompanyCompletion=()=>{
+      const id=h.state.created.at(-1).id;
+      if(change==='email')h.state.users[id].email='changed@example.invalid';
+      if(change==='request')h.state.users[id].app_metadata.registration_request_id=randomUUID();
+      if(change==='missing')delete h.state.users[id];
+    };
+    const r=await call(h,body(c));expect(r.status,change).toBe(503);expect(r.data.error).toBe('REGISTRATION_OUTCOME_UNKNOWN');
+    expect(h.state.deleted||[]).toHaveLength(0);expect(h.state.tables.participants).toHaveLength(1);
+    expect(h.state.tables.participant_registration_requests[0].company_cancelled_auth_user_id).toBeUndefined();
+  }
+});
+
 test('unapplied supplemental RPC proposal locks assignment only in completion and keeps reviewed signatures',()=>{
   const sql=fs.readFileSync('supabase/proposals/participant-company-counselor-registration.sql','utf8');
   expect(sql).toContain('SCHEMA_REVIEW_REQUIRED');expect(sql).toContain('__REVIEW_COMPLETE_FUNCTION_MD5__');

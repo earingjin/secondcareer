@@ -159,7 +159,7 @@ function harness(){
     if(name==='secondcareer_recover_company_registration'){
       if(state.failRecovery)return {error:{code:'RECOVERY_FAILED'}};
       if(r.status==='complete'&&r.auth_user_id===args.new_user_id)return {data:{outcome:'complete',participantId:r.participant_id,companyId:r.company_id,companyName:r.company_name},error:null};
-      if(r.status==='complete'||users[args.new_user_id]?.app_metadata.registration_request_id!==r.id||tables.user_profiles.some(p=>p.user_id===args.new_user_id))return {error:{code:'UNSAFE_RECOVERY'}};
+      if(r.status==='complete'||users[args.new_user_id]?.id!==args.new_user_id||users[args.new_user_id]?.email!==args.new_internal_email||users[args.new_user_id]?.app_metadata.registration_request_id!==r.id||tables.user_profiles.some(p=>p.user_id===args.new_user_id))return {error:{code:'UNSAFE_RECOVERY'}};
       r.company_cancelled_auth_user_id=args.new_user_id;return {data:{outcome:'cancelled'},error:null};
     }
     const linked=name==='secondcareer_complete_company_registration';
