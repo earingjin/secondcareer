@@ -38,7 +38,7 @@ export async function handleAccount(req: Request) {
       }
       if (Object.keys(body).some(k => !['action','password'].includes(k)) || body.action !== 'change-password' ||
           typeof body.password !== 'string' || body.password.length < 12 || body.password.length > 128) throw new APIError('INVALID_PASSWORD');
-      if (profile.role !== 'participant' || accessError!=='PASSWORD_CHANGE_REQUIRED') throw new APIError('FORBIDDEN', 403);
+      if (!['participant','counselor'].includes(profile.role) || accessError!=='PASSWORD_CHANGE_REQUIRED') throw new APIError('FORBIDDEN', 403);
       if (user.app_metadata?.temporary_password_digest === await secretDigest(body.password)) throw new APIError('INVALID_PASSWORD');
       // One Auth update changes password and trusted flag. Never store the
       // password in an application table or user-editable metadata.

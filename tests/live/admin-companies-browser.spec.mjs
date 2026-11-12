@@ -43,16 +43,30 @@ async function seedAssignmentCompanies(h){
   return companies;
 }
 async function openAssignments(page,id){
+  if(await sec(page).getByRole('button',{name:'고객사 목록으로'}).isVisible())await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();
   await sec(page).locator(`[data-company-id="${id}"]`).getByRole('button',{name:'상세 관리'}).click();
   await sec(page).getByRole('button',{name:'상담사 배정 조회',exact:true}).click();
 }
+
+test('admin starts with the company list, opens a customer by name and returns without losing other admin entry points',async({page})=>{
+  const h=harness(),[a]=await seedAssignmentCompanies(h),calls=await open(page,h);await login(page);
+  const list=sec(page).locator('[data-company-list-view]');await expect(list).toBeVisible();await expect(list).toContainText(a.name);
+  expect(await page.locator('#admin-companies').evaluate(el=>el.compareDocumentPosition(document.querySelector('#admin-progress')) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+  await sec(page).getByRole('button',{name:a.name,exact:true}).click();await expect(list).toBeHidden();await expect(sec(page).locator('[data-company-target]')).toContainText(a.id);
+  await expect(sec(page).locator('[data-company-manager-host]')).toBeVisible();await expect(sec(page).locator('[data-company-assignments]')).toBeVisible();
+  await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();await expect(list).toBeVisible();await expect(sec(page).locator('[data-company-form]')).toHaveCount(0);
+  for(const id of ['admin-directory','admin-progress','admin-aggregate','live-registration','admin-assessment-url','admin-counselors']){
+    await expect(page.locator(`a[href="#${id}"]`)).toBeVisible();await expect(page.locator(`#${id}`)).toBeVisible();
+  }
+  const before=companyCalls(calls).length;await page.getByRole('button',{name:'로그아웃',exact:true}).click();await login(page);await expect(sec(page).locator('[data-company-list]')).toContainText(a.name);expect(companyCalls(calls).length).toBeGreaterThan(before);
+});
 
 test('company detail assigns multiple counselors to multiple masters, escapes names and keeps participant assignments unchanged',async({page})=>{
   const h=harness(),[a,b]=await seedAssignmentCompanies(h),second=crypto.randomUUID();
   h.state.tables.user_profiles.push({user_id:second,organization_id:ids.org,role:'counselor',display_name:'<img src=x onerror=alert(1)>'});
   const before=structuredClone(h.state.tables.participants),calls=await open(page,h);await login(page);
   await sec(page).getByRole('button',{name:'고객사 목록 조회',exact:true}).click();await openAssignments(page,a.id);
-  const area=sec(page).locator('[data-company-assignments]');await expect(area).toContainText('배정된 상담사가 없습니다');await expect(area).toContainText('신규 참여자 등록의 상담사 선택 범위도 유지');
+  const area=sec(page).locator('[data-company-assignments]');await expect(area).toContainText('배정된 상담사가 없습니다');await expect(area).toContainText('고객사 ID 연결 신규 등록은 배정된 상담사로 제한');
   for(const id of [ids.counselor,second]){
     await area.getByLabel('같은 조직 상담사 선택').selectOption(id);await area.getByRole('button',{name:'상담사 배정',exact:true}).click();await expect(current(page)).toHaveText('상담사를 배정했습니다.');
   }
@@ -89,12 +103,12 @@ test('loading assignment operations are guarded and logout discards delayed resu
 test('admin registers first and subsequent masters with zero participants, edits the exact ID and toggles without changing existing screens',async({page})=>{
   const h=harness();h.state.tables.participants.length=0;const errors=[];page.on('pageerror',e=>errors.push(String(e)));
   const calls=await open(page,h);await login(page);
-  await expect(sec(page).getByRole('heading',{name:'고객사 관리',exact:true})).toBeVisible();expect(companyCalls(calls)).toHaveLength(0);
+  await expect(sec(page).getByRole('heading',{name:'고객사 관리',exact:true})).toBeVisible();await expect(sec(page).locator('[data-company-list]')).toBeVisible();expect(companyCalls(calls).length).toBeGreaterThan(0);
   await expect(sec(page).locator('[data-company-separation]')).toContainText('고객사 ID 연결 등록과 기존 미연결 참여자는 별도로 관리');
   await sec(page).getByRole('button',{name:'고객사 목록 조회'}).click();await expect(sec(page).locator('[data-company-list]')).toContainText('조건에 맞는 고객사가 없습니다');
   for(const name of ['합성 고객사 A','합성 고객사 B']){
     await sec(page).getByRole('button',{name:'고객사 등록',exact:true}).click();await fill(page,name);await sec(page).getByRole('button',{name:'고객사 저장',exact:true}).click();
-    await expect(current(page)).toHaveText('고객사 정보를 저장했습니다.');await expect(sec(page).locator('[data-company-list]')).toContainText(name);
+    await expect(current(page)).toHaveText('고객사 정보를 저장했습니다.');await expect(sec(page).locator('[data-company-target]')).toContainText(name);await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();await expect(sec(page).locator('[data-company-list]')).toContainText(name);
   }
   const a=h.state.tables.client_companies.find(c=>c.name==='합성 고객사 A'),b=h.state.tables.client_companies.find(c=>c.name==='합성 고객사 B');
   await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:'상세 관리'}).click();
@@ -112,12 +126,12 @@ test('admin registers first and subsequent masters with zero participants, edits
 
 test('server duplicate/validation/conflict messages keep entered fields and a failed detail cannot edit a previous company',async({page})=>{
   const h=harness(),calls=await open(page,h);await login(page);
-  await sec(page).getByRole('button',{name:'고객사 등록',exact:true}).click();await fill(page,'중복 합성');await field(page,'end_date').fill('2026-01-01');await sec(page).getByRole('button',{name:'고객사 저장',exact:true}).click();await expect(current(page)).toContainText('종료일');expect(companyCalls(calls)).toHaveLength(0);
+  await expect(sec(page).locator('[data-company-list]')).toBeVisible();const before=companyCalls(calls).length;await sec(page).getByRole('button',{name:'고객사 등록',exact:true}).click();await fill(page,'중복 합성');await field(page,'end_date').fill('2026-01-01');await sec(page).getByRole('button',{name:'고객사 저장',exact:true}).click();await expect(current(page)).toContainText('종료일');expect(companyCalls(calls)).toHaveLength(before);
   await field(page,'end_date').fill('2027-01-31');await sec(page).getByRole('button',{name:'고객사 저장',exact:true}).click();await expect(current(page)).toHaveText('고객사 정보를 저장했습니다.');
-  await sec(page).getByRole('button',{name:'고객사 등록',exact:true}).click();await fill(page,'중복 합성');await sec(page).getByRole('button',{name:'고객사 저장',exact:true}).click();await expect(current(page)).toContainText('이미 등록');await expect(field(page,'name')).toHaveValue('중복 합성');
+  await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();await sec(page).getByRole('button',{name:'고객사 등록',exact:true}).click();await fill(page,'중복 합성');await sec(page).getByRole('button',{name:'고객사 저장',exact:true}).click();await expect(current(page)).toContainText('이미 등록');await expect(field(page,'name')).toHaveValue('중복 합성');await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();
   await sec(page).locator('[data-company-list]').getByRole('button',{name:'상세 관리'}).click();await expect(field(page,'name')).toHaveValue('중복 합성');
   h.state.tables.client_companies[0].updated_at='2099-01-01T00:00:00Z';await field(page,'pm_name').fill('덮어쓰지 않을 PM');await sec(page).getByRole('button',{name:'고객사 정보 저장'}).click();await expect(current(page)).toContainText('다른 변경');expect(h.state.tables.client_companies[0].pm_name).toBe('가상 PM');
-  h.state.failReadsOf='client_companies';await sec(page).locator('[data-company-list]').getByRole('button',{name:'상세 관리'}).click();await expect(current(page)).toContainText('처리하지 못했습니다');await expect(sec(page).locator('[data-company-form]')).toHaveCount(0);
+  await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();h.state.failReadsOf='client_companies';await sec(page).locator('[data-company-list]').getByRole('button',{name:'상세 관리'}).click();await expect(current(page)).toContainText('처리하지 못했습니다');await expect(sec(page).locator('[data-company-form]')).toHaveCount(0);
 });
 
 test('many masters use page navigation, status and search, and escape labels',async({page})=>{
@@ -133,6 +147,6 @@ test('loading is guarded, failed writes never claim success and expired sessions
   await sec(page).getByRole('button',{name:'고객사 등록',exact:true}).click();await fill(page,'실패 합성');options.hold=held;h.state.failWritesOf='client_companies';
   await sec(page).getByRole('button',{name:'고객사 저장',exact:true}).click();await expect(sec(page).getByRole('button',{name:'고객사 저장',exact:true})).toBeDisabled();release();options.hold=null;
   await expect(current(page)).toContainText('처리하지 못했습니다');expect(h.state.tables.client_companies).toHaveLength(0);
-  options.companyStatus=401;await sec(page).getByRole('button',{name:'고객사 목록 조회'}).click();await expect(page.locator('#lg-id')).toBeVisible();await expect(page.locator('#admin-companies')).toHaveCount(0);
+  await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();options.companyStatus=401;await sec(page).getByRole('button',{name:'고객사 목록 조회'}).click();await expect(page.locator('#lg-id')).toBeVisible();await expect(page.locator('#admin-companies')).toHaveCount(0);
   options.companyStatus=null;await login(page,'consult01');await expect(page.locator('#admin-companies')).toHaveCount(0);
 });

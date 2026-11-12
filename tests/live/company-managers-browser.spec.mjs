@@ -28,12 +28,13 @@ async function setup(page){
   await page.goto(server.url);return {h,c,b,calls};
 }
 async function login(page,id='admin01',pw='Fixture-password-123!'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill(pw);await page.getByRole('button',{name:'로그인',exact:true}).click()}
-async function detail(page,id){await page.locator(`[data-company-id="${id}"]`).getByRole('button',{name:'상세 관리'}).click();await expect(page.locator('[data-company-manager-host] h3')).toBeVisible()}
+async function detail(page,id){if(await page.getByRole('button',{name:'고객사 목록으로'}).isVisible())await page.getByRole('button',{name:'고객사 목록으로'}).click();await page.locator(`[data-company-id="${id}"]`).getByRole('button',{name:'상세 관리'}).click();await expect(page.locator('[data-company-manager-host] h3')).toBeVisible()}
 async function issue(page,email='synthetic@example.invalid'){
   await page.getByLabel('담당자 이름',{exact:true}).fill('합성 담당자');await page.getByLabel('담당자 이메일',{exact:true}).fill(email);await page.getByLabel('담당자 연락처',{exact:true}).fill('01000000000');await page.getByRole('button',{name:'담당자 계정 발급',exact:true}).click();await expect(page.getByLabel('발급 임시 비밀번호')).toBeVisible();return page.getByLabel('발급 임시 비밀번호').inputValue();
 }
 
 test('admin issues managers once, manages status/access and erases issued secrets on customer/page/logout changes',async({page})=>{
+  const browserLogs=[];page.on('console',message=>browserLogs.push(message.text()));page.on('pageerror',error=>browserLogs.push(error.message));
   const {h,c,b}=await setup(page);await login(page);await page.getByRole('button',{name:'고객사 목록 조회',exact:true}).click();await detail(page,c.id);
   const secret=await issue(page),issued=h.state.tables.company_manager_accounts[0];
   await expect(page.locator('[data-manager-issued]')).toContainText('최초 안내문');await expect(page.locator('[data-manager-issued]')).toContainText('entry=company-manager');
@@ -41,11 +42,22 @@ test('admin issues managers once, manages status/access and erases issued secret
   const host=page.locator('[data-company-manager-host]');await expect(host.locator('tbody')).toContainText('synthetic@example.invalid');
   await host.getByRole('button',{name:'계정 정지',exact:true}).click();await expect(host.getByRole('button',{name:'계정 재활성화'})).toBeVisible();expect(issued.status).toBe('suspended');
   await host.getByRole('button',{name:'계정 재활성화'}).click();await expect(host.getByRole('button',{name:'계정 정지',exact:true})).toBeVisible();
-  await host.getByRole('button',{name:'접근 해제'}).click();await expect(host.getByRole('button',{name:'접근 부여'})).toBeVisible();
-  await host.getByRole('button',{name:'접근 부여'}).click();await expect(host.getByRole('button',{name:'접근 해제'})).toBeVisible();
+  await detail(page,b.id);await host.getByRole('button',{name:'연결 가능한 기존 담당자 조회'}).click();
+  await host.getByRole('button',{name:/synthetic@example\.invalid 연결/}).click();await expect(host.locator('tbody')).toContainText('synthetic@example.invalid');
+  await detail(page,c.id);await host.getByRole('button',{name:'담당자 목록 조회'}).click();await expect(host.locator('tbody')).toContainText('synthetic@example.invalid');
+  await host.getByRole('button',{name:'접근 해제'}).click();await expect(host.locator('tbody')).not.toContainText('synthetic@example.invalid');
+  expect(h.state.tables.company_manager_access.some(a=>a.company_id===b.id&&a.manager_user_id===issued.user_id)).toBe(true);
+  const bDuring=await h.call(h.managers.handleAdminCompanyManagers,ids.admin,null,'GET','https://fixture.invalid/?companyId='+b.id);
+  expect(bDuring.status).toBe(200);expect(bDuring.data.managers.map(m=>m.id)).toContain(issued.user_id);
+  await host.getByRole('button',{name:'연결 가능한 기존 담당자 조회'}).click();await host.getByRole('button',{name:/synthetic@example\.invalid 연결/}).click();
+  await expect(host.locator('tbody')).toContainText('synthetic@example.invalid');await expect(host.getByRole('button',{name:'접근 해제'})).toBeVisible();
+  expect(h.state.tables.company_manager_access.some(a=>a.company_id===b.id&&a.manager_user_id===issued.user_id)).toBe(true);
+  const bAfter=await h.call(h.managers.handleAdminCompanyManagers,ids.admin,null,'GET','https://fixture.invalid/?companyId='+b.id);
+  expect(bAfter.status).toBe(200);expect(bAfter.data.managers.map(m=>m.id)).toContain(issued.user_id);
   await detail(page,b.id);await expect(page.getByLabel('발급 임시 비밀번호')).toHaveCount(0);expect(await page.content()).not.toContain(secret);
   await detail(page,c.id);await page.getByRole('button',{name:'담당자 목록 조회'}).click();await expect(host.locator('tbody tr')).toHaveCount(1);await issue(page,'second@example.invalid');
   await page.getByRole('button',{name:'로그아웃',exact:true}).click();await expect(page.locator('#lg-id')).toBeVisible();expect(await page.content()).not.toContain(secret);
+  expect(JSON.stringify(browserLogs)).not.toContain(secret);
 });
 
 test('company manager uses existing login/session contract, changes temporary password then sees only allowed names',async({page})=>{

@@ -4,17 +4,17 @@ import {deflateRawSync,crc32} from 'node:zlib';
 import {serve} from '../tools/serve-static.mjs';
 const {harness,ids}=createRequire(import.meta.url)('./server-harness.cjs');
 let server;
-test.beforeAll(async()=>{server=await serve('src')});
+test.beforeAll(async()=>{server=await serve(process.env.REGISTRATION_TEST_ROOT||'src')});
 test.afterAll(async()=>{await server.close()});
 
 // Real ZIP compression, shared strings, inline strings and sparse cell refs.
-function xlsx({formula=false,scientific=false}={}){
+function xlsx({formula=false,scientific=false,counselor='',company='엑셀기업'}={}){
   const entries={
     '[Content_Types].xml':'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/></Types>',
     'xl/workbook.xml':'<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="참여자" sheetId="1" r:id="rId2"/></sheets></workbook>',
     'xl/_rels/workbook.xml.rels':'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId2" Target="worksheets/participants.xml"/></Relationships>',
     'xl/sharedStrings.xml':'<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>엑셀참여자</t></si></sst>',
-    'xl/worksheets/participants.xml':`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>이름</t></is></c><c r="B1" t="inlineStr"><is><t>연락처</t></is></c></row><row r="2"><c r="A2" t="s"><v>0</v></c><c r="B2">${formula?'<f>12345678+1</f>':''}<v>${scientific?'1.012345678E9':'1012345678'}</v></c><c r="D2" t="inlineStr"><is><t>엑셀기업</t></is></c></row></sheetData></worksheet>`
+    'xl/worksheets/participants.xml':`<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>이름</t></is></c><c r="B1" t="inlineStr"><is><t>연락처</t></is></c></row><row r="2"><c r="A2" t="s"><v>0</v></c><c r="B2">${formula?'<f>12345678+1</f>':''}<v>${scientific?'1.012345678E9':'1012345678'}</v></c><c r="C2" t="inlineStr"><is><t>${counselor}</t></is></c><c r="D2" t="inlineStr"><is><t>${company}</t></is></c></row></sheetData></worksheet>`
   };
   const locals=[],centrals=[];let offset=0;
   for(const [name,text] of Object.entries(entries)){
@@ -89,16 +89,21 @@ test('admin selects paginated active company ID, rejects file conflicts and regi
   const now='2026-11-06T00:00:00Z';
   for(let i=0;i<25;i++)h.state.tables.client_companies.push({id:crypto.randomUUID(),organization_id:ids.org,name:'합성고객사 '+String(i).padStart(2,'0'),status:'active',created_at:now});
   h.state.tables.client_companies.push({id:crypto.randomUUID(),organization_id:ids.org,name:'비활성',status:'inactive',created_at:now},{id:crypto.randomUUID(),organization_id:'other-org',name:'타조직',status:'active',created_at:now});
+  for(const c of h.state.tables.client_companies)Object.assign(c,{start_date:'2026-11-01',end_date:'2027-01-31',pm_name:'합성 PM'});
+  for(const c of h.state.tables.client_companies.filter(c=>c.organization_id===ids.org&&c.status==='active'))h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:c.id,counselor_user_id:ids.counselor,created_at:now});
   await login(page,'admin01');await page.getByLabel('기본 담당 상담사').selectOption(ids.counselor);
-  expect(h.state.reads.filter(r=>r.table==='client_companies')).toHaveLength(0);
+  await expect(page.locator('#admin-companies [data-company-list]')).toBeVisible();
+  const readsBeforeLink=h.state.reads.filter(r=>r.table==='client_companies').length;expect(readsBeforeLink).toBe(1);
   await page.getByLabel('고객사 연결 방식').selectOption('linked');
   await expect(page.getByLabel('소속 고객사 선택').locator('option')).toHaveCount(21);
+  expect(h.state.reads.filter(r=>r.table==='client_companies').length).toBeGreaterThan(readsBeforeLink);
   await fillRow(page,['선택검증','01012345678']);await page.getByRole('button',{name:'입력 확인',exact:true}).click();
   await expect(page.locator('[data-preview]')).toContainText('활성 고객사를 선택');expect(h.state.created).toHaveLength(0);
   await page.getByRole('button',{name:'고객사 다음',exact:true}).click();
   await expect(page.getByLabel('소속 고객사 선택').locator('option')).toHaveCount(6);
   const c=h.state.tables.client_companies.filter(c=>c.organization_id===ids.org&&c.status==='active').sort((a,b)=>b.id.localeCompare(a.id))[20];
   await page.getByLabel('소속 고객사 선택').selectOption(c.id);
+  await expect(page.getByLabel('기본 담당 상담사')).toHaveValue('');await page.getByLabel('기본 담당 상담사').selectOption(ids.counselor);
   await fillRow(page,['선택검증','01012345678','','다른기업']);await page.getByRole('button',{name:'입력 확인',exact:true}).click();
   await expect(page.locator('[data-preview]')).toContainText('선택한 고객사명과 일치');
   await page.getByLabel('등록 고객사 검색').fill('없는고객사');await page.getByRole('button',{name:'활성 고객사 조회'}).click();
@@ -117,12 +122,66 @@ test('linked mode preserves CSV; failed company lookup does not fall back to fre
   await expect(page.locator('[aria-label="참여자 일괄 등록"]')).toContainText('고객사 요청을 처리하지 못했습니다');
   await page.locator('[data-file="csv"]').setInputFiles({name:'synthetic.csv',mimeType:'text/csv',buffer:Buffer.from('이름,연락처,담당 상담사,소속기업\n합성CSV,01023456789,,')});
   await expect(page.locator('[data-preview]')).toContainText('활성 고객사를 선택');
-  await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();expect(h.state.created).toHaveLength(0);
+  await expect(page.getByRole('button',{name:'실제 계정 일괄 등록'})).toBeDisabled();expect(h.state.created).toHaveLength(0);
   await page.getByLabel('고객사 연결 방식').selectOption('unlinked');await page.getByRole('button',{name:'입력 확인',exact:true}).click();
   await expect(page.locator('[data-preview]')).toContainText('등록 가능');
 });
 
-for(const [id,heading] of [['admin01','관리자 참여자 등록'],['consult01','상담사 페이지']]){
+function assignedCompanies(h){
+  const names=['고객사 A','고객사 B','배정 없는 고객사'];
+  const companies=names.map(name=>({id:crypto.randomUUID(),organization_id:ids.org,name,status:'active',created_at:'2026-11-12T00:00:00Z'}));
+  h.state.tables.client_companies.push(...companies);
+  for(const c of companies.slice(0,2))h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:c.id,counselor_user_id:ids.counselor,created_at:c.created_at});
+  return companies;
+}
+
+test('linked company filters counselors, clears both selections, blocks zero/failed assignments and keeps unlinked policy',async({page})=>{
+  const {h}=await setup(page),[a,b,empty]=assignedCompanies(h);
+  const other=crypto.randomUUID();h.state.tables.user_profiles.push({user_id:other,organization_id:ids.org,role:'counselor',display_name:'미배정 상담사'});
+  await login(page,'admin01');await page.getByLabel('기본 담당 상담사').selectOption(other);
+  await page.getByLabel('고객사 연결 방식').selectOption('linked');await page.getByLabel('소속 고객사 선택').selectOption(a.id);
+  const select=page.getByLabel('기본 담당 상담사');await expect(select.locator('option')).toHaveCount(2);
+  await expect(select.locator(`option[value="${other}"]`)).toHaveCount(0);await expect(select.locator(`option[value="${ids.other}"]`)).toHaveCount(0);
+  await select.selectOption(ids.counselor);await fillRow(page,['합성입력','01012345678',ids.counselor]);
+  await page.getByLabel('소속 고객사 선택').selectOption(b.id);await expect(select).toHaveValue('');await expect(page.getByLabel('1행 담당 상담사')).toHaveValue('');
+  await page.getByLabel('소속 고객사 선택').selectOption(empty.id);
+  await expect(page.locator('[data-registration-assignments]')).toContainText('배정된 상담사가 없어');await expect(page.getByRole('button',{name:'실제 계정 일괄 등록'})).toBeDisabled();
+  h.state.failReadsOf='client_company_counselors';await page.getByLabel('소속 고객사 선택').selectOption(a.id);
+  await expect(page.locator('[data-registration-assignments]')).toContainText('등록할 수 없습니다');await expect(page.getByRole('button',{name:'실제 계정 일괄 등록'})).toBeDisabled();expect(h.state.created).toHaveLength(0);
+  await page.getByLabel('고객사 연결 방식').selectOption('unlinked');await expect(select).toHaveValue(other);await expect(select.locator(`option[value="${other}"]`)).toHaveCount(1);
+});
+
+test('linked CSV, XLSX and paste reject unassigned or ambiguous names; assigned IDs register',async({page})=>{
+  const {h}=await setup(page),[a]=assignedCompanies(h),unassigned=crypto.randomUUID(),one=crypto.randomUUID(),two=crypto.randomUUID();
+  for(const [id,name] of [[unassigned,'미배정'],[one,'동명이인'],[two,'동명이인']])h.state.tables.user_profiles.push({user_id:id,organization_id:ids.org,role:'counselor',display_name:name});
+  for(const id of [one,two])h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:a.id,counselor_user_id:id,created_at:a.created_at});
+  await login(page,'admin01');await page.getByLabel('고객사 연결 방식').selectOption('linked');await page.getByLabel('소속 고객사 선택').selectOption(a.id);
+  await page.getByLabel('기본 담당 상담사').selectOption(ids.counselor);
+  await page.locator('[data-file="csv"]').setInputFiles({name:'assigned.csv',mimeType:'text/csv',buffer:Buffer.from('이름,연락처,담당 상담사,소속기업\n합성CSV,01012345678,'+unassigned+',')});
+  await expect(page.locator('[data-preview]')).toContainText('배정된 상담사');await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();expect(h.state.created).toHaveLength(0);
+  await page.locator('[data-file="xlsx"]').setInputFiles({name:'assigned.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:xlsx({counselor:unassigned,company:''})});
+  await expect(page.locator('[data-preview]')).toContainText('배정된 상담사');await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();expect(h.state.created).toHaveLength(0);
+  await page.getByLabel('1행 이름').evaluate((el,text)=>{const transfer=new DataTransfer();transfer.setData('text/plain',text);el.dispatchEvent(new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData:transfer}))},'합성붙임\t01023456789\t'+unassigned+'\t');
+  await page.getByRole('button',{name:'입력 확인',exact:true}).click();await expect(page.locator('[data-preview]')).toContainText('배정된 상담사');expect(h.state.created).toHaveLength(0);
+  await page.getByLabel('1행 담당 상담사').fill('동명이인');await page.getByRole('button',{name:'입력 확인',exact:true}).click();await expect(page.locator('[data-preview]')).toContainText('이름이 중복');
+  await page.getByLabel('1행 담당 상담사').fill(one);await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();await expect(page.getByLabel('합성붙임 임시 비밀번호')).toBeVisible();
+  expect(h.state.created).toHaveLength(1);expect(h.state.tables.participants.at(-1)).toMatchObject({company_id:a.id,counselor_user_id:one});
+});
+
+test('late assignment response cannot replace counselors for a newly selected company',async({page})=>{
+  const {h}=await setup(page),[a,b]=assignedCompanies(h),onlyA=crypto.randomUUID();
+  h.state.tables.user_profiles.push({user_id:onlyA,organization_id:ids.org,role:'counselor',display_name:'A 전용'});
+  h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:a.id,counselor_user_id:onlyA,created_at:a.created_at});
+  let release;const gate=new Promise(r=>release=r);
+  await page.route('**/secondcareer-admin-companies?**',async route=>{const u=new URL(route.request().url());if(u.searchParams.get('section')==='counselors'&&u.searchParams.get('id')===a.id)await gate;return route.fallback()});
+  await login(page,'admin01');await page.getByLabel('고객사 연결 방식').selectOption('linked');await page.getByLabel('소속 고객사 선택').selectOption(a.id);
+  await page.getByLabel('소속 고객사 선택').selectOption(b.id);await expect(page.getByLabel('기본 담당 상담사').locator('option')).toHaveCount(2);
+  const done=page.waitForResponse(r=>new URL(r.url()).searchParams.get('id')===a.id);release();await done;
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await expect(page.getByLabel('소속 고객사 선택')).toHaveValue(b.id);await expect(page.getByLabel('기본 담당 상담사').locator(`option[value="${onlyA}"]`)).toHaveCount(0);
+});
+
+for(const [id,heading] of [['admin01','관리자 페이지'],['consult01','상담사 페이지']]){
   test(`${id} restores its role after refresh and logout clears the session`,async({page})=>{
     await setup(page);await login(page,id);
     await expect(page.getByRole('heading',{name:heading})).toBeVisible();
@@ -389,7 +448,7 @@ test('registration input stays usable at desktop and mobile widths',async({page}
 test('existing participant still opens survey; administrator gets only registration screen',async({page})=>{
   const mock=await setup(page);await login(page,'client01');await expect(page.locator('#live-save')).toBeVisible();expect(mock.reads()).toBe(1);
   await page.getByRole('button',{name:'로그아웃',exact:true}).click();await login(page,'admin01');
-  await expect(page.getByRole('heading',{name:'관리자 참여자 등록'})).toBeVisible();expect(mock.reads()).toBe(1);
+  await expect(page.getByRole('heading',{name:'관리자 페이지'})).toBeVisible();expect(mock.reads()).toBe(1);
   await page.locator('#registration-counselor').selectOption(ids.counselor);
   await fillRow(page,['관리자등록','010-8765-4321','','테스트기업']);
   await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();await expect(page.getByRole('cell',{name:'등록 완료',exact:true})).toBeVisible();

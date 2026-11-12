@@ -14,6 +14,7 @@ import {assessmentNotice,postAssessmentNotice,postEntryUrl,POST_ENTRY_PARAM,POST
 import {postTestGate} from './post-test-gate.js';
 import {adminProgressView,validProgress} from './admin-progress-view.js';
 import {adminDirectoryView,validDirectory} from './admin-directory-view.js';
+import {createAdminCounselors} from './admin-counselors.js';
 import {createAdminCompanies} from './admin-companies.js';
 import {adminAggregateView,adminAggregatePrintView,validAggregate} from './admin-aggregate-view.js';
 import {managerDashboardView,validManagerProgress} from './company-manager-dashboard.js';
@@ -59,6 +60,8 @@ async function enterPostFromLink(){
 function clearRegistrationResults(){registrationResults.results.forEach(r=>delete r.temporaryPassword);registrationResults.results.length=0}
 window.addEventListener('pagehide',()=>{clearRegistrationResults();unmountRegistration?.();unmountRegistration=null});
 const api=createAPI(()=>{reset();S.err='세션이 만료되었습니다. 다시 로그인해 주세요.';render()});
+const counselorAccounts=createAdminCounselors({api,canUse:()=>profile?.role==='admin'&&!mustChangePassword});
+window.addEventListener('pagehide',()=>counselorAccounts.reset());
 const companyManager=createAdminCompanies({api,canUse:()=>profile?.role==='admin'&&!mustChangePassword});
 const byId=id=>records.find(p=>p.id===id),pname=p=>p.reg?.name||p.nick;
 const view=createSurveyView({missing:p=>survey.missing(p),pname});
@@ -67,7 +70,7 @@ const survey=createSurvey({save,render,nav,toast,getPath,setPath,OPT,LIM,ITEM_CO
 const mobileSurvey=createMobileSurvey({getProfile:()=>profile,steps:view.WSTEPS,missing:survey.missing,goStep:survey.goStep,goQ:survey.goQ,nextFrom:survey.nextFrom,render,toast});
 const edits=createCounselorEdit({byId,getDB:()=>records,save:()=>{},nav,render,toast,missing:survey.missing,ansText:view.ansText,getWSTEPS:()=>view.WSTEPS,getCounselors:()=>COUNSELORS,persistEdit, EVAL_VERSION:'',toAssessment:()=>null});
 
-function reset(){managerCompanies=[];managerProgress={companyId:null,data:null,loading:false,message:''};managerRun++;companyManager.reset();clearAggregatePrint();organizationName='';mobileSurvey.reset();clearRegistrationResults();progress={data:null,loading:false,message:''};progressRun++;directory={data:null,loading:false,message:'',filter:{...NO_FILTER}};directoryRun++;aggregate={data:null,loading:false,message:'',tab:'r1'};aggregateRun++;assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];postAvailable=false;postApproved=false;compareData=null;profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
+function reset(){counselorAccounts.reset();managerCompanies=[];managerProgress={companyId:null,data:null,loading:false,message:''};managerRun++;companyManager.reset();clearAggregatePrint();organizationName='';mobileSurvey.reset();clearRegistrationResults();progress={data:null,loading:false,message:''};progressRun++;directory={data:null,loading:false,message:'',filter:{...NO_FILTER}};directoryRun++;aggregate={data:null,loading:false,message:'',tab:'r1'};aggregateRun++;assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(saveTimer);clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];postAvailable=false;postApproved=false;compareData=null;profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;dirty=false;reportHTML='';saving=null;counselorFilter={name:'',status:'all'}}
 function hydrate(data){
   if(!data.profile||!['participant','counselor','admin','company_manager'].includes(data.profile.role)||!Array.isArray(data.participants)||!Array.isArray(data.assessments))throw Error('권한 또는 조회 응답이 올바르지 않습니다.');
   managerCompanies=[];
@@ -274,6 +277,7 @@ async function changePassword(){
   try{
     hydrate(await api.changePassword(password,profile?.role==='company_manager'));
     if(profile.role==='company_manager'){if(mustChangePassword)throw Error('비밀번호 변경 상태를 확인하지 못했습니다.');S.view='company-manager';loadManagerProgress();return}
+    if(profile.role==='counselor'){if(mustChangePassword)throw Error('비밀번호 변경 상태를 확인하지 못했습니다.');S.view='cns';return}
     if(mustChangePassword||records.length!==1)throw Error('변경 후 참여자 정보를 확인하지 못했습니다. 다시 로그인해 주세요.');
     S.user=records[0];S.step=0;S.view=S.user.status==='submitted'?'home':'wizard';mobileSurvey.reset();
   }catch(error){S.err=error.message}finally{busy=false;render()}
@@ -454,7 +458,7 @@ function postConfirmView(){
 function leavePost(){if(!postAllowed()||S.view!=='post')return;clearPostEntry();S.mode2='pre';S.view='home';S.err='';render();window.scrollTo(0,0)}
 function render(){
   mobileSurvey.capture();mobileSurvey.prepare();
-  unmountRegistration?.();unmountRegistration=null;companyManager.unmount();
+  unmountRegistration?.();unmountRegistration=null;companyManager.unmount();counselorAccounts.unmount();
   if(!profile){registrationContext=null;mustChangePassword=false}
   $('.seg')?.remove();
   $('.proto-note').textContent=profile?'세컨플래닝 · '+({counselor:'상담사',admin:'관리자',participant:'내담자',company_manager:'고객사 담당자'}[profile.role]):'계정으로 로그인해 주세요.';
@@ -464,7 +468,7 @@ function render(){
   else if(mustChangePassword)html=passwordChangeView(profile?.role==='company_manager');
   else if(profile.role==='company_manager')html=`<div class="wrap" style="padding-top:26px"><section class="card sec" id="company-manager-dashboard" aria-label="고객사 진단 현황">${managerDashboardView({companies:managerCompanies,...managerProgress})}</section></div>`;
   else if(profile.role==='admin'&&S.view==='admin-report'&&reportHTML)html=`<div class="narrow noprint"><div class="toolbar" id="admin-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openAdminReport('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openAdminReport('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('admin')">관리자 참여자 목록</button></div></div></div>`+reportHTML;
-  else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 참여자 등록</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec" id="admin-progress" aria-label="진단 진행 현황">${adminProgressView(progress)}</section><section class="card sec" id="admin-directory" aria-label="운영 관리">${adminDirectoryView(directory)}</section><section class="card sec noprint" id="admin-companies"></section><section class="card sec" id="admin-aggregate" aria-label="통합 분석보고서">${adminAggregateView(aggregate)}</section><section class="card sec"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><div id="live-registration"></div></div>`;
+  else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 페이지</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button><a href="#admin-companies">고객사 관리</a><a href="#admin-directory">운영 관리</a><a href="#admin-progress">진단 진행 현황</a><a href="#admin-aggregate">통합 분석</a><a href="#live-registration">내담자 등록</a><a href="#admin-assessment-url">진단 접속 주소</a><a href="#admin-counselors">상담사 계정</a></div><section class="card sec noprint" id="admin-companies"></section><section class="card sec" id="admin-progress" aria-label="진단 진행 현황">${adminProgressView(progress)}</section><section class="card sec" id="admin-directory" aria-label="운영 관리">${adminDirectoryView(directory)}</section><section class="card sec noprint" id="admin-counselors"></section><section class="card sec" id="admin-aggregate" aria-label="통합 분석보고서">${adminAggregateView(aggregate)}</section><section class="card sec" id="admin-assessment-url"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><div id="live-registration"></div></div>`;
   else if(S.view==='post'&&postAllowed())html=postLocked?postConfirmView():S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):postConfirmView();
   else if(S.view==='wizard')html=`<div class="narrow noprint"><p id="live-save" role="status">${esc(saveMessage)}</p>${profile.role==='participant'?'<div class="acts"><button class="btn ghost sm" onclick="retrySave()">지금 임시저장</button><button class="btn ghost sm" onclick="logout()">로그아웃</button></div>':''}</div>`+view.vWizard();
   else if(profile.role==='counselor'&&S.view==='result')html=`<div class="narrow noprint"><div class="toolbar" id="live-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openRes('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openRes('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('cns')">담당 내담자 목록</button></div></div></div>`+reportHTML;
@@ -477,8 +481,9 @@ function render(){
   $('#app').innerHTML=html;
   mobileSurvey.mount();
   companyManager.mount($('#admin-companies'));
+  counselorAccounts.mount($('#admin-counselors'));
   const registration=$('#live-registration');
-  if(registration&&registrationContext&&!busy){const run=epoch;unmountRegistration=mountParticipantRegistration(registration,{context:registrationContext,resultState:registrationResults,register:body=>api.register(body),loadCompanies:registrationContext.profile.role==='admin'?query=>api.companies(query):undefined,onBusy:value=>{if(run===epoch)busy=value}})}
+  if(registration&&registrationContext&&!busy){const run=epoch;unmountRegistration=mountParticipantRegistration(registration,{context:registrationContext,resultState:registrationResults,register:body=>api.register(body),loadCompanies:registrationContext.profile.role==='admin'?query=>api.companies(query):undefined,loadCompanyCounselors:registrationContext.profile.role==='admin'?id=>api.companyCounselors(id):undefined,onBusy:value=>{if(run===epoch)busy=value}})}
   // The shared server report keeps the counselor's edit button; editing is counselor-only.
   if(profile?.role==='admin'&&S.view==='admin-report')$('#app').querySelectorAll('[onclick^="startEdit"]').forEach(e=>e.remove());
   if(busy)$('#app').querySelectorAll('input,button,select,textarea').forEach(e=>e.disabled=true);
