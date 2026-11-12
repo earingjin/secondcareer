@@ -168,12 +168,14 @@ function harness(){
     if(state.failComplete)return {error:{message:'private upstream error'}};
     const company=linked&&tables.client_companies.find(c=>c.id===r.company_id&&c.organization_id===r.organization_id&&c.status==='active');
     if(linked&&(!company||r.company_cancelled_auth_user_id||r.status==='complete'))return {error:{code:'COMPANY_UNAVAILABLE'}};
+    if(linked&&!tables.client_company_counselors.some(a=>a.organization_id===r.organization_id&&a.company_id===r.company_id&&a.counselor_user_id===r.counselor_user_id))return {error:{code:'COUNSELOR_NOT_ASSIGNED'}};
     if(linked)r.company_name=company.name;
     const id=webcrypto.randomUUID();
     tables.user_profiles.push({user_id:args.new_user_id,organization_id:r.organization_id,role:'participant',display_name:r.display_name});
     tables.server_login_lookup.push({user_id:args.new_user_id,login_id:r.login_id,internal_email:args.new_internal_email});
     tables.participants.push({id,organization_id:r.organization_id,auth_user_id:args.new_user_id,counselor_user_id:r.counselor_user_id,display_name:r.display_name,phone:r.phone,company_name:r.company_name,...(linked?{company_id:r.company_id}:{})});
     r.status='complete';r.auth_user_id=args.new_user_id;r.participant_id=id;
+    if(linked&&state.afterCompanyCompletion)state.afterCompanyCompletion();
     if(linked&&state.loseCompanyResponse)return {error:{code:'RESPONSE_LOST'}};
     return {data:linked?{participantId:id,companyId:r.company_id,companyName:r.company_name}:id,error:null};
   }};

@@ -35,6 +35,10 @@ export async function handleRegistration(req: Request) {
       const {data:company,error} = await admin.from('client_companies').select('id,name,status').eq('organization_id',profile.organization_id).eq('id',companyId).maybeSingle();
       if (error) throw new APIError('COMPANY_QUERY_FAILED',503);
       if (!company || company.status !== 'active') throw new APIError('COMPANY_UNAVAILABLE',403);
+      const {data:assignment,error:assignmentError}=await admin.from('client_company_counselors').select('counselor_user_id')
+        .eq('organization_id',profile.organization_id).eq('company_id',companyId).eq('counselor_user_id',counselorUserId).maybeSingle();
+      if(assignmentError)throw new APIError('ASSIGNMENT_QUERY_FAILED',503);
+      if(!assignment)throw new APIError('COUNSELOR_NOT_ASSIGNED',403);
       const key = (s: string) => s.trim().replace(/\s+/gu,' ').replace(/[A-Z]/g,c=>c.toLowerCase());
       if (companyName && key(companyName) !== key(company.name)) throw new APIError('COMPANY_NAME_MISMATCH');
       companyName = company.name;

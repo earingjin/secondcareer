@@ -100,6 +100,8 @@ export function createAPI(onExpired,env=runtimeEnv()){
       const registrationErrors={LOGIN_ID_UNAVAILABLE:'이미 등록된 아이디입니다.',REGISTRATION_ALREADY_REQUESTED:'이미 요청된 아이디입니다. 처리 결과를 관리자에게 확인해 주세요.',REGISTRATION_OUTCOME_UNKNOWN:'등록 결과 미확인: 다시 등록하지 말고 관리자에게 확인해 주세요.',REGISTRATION_NOT_CONFIGURED:'참여자 등록을 사용할 수 없습니다. 관리자에게 문의해 주세요.',INVALID_PASSWORD:'새 비밀번호는 12~128자로 입력해 주세요.',PASSWORD_UPDATE_FAILED:'비밀번호 변경을 확인하지 못했습니다. 다시 로그인해 상태를 확인해 주세요.',PASSWORD_CHANGE_REQUIRED:'먼저 임시 비밀번호를 변경해 주세요.'};
       registrationErrors.INVALID_ASSESSMENT_URL='올바른 HTTPS 진단 접속 주소를 입력해 주세요. 주소는 https://로 시작해야 합니다.';
       registrationErrors.ORGANIZATION_UPDATE_FAILED='진단 접속 주소를 저장하지 못했습니다.';
+      registrationErrors.COUNSELOR_NOT_ASSIGNED='선택 고객사에 배정된 상담사만 지정할 수 있습니다. 배정을 다시 조회해 주세요.';
+      registrationErrors.ASSIGNMENT_QUERY_FAILED='고객사 상담사 배정을 확인하지 못했습니다. 등록하지 않았으니 배정을 다시 조회해 주세요.';
       throw Error(registrationErrors[data?.error]||messages[response.status]||'처리 결과를 확인하지 못했습니다. 다시 등록하지 말고 관리자에게 확인해 주세요.');
     }
     return data;

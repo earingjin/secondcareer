@@ -483,7 +483,7 @@ function render(){
   companyManager.mount($('#admin-companies'));
   counselorAccounts.mount($('#admin-counselors'));
   const registration=$('#live-registration');
-  if(registration&&registrationContext&&!busy){const run=epoch;unmountRegistration=mountParticipantRegistration(registration,{context:registrationContext,resultState:registrationResults,register:body=>api.register(body),loadCompanies:registrationContext.profile.role==='admin'?query=>api.companies(query):undefined,onBusy:value=>{if(run===epoch)busy=value}})}
+  if(registration&&registrationContext&&!busy){const run=epoch;unmountRegistration=mountParticipantRegistration(registration,{context:registrationContext,resultState:registrationResults,register:body=>api.register(body),loadCompanies:registrationContext.profile.role==='admin'?query=>api.companies(query):undefined,loadCompanyCounselors:registrationContext.profile.role==='admin'?id=>api.companyCounselors(id):undefined,onBusy:value=>{if(run===epoch)busy=value}})}
   // The shared server report keeps the counselor's edit button; editing is counselor-only.
   if(profile?.role==='admin'&&S.view==='admin-report')$('#app').querySelectorAll('[onclick^="startEdit"]').forEach(e=>e.remove());
   if(busy)$('#app').querySelectorAll('input,button,select,textarea').forEach(e=>e.disabled=true);

@@ -97,7 +97,7 @@ STEP 14-D에서 M-002~004의 부분 구현 추가로 고객사 담당자 0/6/0, 
 
 | ID | 기능명 | 구현 상태 | 코드 근거 | 테스트 근거·이번 실행 | 운영 검증 | 부족한 부분 | 우선순위 |
 |---|---|---|---|---|---|---|---|
-| REQ-C-001 | 내담자 등록·조회·관리 | 부분 구현 | `live/participant-registration.js`, `register`, `assessment` participantQuery. 상담사 본인 담당 문자열 등록은 유지하며 고객사 ID 선택 권한은 확대하지 않음 | 기존 등록 서버·Chromium 회귀 및 `company-link-server.spec.mjs` 상담사 ID 요청 거부(13절) | 로컬 모의 확인, 실제 서버·DB 미검증 | 등록 플래그·SQL·실 DB 적용 및 관리 범위 검증 필요. STEP 14-B2 고객사 운영 배정은 참여자 담당과 별개이며 신규 등록에서 배정 상담사만 허용하는 정책은 미확정·미적용 | P0 |
+| REQ-C-001 | 내담자 등록·조회·관리 | 부분 구현 | `live/participant-registration.js`, `register`, `assessment` participantQuery. 상담사 본인 담당 문자열 등록은 유지하며 고객사 ID 선택 권한은 확대하지 않음 | 상담사 직접 등록·미연결 등록 서버/Chromium 회귀와 상담사 companyId 요청 거부 재확인(18절) | 로컬 모의 확인, 실제 서버·DB 미검증 | 등록 플래그·SQL·실 DB 적용 및 관리 범위 검증 필요. 배정 상담사 제한은 관리자 companyId 신규 등록 범위에만 확정·구현(18절)하며 기존 내담자 담당 변경 없음 | P0 |
 | REQ-C-002 | 담당 내담자 사전·사후 진행 상태 확인 | 부분 구현 | `live/counselor-view.js` counselorView, `assessment` postStatus | `live/post-survey.spec.mjs` 미실행 | 미검증 | 사후 상태는 프런트·서버 게이트와 DB에 의존 | P1 |
 | REQ-C-003 | 이름 검색과 상태 필터 | 구현 | `live/counselor-view.js` rows 필터, `live/app.js` filterCounselor | `live/assessment-notice-server.spec.mjs` 미실행 | 미검증 | 클라이언트의 담당 목록에서 필터, 실제 대량 데이터 검증 필요 | P1 |
 | REQ-C-004 | 내담자 목록 페이지네이션 | 부분 구현 | `assessment` readAll의 제한 단위 반복 조회; `live/counselor-view.js` rows.map | `live/assessment-notice-server.spec.mjs` 미실행 | 미검증 | 서버 내부 읽기 분할만 존재; 화면 페이지 상태·이동 UI·필터 연계 없음 | P1 |
@@ -115,7 +115,7 @@ STEP 14-D에서 M-002~004의 부분 구현 추가로 고객사 담당자 0/6/0, 
 | ID | 기능명 | 구현 상태 | 코드 근거 | 테스트 근거·이번 실행 | 운영 검증 | 부족한 부분 | 우선순위 |
 |---|---|---|---|---|---|---|---|
 | REQ-A-001 | 기업과 세컨플래닝 운영 정보 관리 | 부분 구현 | `secondcareer-admin-companies` 조직 범위 마스터 등록·조회·수정·상태 전환, 상세 ID 연결/미연결 인원과 `section=counselors` 다대다 배정. `live/admin-companies.js` 기존 고객사 관리와 별도 상담사 배정 조회·추가·해제. `proposals/client-company-counselors.sql` 조직/상담사 역할 복합 FK·중복 PK·RLS·클라이언트 차단. STEP 14-A/B1 SQL·조직 URL·company_name 현황 유지 | 고객사·배정 서버 및 Chromium UI 회귀(13절) | 로컬 모의 확인. SQL 미적용·함수 미배포, 실제 Postgres 제약·RLS·트리거 미검증 | 기존 참여자 자동 이관·담당 변경 없음. 로고·보고서 설정·나머지 운영 설정·감사 기록 미구현 | P1 |
-| REQ-A-002 | 상담사·참여자 계정 관리 | 부분 구현 | 기존 등록·CLI·운영 관리·고객사 ID 연결·고객사 상담사 배정 유지. 2026-11-11 `live/admin-counselors.js` 및 `secondcareer-admin-counselors`로 같은 조직 상담사 목록·이름/로그인 ID 발급 추가. 최초 변경 및 등록 API 우회 차단. 후속 목록 조회에서 조직 내 ID의 매핑을 묶어 페이지 조회, 중복·불일치 거부. 원자적 연결 RPC와 요청 예약은 검토 SQL만 작성 | 상담사 서버 프로토콜·Chromium 12건 재통과. 이전 담당자 실패 8건은 테스트 계약 정비 후 통과(17절) | 로컬 모의 서버·실제 Chromium 확인. 일반 빌드/dist 화면은 15절의 이전 실행. SQL/RPC 미적용·함수 미배포·실제 Auth/DB/RLS 미검증. 발급 플래그 기본 비활성 | 상담사 비활성화, 기존 참여자 담당 변경·계정 초기화·삭제 없음. 결과 불명확·비밀번호 유실은 수동 확인 필요. 조회 중 동시 변경에 따른 페이지 일관성 실제 DB 미검증. 완전 구현·운영 검증으로 판정하지 않음 | P1 |
+| REQ-A-002 | 상담사·참여자 계정 관리 | 부분 구현 | 기존 상담사 계정·내담자 등록·고객사 운영 배정 유지. 관리자 companyId 연결 신규 등록은 배정 상담사 후보만 사용하고 파일·행 입력 검증 및 Auth 전 서버 관계 검사. 최종 DB 완료 시 배정 행 잠금과 복구 호환 보완은 미적용 SQL 제안(18절) | 관련 서버/Chromium 회귀 94건 통과, 일반 빌드 실제 번들 핵심 4건 통과(18절). 이전 검증 이력은 15~17절 유지 | 실제 Chromium + 서버/Auth/DB 프로토콜 모의. SQL 미실행·함수 미배포, 실제 DB 트랜잭션·잠금·RLS 미검증 | 실제 배정 표·PK/FK·완료/복구 함수 정의·공유 잠금용 서비스 역할 최소 권한 검토 및 승인 필요. 미적용 DB에서는 최종 경합 보장 불가. 기존 내담자 변경·자동 이관·상담사 정지·초기화 없음 | P1 |
 | REQ-A-003 | 고객사 담당자 계정 관리 | 부분 구현 | `secondcareer-admin-company-managers` 관리자 조직 내 목록·발급·정지/재활성·고객사 접근 부여/해제. `live/admin-company-managers.js` 상세 관리·임시 비밀번호 1회 안내. 전용 완료/복구 RPC SQL과 로그인 계약 분리 | 담당자 발급·접근 해제·기존 담당자 재연결과 다른 고객사 접근 유지, 정지 및 비밀번호 비노출을 합성 서버/Chromium으로 확인(17절) | 실제 운영 로그인/Auth/DB/RLS/RPC 미검증, 미배포·플래그 기본 비활성 | 운영 배포 버전·연동 승인, 역할 CHECK 실제 정의 검토·SQL 적용 필요. 결과 불명확 예약·미연결 Auth 수동 확인, 비밀번호 재조회/자동 재발급·관리자 초기화는 미제공. 감사 기록 없음 | P0 |
 | REQ-A-004 | 전체 진단 진행·완료율·미완료 현황 조회 | 구현 | 관리자 전용 읽기 API `supabase/functions/secondcareer-admin-progress/index.ts`(서버 프로필의 admin 역할·`organization_id`만 범위로 사용, 요청 파라미터 거부, `participants.id,company_name`과 `assessments.participant_id,phase,status`만 읽어 집계); `live/admin-progress-view.js`, `live/app.js` loadProgress, `live/api.js` adminProgress. 기존 `assessment`의 역할 검사는 변경하지 않음 | `live/admin-progress-server.spec.mjs` 8건, `live/admin-progress-browser.spec.mjs` 6건 **실행·통과**(모의 하네스) | 미검증: 함수 미배포, 실제 Auth·DB·RLS·직접 Data API 경로 미확인 | 범위는 관리자 소속 조직 단위만 적용(업무 범위 세분화는 요구사항 10절 3번 미확정). 사후 완료율은 분모 미확정(10절 7번)으로 계산하지 않고 상태별 인원만 표시. 조회 감사 기록 없음(REQ-N-003). Deno 타입 검사·실행 미수행 | P1 |
 | REQ-A-005 | 개인 결과보고서 관리 | 구현(조회·인쇄) | 관리자 전용 `supabase/functions/secondcareer-admin-report/index.ts`(서버 프로필의 admin 역할·`organization_id`로 대상 참여자를 매 요청 재조회, 사전진단 최종 제출·결과 있을 때만 `{html}` 반환, 범위 밖·미제출은 같은 403). 보고서는 상담사 경로와 공용인 `secondcareer-assessment/shared/report.ts`(기존 `index.ts`에서 그대로 옮김)로 렌더링하며 계산·판정·저장 코멘트/키워드·5쪽/3쪽 구성은 기존 `shared/profile.js`·`js/*` 그대로. 상담사용 `?id=` 경로의 상담사 전용 조건은 유지. 관리자 화면은 `live/admin-directory-view.js` 보고서 열(제출 완료만 활성), `live/app.js` openAdminReport·보고서 보기·목록 복귀 | `live/admin-report.spec.mjs` 9건 **실행·통과**(모의): 정상 조회, 타 조직·없음·임시저장·미시작 거부, 참여자·타 담당 상담사·고객사 역할 거부, 상담사와 인쇄 쪽 HTML 동일, 화면 PDF 5쪽·3쪽(상담사 화면과 같음), 목록 복귀·필터 유지, 실패·세션 만료 | 미검증: 함수 미배포, 실제 DB·RLS·Auth, 실제 브라우저 인쇄 장치 | 세부 "관리" 행위(재발행·배포 등)는 요구사항 10절 2번 미확정이라 조회·인쇄만 구현. 조직 내 업무 범위 세분화 미확정(조직 단위). 보고서 조회 감사 기록 없음(REQ-N-003, 운영 배포 전 조건) | P1 |
@@ -328,3 +328,38 @@ SQL은 `supabase/proposals/participant-company-link.sql`(NULL 열·복합 FK·�
 - 일반 `npm.cmd run build`는 샌드박스의 상위 폴더 읽기 제한으로 최초 실패한 뒤 로컬 빌드 재시도에서 통과·종료 0. `check-dist.mjs` 통과. 같은 Vite 설정의 별도 쓰기 없는 모듈 그래프 검사에서 38개 모듈 중 prototype, 원본 계산 엔진 및 feedback 데이터 모듈은 없었다. 프런트엔드 실제 호출 경로는 이전과 같이 `src/index.html → src/main.js → src/live/app.js`다.
 
 전부 로컬 Auth/DB 프로토콜 모의와 Chromium 테스트다. 실제 Supabase Auth·DB·RLS·운영 계정·서버 로그·배포 상태는 확인하지 않았다. 로컬 서비스 로그인 함수에서 이메일은 담당자 계정의 이메일 키로 매핑하고 ID 형식은 기존 ID 조회 분기를 사용한다. 해당 분기는 `cm_` 내부 ID도 형식과 매핑이 맞으면 별도로 역할을 제한하지 않는다. 정지·조직·고객사 접근 제한은 account/manager 업무 API에서 재검증하므로 로그인 성공 자체가 업무 권한을 뜻하지 않는다. 이 동작은 변경하지 않았고 운영 배포 버전 검증 전 운영 보안 완료로 판정하지 않는다.
+
+## 18. 2026-11-12 고객사 배정 상담사로 관리자 연결 등록 제한
+
+기준: `feat/admin-registration-flow` HEAD `8d71c7873eb8f1b5f08b6b2951d10c10afe07f8d` 위 작업본. 2026-11-11 요청·결정을 반영하고 다음 날 후속 검증을 완료했다. 최초 조사와 기존 변경 검증 이력은 보존한다. REQ-A-002·REQ-C-001은 부분 구현을 유지하므로 역할별·전체 집계는 동일하다.
+
+### 구현·파일·호출 경로
+
+- 실제 서비스 `src/index.html → src/main.js → src/live/app.js → participant-registration.js/registration-input.js`에 기존 `api.companyCounselors()`를 연결했다. 연결 모드에서 선택 고객사의 배정 ID만 후보로 쓰며 기본/행별/CSV/XLSX/붙여넣기에 같은 검증을 사용한다. 배정 0명·미선택·실패·조회 중은 등록을 차단하고 고객사 변경은 이전 기본/행별 선택을 초기화한다. 늦은 이전 고객사 응답은 무시한다. 동명이인은 ID 입력이 필요하다. 미연결 모드의 기존 후보·기본값 정책과 상담사 본인 직접 등록은 유지한다.
+- `secondcareer-register-participant`는 기존 관리자 조직·활성 고객사·상담사 역할/조직 검사 뒤 `client_company_counselors`를 확인한다. 미배정/관계 조회 실패는 Auth 및 요청 예약 전에 거부한다. 기존 비밀번호 gate·아이디 중복·예약·완료/복구 계약을 유지한다. `secondcareer-admin-companies`는 기능 변경 없이 설명 주석만 갱신했다.
+- `src/live/admin-companies.js`의 안내 문구는 이번 신규 등록 제한을 설명하도록 수정했다. CSS·클래스·계산·보고서·프로토타입·데모·레거시·기준선은 변경하지 않았다.
+- `participant-company-counselor-registration.sql/.md`는 기존 관계와 완료/복구 RPC를 보완하는 별도 검토 제안이다. 새 표·영구 참여자→배정 FK·이관·삭제를 만들지 않는다. 완료는 요청 행→고객사→해당 배정 행 공유 잠금 순서이며 해제와 순서를 확정한다. 완료 후 배정이 해제돼도 저장 결과의 복구는 보존한다. 기존 함수 정의 해시 placeholder 및 실행 중단 장치를 유지했다. B2 제안의 서비스 권한에는 UPDATE가 없어 공유 잠금에 필요한 최소 열 권한 제안도 별도 승인 대상으로 명시했다.
+- 테스트는 `company-link-server.spec.mjs`, `registration-browser.spec.mjs`, `admin-companies-browser.spec.mjs`, `server-harness.cjs`를 보완했다. 하네스의 완료 검사·경합 콜백은 SQL 실행이나 행 잠금 구현이 아니다.
+- 요구사항/결정은 `docs/requirements.md`, `docs/decisions.md`에 먼저 반영했고 이 문서의 관련 ID 행만 갱신했다.
+
+### 수용 항목별 검증 근거
+
+| 항목 | 이번 확인 | 한계 |
+|---|---|---|
+| A 배정 상담사 등록 | 기존 연결 등록·신규 파일/ID 등록 테스트 통과 | 서버/Auth/DB 모의 |
+| 미배정·다른 회사·다른 조직 거부 | Auth·예약 0건, 403/503와 화면 오류 확인 | 실제 RLS 미검증 |
+| 비활성 고객사 거부 | 기존 서버 검증 테스트 유지·통과 | 실제 DB 미검증 |
+| 고객사 변경 초기화 | 기본값과 행 입력 초기화 및 늦은 응답 무시 | 실제 Chromium, API 모의 |
+| CSV/XLSX/붙여넣기 | 미배정·동명 매핑 거부 후 배정 ID로 성공 | 실제 파일 파싱·Chromium, 서버 모의 |
+| 배정 0명·조회 실패 | 이유 표시·등록 비활성 확인 | 실제 Chromium, API 모의 |
+| 복수 고객사 배정 | 같은 상담사로 A/B 등록 및 해제 후 이전 기록 보존 | 모의 |
+| 해제 선행/완료 선행 | 완료 전 해제는 완료 거부·확인 취소만 정리, 완료 후 해제·응답 유실은 성공 복구 | 콜백 순서 모의. PostgreSQL 동시 세션·잠금 미검증 |
+| 미연결·상담사 직접 등록 | 기존 서버·Chromium 회귀 통과 | 실제 Auth/DB 미검증 |
+
+### 실행 결과 및 남은 조건
+
+첫 연결 등록/화면 실행 33건 통과, 신규 화면 3건 통과. 관련 회귀 첫 실행은 93 통과·1 실패·종료 1: 신규 정책과 상충하는 과거 안내 문구 기대 1건이었다. 검증 삭제 없이 새 안내를 확인하도록 수정한 뒤 같은 10개 파일 최종 **94/94 통과·종료 0**, 약 44초. 포함 범위는 등록·배정·고객사 관리·상담사 계정·고객사 담당자 계정/권한이다. 전체 테스트는 이번에 실행하지 않았다.
+
+일반 `npm.cmd run build`는 샌드박스 상위 폴더 접근 제한으로 최초 실패, 로컬 빌드 권한 재시도는 통과·종료 0. `check-dist.mjs` 통과. 동일 Vite 설정의 쓰기 없는 그래프 검사에서 38개 모듈 중 prototype/원본 계산 엔진/feedback 데이터는 0개였다. `REGISTRATION_TEST_ROOT=dist`로 실제 빌드 번들 진입점에서 핵심 등록 Chromium **4/4 통과·종료 0**. 소스 대상 94건은 기본 src 테스트 서버, 빌드 4건은 일반 번들을 사용하며 모든 원격 API/Auth/DB는 모의다.
+
+실제 DB catalog·PK/FK·배포된 RPC 본문/권한·RLS·두 세션 동시성·잠금 대기/timeout·Auth 훅과 실제 계정 생성은 미검증이다. 적용 전용 문서의 조건 검토와 시험 DB 검증, DB 함수·서비스 역할 최소 권한·서버 배포의 별도 승인이 필요하다. DB 제안 적용 전에는 화면 및 서버의 사전 검사만 구현된 상태이며 최종 등록 경합까지 보장됐다고 판정하지 않는다. 연결 등록은 배정 표 조회가 실패하면 닫히므로 실제 관계 표·권한 준비 여부도 배포 조건이다. 커밋·푸시·PR·병합·SQL 적용·실계정 생성·배포는 수행하지 않았다.

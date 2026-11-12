@@ -32,7 +32,8 @@ export async function handleAdminCompanies(req: Request) {
     if (params.has('section')) {
       if (params.get('section') !== 'counselors' || params.size !== 2 || !UUID.test(id || '') || !['GET','PATCH'].includes(req.method)) throw new APIError('INVALID_REQUEST');
       // A target ID never establishes scope. Inactive masters retain relationships;
-      // this relation does not grant participant/report access or registration rights.
+      // this relation does not grant access to existing participants/reports.
+      // Admin company-linked new registration validates this relation separately.
       const {data:company,error:companyError} = await admin.from('client_companies').select('id').eq('organization_id',org).eq('id',id?.toLowerCase()).maybeSingle();
       dbError(companyError); if (!company) throw new APIError('FORBIDDEN',403);
       if (req.method === 'GET') {

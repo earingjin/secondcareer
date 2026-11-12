@@ -12,26 +12,47 @@ const blankRow=()=>Object.fromEntries(COLUMNS.map(({key})=>[key,'']));
 const hasValue=row=>COLUMNS.some(({key})=>String(row[key]??'').trim());
 const isHeader=row=>/^(닉네임|이름|이름 또는 닉네임|참여자 이름)$/.test(row?.[0]||'');
 
-export function participantRegistrationView({context,inputRows=[blankRow()],rowErrors={},rows=[],results=[],message='',working=false,reveal=false,companies=null,companySearch='',companyLoading=false,companyMessage=''}){
+export function participantRegistrationView({context,inputRows=[blankRow()],rowErrors={},rows=[],results=[],message='',working=false,reveal=false,companies=null,companySearch='',companyLoading=false,companyMessage='',assignmentMessage=''}){
   const admin=context.profile.role==='admin';
+  const linked=admin&&context.companyMode==='linked',blocked=linked&&(!context.counselorAssignmentsReady||!context.counselors.length);
   return `<section class="card sec" aria-label="참여자 일괄 등록"><h2>참여자 일괄 등록</h2>
   <p class="sub">열 순서: 이름 또는 닉네임 · 연락처 · 담당 상담사 · 소속기업. 이름은 12자 이내입니다. 연락처 끝 8자리가 로그인 아이디가 됩니다.</p>
   <p class="hintline">${admin?'상담사 이름 또는 ID를 입력하거나 기본 상담사를 선택하세요.':'담당 상담사 열의 값과 관계없이 본인에게 자동 배정됩니다.'} ${admin&&context.companyMode==='linked'?'선택한 고객사명은 서버 마스터를 기준으로 저장됩니다.':`소속기업을 비우면 ${esc(context.organizationName)}으로 등록합니다.`}</p>
-  ${admin?`<div class="field"><label for="registration-counselor">기본 담당 상담사</label><select class="in" id="registration-counselor"><option value="">선택</option>${context.counselors.map(c=>`<option value="${esc(c.id)}" ${context.defaultCounselorId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>`:''}
+  ${admin?`<div class="field"><label for="registration-counselor">기본 담당 상담사</label><select class="in" id="registration-counselor" ${blocked?'disabled':''}><option value="">선택</option>${context.counselors.map(c=>`<option value="${esc(c.id)}" ${context.defaultCounselorId===c.id?'selected':''}>${esc(c.name)}${linked?' · '+esc(c.id):''}</option>`).join('')}</select>${linked?`<p role="status" data-registration-assignments>${esc(assignmentMessage||'고객사를 선택하면 배정된 상담사만 선택할 수 있습니다.')}</p><button class="btn ghost" data-action="assignment-refresh" ${!context.selectedCompany?'disabled':''}>배정 상담사 다시 조회</button>`:''}</div>`:''}
   ${admin?`<div class="field"><label for="registration-company-mode">고객사 연결 방식</label><select class="in" id="registration-company-mode"><option value="unlinked" ${context.companyMode!=='linked'?'selected':''}>미연결 등록 (기존 기업명 입력)</option><option value="linked" ${context.companyMode==='linked'?'selected':''}>고객사 ID 연결 등록</option></select></div><p class="hintline">미연결 등록은 기존 기업명만 저장합니다. 고객사 ID 연결은 선택한 활성 고객사에 신규 참여자를 연결합니다. 기존 기업명 기준 현황·보고서 필터는 유지됩니다.</p>${context.companyMode==='linked'?`<div class="field"><label for="registration-company-search">등록 고객사 검색</label><input class="in" id="registration-company-search" maxlength="200" value="${esc(companySearch)}"><button class="btn ghost" data-action="company-search" ${companyLoading?'disabled':''}>활성 고객사 조회</button><label for="registration-company">소속 고객사 선택</label><select class="in" id="registration-company" ${companyLoading?'disabled':''}><option value="">선택</option>${[...(context.selectedCompany&&!(companies?.companies||[]).some(c=>c.id===context.selectedCompany.id)?[context.selectedCompany]:[]),...(companies?.companies||[])].map(c=>`<option value="${esc(c.id)}" ${context.selectedCompany?.id===c.id?'selected':''}>${esc(c.name)} · ${esc(c.id)}</option>`).join('')}</select><p class="hintline">파일·붙여넣기의 소속기업 열은 비우거나 선택한 고객사명과 일치시켜 주세요. ${esc(companyMessage)}</p>${companies?`<div class="acts"><button data-action="company-previous" ${companyLoading||companies.page<=1?'disabled':''}>고객사 이전</button><span>${companies.page}페이지 · 총 ${companies.total}개</span><button data-action="company-next" ${companyLoading||companies.page*20>=companies.total?'disabled':''}>고객사 다음</button></div>`:''}</div>`:''}`:''}
   <div class="acts"><label class="btn ghost">CSV 파일 불러오기<input data-file="csv" type="file" accept=".csv,.txt" hidden></label><label class="btn ghost">XLSX 파일 직접 업로드<input data-file="xlsx" type="file" accept=".xlsx" hidden></label></div>
   <p class="hintline">XLSX는 첫 워크시트의 값만 읽습니다. 수식은 값으로 변환하세요. CSV는 UTF-8입니다. 엑셀에서 복사한 셀은 아래에 붙여넣으세요.</p>
   <div class="field"><div class="registration-grid-label">참여자 데이터</div><div class="scroll registration-grid" role="region" aria-label="참여자 입력 표" tabindex="0"><table class="t"><thead><tr><th scope="col">행</th>${COLUMNS.map(c=>`<th scope="col">${c.label}</th>`).join('')}<th scope="col">삭제</th></tr></thead><tbody>${inputRows.map((row,index)=>`<tr><th scope="row">${index+1}</th>${COLUMNS.map(c=>`<td><input class="in" data-row="${index}" data-key="${c.key}" aria-label="${index+1}행 ${c.label}" ${rowErrors[index]?.[c.key]?`aria-invalid="true" title="${esc(rowErrors[index][c.key])}"`:''} type="${c.type}" value="${esc(row[c.key]??'')}"></td>`).join('')}<td><button class="btn ghost sm" data-action="remove-row" data-row="${index}" aria-label="${index+1}행 삭제">삭제</button></td></tr>`).join('')}</tbody></table></div><div class="acts"><button class="btn ghost sm" data-action="add-row">행 추가</button></div></div>
-  <div class="acts"><button class="btn ghost" data-action="preview">입력 확인</button><button class="btn" data-action="register">실제 계정 일괄 등록</button></div>
+  <div class="acts"><button class="btn ghost" data-action="preview">입력 확인</button><button class="btn" data-action="register" ${blocked?'disabled':''}>실제 계정 일괄 등록</button></div>
   <p role="status" class="hintline">${esc(message)}</p>
   ${rows.length?`<div class="scroll" data-preview><table class="t"><thead><tr><th>행</th><th>이름</th><th>아이디</th><th>소속기업</th><th>입력 확인</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.line}</td><td>${esc(r.displayName)}</td><td>${esc(r.loginId)}</td><td>${esc(r.companyName)}</td><td>${esc(r.error||'등록 가능')}</td></tr>`).join('')}</tbody></table></div>`:''}
   ${results.length?`<div class="notice-s"><p>성공한 계정의 임시 비밀번호는 이번 화면에서만 확인할 수 있습니다. 본인 확인 후 별도 안전한 경로로 전달하세요. 로그아웃, 페이지 이탈 또는 새로고침 시 지워지며 다시 조회할 수 없습니다.</p><div class="acts"><button class="btn ghost sm" data-action="reveal">${reveal?'비밀번호 가리기':'발급 비밀번호 확인'}</button><button class="btn ghost sm" data-action="clear">발급 비밀번호 지우기</button></div><table class="t"><thead><tr><th>이름</th><th>아이디</th><th>등록 결과</th><th>임시 비밀번호</th><th>안내문</th></tr></thead><tbody>${results.map((r,index)=>`<tr><td>${esc(r.displayName)}</td><td>${esc(r.loginId)}</td><td>${esc(r.message)}</td><td>${r.temporaryPassword?`<input class="in" aria-label="${esc(r.displayName)} 임시 비밀번호" type="${reveal?'text':'password'}" readonly autocomplete="off" value="${esc(r.temporaryPassword)}">`:'-'}</td><td>${r.temporaryPassword?`<button class="btn ghost sm" data-action="copy-notice" data-result="${index}" ${!context.assessmentUrl?'disabled':''}>사전진단 안내문 복사</button>${!context.assessmentUrl?'<span>진단 접속 주소 설정이 필요합니다</span>':''}`:'-'}</td></tr>`).join('')}</tbody></table></div>`:''}
   ${working?'<p role="status">등록 중입니다. 완료될 때까지 기다려 주세요.</p>':''}</section>`;
 }
 
-export function mountParticipantRegistration(container,{context,register,loadCompanies,onBusy=()=>{},resultState={results:[]}}){
+export function mountParticipantRegistration(container,{context,register,loadCompanies,loadCompanyCounselors,onBusy=()=>{},resultState={results:[]}}){
   let inputRows=[blankRow()],rowErrors={},rows=[],message='',working=false,reveal=false,disposed=false;
   let companies=null,companySearch='',companyLoading=false,companyMessage='';
+  let assignmentRun=0,assignmentCompanyId=null,assignedCounselors=[],assignmentMessage='',unlinkedDefault=context.defaultCounselorId;
+  const linked=()=>context.profile.role==='admin'&&context.companyMode==='linked';
+  const effectiveContext=()=>linked()?{...context,counselors:assignmentCompanyId===context.selectedCompany?.id?assignedCounselors:[],counselorAssignmentsReady:!!assignmentCompanyId&&assignmentCompanyId===context.selectedCompany?.id}:context;
+  function resetAssignments(){assignmentRun++;assignmentCompanyId=null;assignedCounselors=[];assignmentMessage='';context.defaultCounselorId='';rows=[];rowErrors={};message=''}
+  async function fetchCounselors(){
+    const id=context.selectedCompany?.id,run=++assignmentRun;
+    assignmentCompanyId=null;assignedCounselors=[];assignmentMessage=id?'배정 상담사를 조회 중입니다.':'활성 고객사를 먼저 선택해 주세요.';render();
+    if(!id)return;
+    try{
+      if(!loadCompanyCounselors)throw Error('배정 상담사 조회를 사용할 수 없습니다.');
+      const d=await loadCompanyCounselors(id);
+      if(disposed||run!==assignmentRun||!linked()||context.selectedCompany?.id!==id)return;
+      const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+      if(d?.companyId!==id||!Array.isArray(d.counselors)||!Array.isArray(d.assignments)||!d.counselors.every(c=>uuid(c.id)&&typeof c.name==='string')||new Set(d.counselors.map(c=>c.id)).size!==d.counselors.length||!d.assignments.every(a=>d.counselors.some(c=>c.id===a.counselorUserId))||new Set(d.assignments.map(a=>a.counselorUserId)).size!==d.assignments.length)throw Error('배정 상담사 응답을 확인하지 못했습니다.');
+      const allowed=new Set(d.assignments.map(a=>a.counselorUserId));assignedCounselors=d.counselors.filter(c=>allowed.has(c.id));assignmentCompanyId=id;
+      if(!assignedCounselors.some(c=>c.id===context.defaultCounselorId))context.defaultCounselorId='';
+      assignmentMessage=assignedCounselors.length?'선택 고객사에 배정된 상담사만 지정할 수 있습니다. 중복 이름은 상담사 ID를 입력하세요.':'이 고객사에 배정된 상담사가 없어 등록할 수 없습니다. 고객사 관리에서 상담사를 배정한 뒤 다시 조회하세요.';
+    }catch(error){if(!disposed&&run===assignmentRun)assignmentMessage=error.message+' 배정을 확인하기 전에는 등록할 수 없습니다.'}
+    finally{if(!disposed&&run===assignmentRun)render()}
+  }
   async function fetchCompanies(page=1){
     if(companyLoading||!loadCompanies)return;
     companyLoading=true;companyMessage='조회 중입니다.';render();
@@ -48,13 +69,13 @@ export function mountParticipantRegistration(container,{context,register,loadCom
   const requests=new Map();
   function render(){
     if(disposed)return;
-    container.innerHTML=participantRegistrationView({context,inputRows,rowErrors,rows,results,message,working,reveal,companies,companySearch,companyLoading,companyMessage});
+    container.innerHTML=participantRegistrationView({context:effectiveContext(),inputRows,rowErrors,rows,results,message,working,reveal,companies,companySearch,companyLoading,companyMessage,assignmentMessage});
     if(working)container.querySelectorAll('button,input,select,textarea').forEach(e=>e.disabled=true);
   }
   function clearSecrets(){results.forEach(r=>delete r.temporaryPassword);reveal=false;render()}
   function checkedRows(){
     const active=inputRows.map((row,index)=>({row,index})).filter(({row})=>hasValue(row));
-    const checked=registrationRows(active.map(({row})=>COLUMNS.map(({key})=>row[key])),context);
+    const checked=registrationRows(active.map(({row})=>COLUMNS.map(({key})=>row[key])),effectiveContext());
     rowErrors=Object.fromEntries(checked.map((row,index)=>[active[index].index,row.fieldErrors]));
     return checked.map((row,index)=>({...row,line:active[index].index+1}));
   }
@@ -83,8 +104,8 @@ export function mountParticipantRegistration(container,{context,register,loadCom
   }
   async function onChange(event){
     if(working)return;
-    if(event.target.id==='registration-company-mode'){context.companyMode=event.target.value;context.selectedCompany=null;rows=[];rowErrors={};render();if(context.companyMode==='linked')await fetchCompanies();return}
-    if(event.target.id==='registration-company'){const id=event.target.value;context.selectedCompany=(companies?.companies||[]).find(c=>c.id===id)||(context.selectedCompany?.id===id?context.selectedCompany:null);rows=[];rowErrors={};render();return}
+    if(event.target.id==='registration-company-mode'){if(!linked())unlinkedDefault=context.defaultCounselorId;context.companyMode=event.target.value;context.selectedCompany=null;resetAssignments();if(!linked())context.defaultCounselorId=unlinkedDefault;render();if(linked())await fetchCompanies();return}
+    if(event.target.id==='registration-company'){const id=event.target.value;context.selectedCompany=(companies?.companies||[]).find(c=>c.id===id)||(context.selectedCompany?.id===id?context.selectedCompany:null);resetAssignments();inputRows.forEach(row=>row.counselorName='');render();await fetchCounselors();return}
     if(event.target.id==='registration-counselor'){context.defaultCounselorId=event.target.value;rows=[];rowErrors={};message='';render();return}
     if(!event.target.dataset.file||working)return;
     const kind=event.target.dataset.file,file=event.target.files[0];if(!file)return;
@@ -107,6 +128,7 @@ export function mountParticipantRegistration(container,{context,register,loadCom
     try{
       if(action==='company-search'||action==='company-previous'||action==='company-next'){await fetchCompanies(action==='company-search'?1:(companies?.page||1)+(action==='company-next'?1:-1));return}
       if(action==='clear'){clearSecrets();return}
+      if(action==='assignment-refresh'){await fetchCounselors();return}
       if(action==='copy-notice'){
         const result=results[Number(event.target.closest('[data-result]').dataset.result)];
         if(!context.assessmentUrl||!result?.temporaryPassword)return;
@@ -155,5 +177,6 @@ export function mountParticipantRegistration(container,{context,register,loadCom
     }catch(error){message=error.message;render()}
   }
   render();container.addEventListener('input',onInput);container.addEventListener('change',onChange);container.addEventListener('click',onClick);container.addEventListener('paste',onPaste);
+  if(linked()&&context.selectedCompany)fetchCounselors();
   return ()=>{disposed=true;container.innerHTML='';container.removeEventListener('input',onInput);container.removeEventListener('change',onChange);container.removeEventListener('click',onClick);container.removeEventListener('paste',onPaste)};
 }

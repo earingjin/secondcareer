@@ -52,7 +52,7 @@ test('company detail assigns multiple counselors to multiple masters, escapes na
   h.state.tables.user_profiles.push({user_id:second,organization_id:ids.org,role:'counselor',display_name:'<img src=x onerror=alert(1)>'});
   const before=structuredClone(h.state.tables.participants),calls=await open(page,h);await login(page);
   await sec(page).getByRole('button',{name:'고객사 목록 조회',exact:true}).click();await openAssignments(page,a.id);
-  const area=sec(page).locator('[data-company-assignments]');await expect(area).toContainText('배정된 상담사가 없습니다');await expect(area).toContainText('신규 참여자 등록의 상담사 선택 범위도 유지');
+  const area=sec(page).locator('[data-company-assignments]');await expect(area).toContainText('배정된 상담사가 없습니다');await expect(area).toContainText('고객사 ID 연결 신규 등록은 배정된 상담사로 제한');
   for(const id of [ids.counselor,second]){
     await area.getByLabel('같은 조직 상담사 선택').selectOption(id);await area.getByRole('button',{name:'상담사 배정',exact:true}).click();await expect(current(page)).toHaveText('상담사를 배정했습니다.');
   }
