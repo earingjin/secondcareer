@@ -52,13 +52,39 @@ test('admin starts with the company list, opens a customer by name and returns w
   const h=harness(),[a]=await seedAssignmentCompanies(h),calls=await open(page,h);await login(page);
   const list=sec(page).locator('[data-company-list-view]');await expect(list).toBeVisible();await expect(list).toContainText(a.name);
   expect(await page.locator('#admin-companies').evaluate(el=>el.compareDocumentPosition(document.querySelector('#admin-progress')) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
-  await sec(page).getByRole('button',{name:a.name,exact:true}).click();await expect(list).toBeHidden();await expect(sec(page).locator('[data-company-target]')).toContainText(a.id);
+  await sec(page).getByRole('button',{name:a.name,exact:true}).click();
+  await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(a.id);
+  for(const [id,label] of [['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서'],['registration','참여자 일괄 등록']]){
+    const button=page.locator(`[data-company-dashboard-tab="${id}"]`);await expect(button).toHaveText(label);await button.click();await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('[aria-live="polite"] h3')).toHaveText(label);
+  }
+  await page.locator('[data-company-dashboard-back]').click();await expect(list).toBeVisible();
+  await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:'상세 관리'}).click();await expect(sec(page).locator('[data-company-target]')).toContainText(a.id);
   await expect(sec(page).locator('[data-company-manager-host]')).toBeVisible();await expect(sec(page).locator('[data-company-assignments]')).toBeVisible();
   await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();await expect(list).toBeVisible();await expect(sec(page).locator('[data-company-form]')).toHaveCount(0);
   for(const id of ['admin-directory','admin-progress','admin-aggregate','live-registration','admin-assessment-url','admin-counselors']){
     await expect(page.locator(`a[href="#${id}"]`)).toBeVisible();await expect(page.locator(`#${id}`)).toBeVisible();
   }
   const before=companyCalls(calls).length;await page.getByRole('button',{name:'로그아웃',exact:true}).click();await login(page);await expect(sec(page).locator('[data-company-list]')).toContainText(a.name);expect(companyCalls(calls).length).toBeGreaterThan(before);
+});
+
+test('company dashboard keeps the selected ID across tabs and switches without mixing companies',async({page})=>{
+  const h=harness(),[a,b]=await seedAssignmentCompanies(h),calls=await open(page,h);expect(a.id).not.toBe(b.id);await login(page);
+  const tabs=[['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서'],['registration','참여자 일괄 등록']];
+  const select=async company=>{await sec(page).locator(`[data-company-id="${company.id}"]`).getByRole('button',{name:company.name,exact:true}).click()};
+  const verify=async(company,other)=>{
+    for(const [id,label] of tabs){
+      const button=page.locator(`[data-company-dashboard-tab="${id}"]`);await button.click();
+      await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('[aria-live="polite"] h3')).toHaveText(label);
+      await expect(page.getByRole('heading',{name:company.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(company.id);
+      await expect(page.locator('#app')).not.toContainText(other.name);await expect(page.locator('#app')).not.toContainText(other.id);
+      await expect(page.locator('[aria-live="polite"]')).toContainText('고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.');
+      for(const selector of ['#admin-progress','#admin-directory','#admin-aggregate','#live-registration'])await expect(page.locator(selector)).toHaveCount(0);
+    }
+  };
+  const before=calls.length;await select(a);await verify(a,b);await page.locator('[data-company-dashboard-back]').click();
+  await select(b);await verify(b,a);await page.locator('[data-company-dashboard-back]').click();await select(a);
+  await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(a.id);await expect(page.locator('#app')).not.toContainText(b.id);
+  expect(calls.slice(before).filter(c=>c.method==='POST'&&/register/i.test(c.path))).toHaveLength(0);
 });
 
 test('company detail assigns multiple counselors to multiple masters, escapes names and keeps participant assignments unchanged',async({page})=>{
