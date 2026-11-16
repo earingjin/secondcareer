@@ -407,3 +407,7 @@ SQL은 `supabase/proposals/participant-company-link.sql`(NULL 열·복합 FK·�
 PostgreSQL 17 공식 SELECT·생성 열·UPDATE·트리거·RLS 문서와 로컬 B2 제안을 대조해 `UPDATE(counselor_user_id)` 후보 A 및 `UPDATE(counselor_role)` 후보 B를 검토 문서의 표에 비교했다. 문서상 한 열 UPDATE는 `FOR SHARE` 권한 요건을 만족할 것으로 예상되나, 생성 열에 대한 grant와 행 잠금은 실제 실행 전이다. B는 임의 ID 직접 변경 권한을 새로 부여하지 않지만 `DEFAULT` UPDATE·트리거·기반 열 변경의 부작용 가능성이 있어 무해하거나 최종 승인된 대안으로 확정하지 않는다. 실제 생성식은 사용자에게 제공받지 않았으며 로컬 제안의 고정값을 실제 DB 사실로 치환하지 않았다. A는 계속 미승인 검토 후보이고 SQL 실행 중단·MD5 placeholder는 유지했다.
 
 두 후보의 역할 상속·PUBLIC·RPC 및 service_role BYPASSRLS, PK/FK·트리거·DEFAULT, 잠금/동시 DELETE 시험은 승인된 격리 시험 DB에서 검증해야 한다. SQL 제안은 후보 상태를 설명하는 주석만 바꾸었다. 이번 문서·주석 검토는 기능 구현 상태를 바꾸지 않으므로 REQ-A-002 부분 구현 및 역할별·전체 집계는 유지한다. `npx.cmd playwright test tests/live/company-assignment-sql-review.spec.mjs --timeout=30000 --global-timeout=60000 --output=test-results/company-lock-privilege-review`는 **정적 텍스트 4/4 통과, 종료 0**이다. SQL 파싱·실행이나 실제 잠금/권한 검증은 아니다. 기존 18/18 테스트는 20절의 기록이다. 실제 SQL 실행·권한 변경·배포·커밋·푸시·PR는 하지 않았다.
+# 관리자 고객사 진단 현황 2-1단계 로컬 변경 (2026-11-16)
+
+REQ-A-004: 기준 `80c7246` 위에서 고객사 ID별 집계 조회와 상세 화면 연결을 추가했다. `secondcareer-admin-progress`의 관리자·조직 확인 후 고객사 소속을 검증하고 참여자의 조직·고객사 ID로 제한한다. 기존 조직 전체 조회는 유지한다. 프런트엔드는 응답 ID 검증과 요청 순번으로 오래된 응답을 차단하며 목록 복귀·로그아웃에서 상태를 초기화한다. 관련 서버·브라우저 모의 테스트를 작성했으나 이번 작업에서는 실행하지 않았다. 실제 서버·DB·브라우저 검증 및 배포는 미실시다. 고객사별 운영 관리·통합 분석·일괄 등록은 미연결이다. 기존 요구사항 판정과 집계는 유지하며 전체 재검증을 의미하지 않는다.
+

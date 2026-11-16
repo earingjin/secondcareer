@@ -18,7 +18,10 @@ async function open(page,h,options={}){
     const url='https://fixture.invalid/'+u.search;
     if(u.pathname.endsWith('/secondcareer-login')){const id=h.signIn(body.loginId,body.password)?.id;r=id?{status:200,data:{access_token:id,refresh_token:'refresh-'+id,expires_at:Math.floor(Date.now()/1000)+3600}}:{status:401,data:{error:'INVALID_CREDENTIALS'}}}
     else if(u.pathname.endsWith('/secondcareer-account'))r=await h.call(h.account.handleAccount,token,body,req.method());
-    else if(u.pathname.endsWith('/secondcareer-admin-progress'))r=await h.call(h.progress.handleAdminProgress,token,body,req.method(),url);
+    else if(u.pathname.endsWith('/secondcareer-admin-progress')){
+      r=await h.call(h.progress.handleAdminProgress,token,body,req.method(),url);
+      if(options.progressResponse)r=await options.progressResponse(u,r);
+    }
     else if(u.pathname.endsWith('/secondcareer-admin-directory'))r=await h.call(h.directory.handleAdminDirectory,token,body,req.method(),url);
     else if(u.pathname.endsWith('/secondcareer-admin-companies')){
       if(options.hold)await options.hold;
@@ -77,7 +80,8 @@ test('company dashboard keeps the selected ID across tabs and switches without m
       await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('[aria-live="polite"] h3')).toHaveText(label);
       await expect(page.getByRole('heading',{name:company.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(company.id);
       await expect(page.locator('#app')).not.toContainText(other.name);await expect(page.locator('#app')).not.toContainText(other.id);
-      await expect(page.locator('section[aria-live="polite"]')).toContainText('고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.');
+      if(id==='progress')await expect(page.locator('section[aria-live="polite"] [data-kpi="total"] b')).toHaveText('0');
+      else await expect(page.locator('section[aria-live="polite"]')).toContainText('고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.');
       for(const selector of ['#admin-progress','#admin-directory','#admin-aggregate','#live-registration'])await expect(page.locator(selector)).toHaveCount(0);
     }
   };
@@ -85,6 +89,23 @@ test('company dashboard keeps the selected ID across tabs and switches without m
   await select(b);await verify(b,a);await page.locator('[data-company-dashboard-back]').click();await select(a);
   await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(a.id);await expect(page.locator('#app')).not.toContainText(b.id);
   expect(calls.slice(before).filter(c=>c.method==='POST'&&/register/i.test(c.path))).toHaveLength(0);
+});
+
+test('company progress discards delayed, failed and mismatched responses across company changes',async({page})=>{
+  const h=harness(),[a,b]=await seedAssignmentCompanies(h);h.state.tables.participants.length=0;
+  h.state.tables.participants.push({id:'fixture-a',organization_id:ids.org,company_id:a.id,company_name:b.name},{id:'fixture-b1',organization_id:ids.org,company_id:b.id},{id:'fixture-b2',organization_id:ids.org,company_id:b.id});
+  let release,entered;const started=new Promise(resolve=>{entered=resolve}),held=new Promise(resolve=>{release=resolve});
+  const options={progressResponse:async(u,r)=>{if(u.searchParams.get('companyId')===a.id){entered();await held}return r}};
+  await open(page,h,options);await login(page);
+  const select=async c=>sec(page).locator(`[data-company-id="${c.id}"]`).getByRole('button',{name:c.name,exact:true}).click();
+  const total=page.locator('section[aria-live="polite"] [data-kpi="total"] b');
+  await select(a);await started;await expect(page.locator('#company-progress-status')).toContainText('조회하고 있습니다');
+  await page.locator('[data-company-dashboard-back]').click();await select(b);await expect(total).toHaveText('2');
+  const delayed=page.waitForResponse(r=>r.url().includes('companyId='+a.id));release();await delayed;await expect(total).toHaveText('2');await expect(page.locator('#app')).not.toContainText(a.id);
+  options.progressResponse=async(u,r)=>u.searchParams.has('companyId')?{...r,data:{...r.data,companyId:a.id}}:r;
+  await page.locator('[data-company-progress-refresh]').click();await expect(total).toHaveCount(0);await expect(page.locator('#company-progress-status')).not.toBeEmpty();
+  options.progressResponse=async(u,r)=>u.searchParams.has('companyId')?{status:503,data:{error:'QUERY_FAILED'}}:r;
+  await page.locator('[data-company-progress-refresh]').click();await expect(total).toHaveCount(0);await expect(page.locator('[data-company-progress-refresh]')).toBeEnabled();
 });
 
 test('company detail assigns multiple counselors to multiple masters, escapes names and keeps participant assignments unchanged',async({page})=>{

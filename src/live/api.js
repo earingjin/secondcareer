@@ -151,7 +151,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
     updateAssessmentUrl:assessmentUrl=>request('/functions/v1/secondcareer-account',{body:{action:'update-assessment-url',assessmentUrl}}),
     register:body=>request('/functions/v1/secondcareer-register-participant',{body}),
     // REQ-A-004: counts only; the server derives the scope from the signed-in profile.
-    adminProgress:()=>request('/functions/v1/secondcareer-admin-progress'),
+    adminProgress:(companyId=null)=>request('/functions/v1/secondcareer-admin-progress'+(companyId?'?companyId='+encodeURIComponent(companyId):'')),
     // REQ-A-001/002 read only: organization, companies, counselors and participants in the server-checked scope.
     adminDirectory:()=>request('/functions/v1/secondcareer-admin-directory'),
     companies:({search='',status='all',page=1,pageSize=20}={})=>request('/functions/v1/secondcareer-admin-companies?'+new URLSearchParams({search,status,page:String(page),pageSize:String(pageSize)})),
