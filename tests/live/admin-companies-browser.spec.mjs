@@ -77,7 +77,7 @@ test('company dashboard keeps the selected ID across tabs and switches without m
       await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('[aria-live="polite"] h3')).toHaveText(label);
       await expect(page.getByRole('heading',{name:company.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(company.id);
       await expect(page.locator('#app')).not.toContainText(other.name);await expect(page.locator('#app')).not.toContainText(other.id);
-      await expect(page.locator('[aria-live="polite"]')).toContainText('고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.');
+      await expect(page.locator('section[aria-live="polite"]')).toContainText('고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.');
       for(const selector of ['#admin-progress','#admin-directory','#admin-aggregate','#live-registration'])await expect(page.locator(selector)).toHaveCount(0);
     }
   };
