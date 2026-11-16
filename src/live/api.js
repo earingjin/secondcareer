@@ -154,6 +154,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
     adminProgress:(companyId=null)=>request('/functions/v1/secondcareer-admin-progress'+(companyId?'?companyId='+encodeURIComponent(companyId):'')),
     // REQ-A-001/002 read only: organization, companies, counselors and participants in the server-checked scope.
     adminDirectory:(companyId=null)=>request('/functions/v1/secondcareer-admin-directory'+(companyId?'?companyId='+encodeURIComponent(companyId):'')),
+    adminUnlinked:({name='',companyName='',page=1}={})=>request('/functions/v1/secondcareer-admin-unlinked?'+new URLSearchParams({name,companyName,page:String(page)})),
     companies:({search='',status='all',page=1,pageSize=20}={})=>request('/functions/v1/secondcareer-admin-companies?'+new URLSearchParams({search,status,page:String(page),pageSize:String(pageSize)})),
     company:id=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)),
     saveCompany:(id,body)=>request('/functions/v1/secondcareer-admin-companies'+(id?'?id='+encodeURIComponent(id):''),{body,method:id?'PATCH':'POST'}),

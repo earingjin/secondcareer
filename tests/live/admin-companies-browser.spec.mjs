@@ -27,6 +27,10 @@ async function open(page,h,options={}){
       r=await h.call(h.directory.handleAdminDirectory,token,body,req.method(),url);
       if(options.directoryResponse)r=await options.directoryResponse(u,r);
     }
+    else if(u.pathname.endsWith('/secondcareer-admin-unlinked')){
+      r=options.unlinkedStatus?{status:options.unlinkedStatus,data:{error:'QUERY_FAILED'}}:await h.call(h.unlinked.handleAdminUnlinked,token,body,req.method(),url);
+      if(options.unlinkedResponse)r=await options.unlinkedResponse(u,r);
+    }
     else if(u.pathname.endsWith('/secondcareer-admin-report'))r=await h.call(h.adminReport.handleAdminReport,token,body,req.method(),url);
     else if(u.pathname.endsWith('/secondcareer-register-participant')){r=await h.call(h.registration.handleRegistration,token,body,req.method(),url);if(options.registrationResponse)r=await options.registrationResponse(r)}
     else if(u.pathname.endsWith('/secondcareer-admin-companies')){
@@ -74,6 +78,37 @@ test('admin starts with the company list, opens a customer by name and returns w
     await expect(page.locator(`a[href="#${id}"]`)).toBeVisible();await expect(page.locator(`#${id}`)).toBeVisible();
   }
   const before=companyCalls(calls).length;await page.getByRole('button',{name:'로그아웃',exact:true}).click();await login(page);await expect(sec(page).locator('[data-company-list]')).toContainText(a.name);expect(companyCalls(calls).length).toBeGreaterThan(before);
+});
+
+test('unlinked review lists only NULL company IDs and never writes or auto-selects a matching master',async({page})=>{
+  const h=harness(),[company]=await seedAssignmentCompanies(h),id=crypto.randomUUID(),linked=crypto.randomUUID();
+  h.state.tables.participants.push({id,organization_id:ids.org,company_id:null,display_name:'<img src=x onerror=alert(1)>',company_name:company.name,counselor_user_id:ids.counselor},{id:linked,organization_id:ids.org,company_id:company.id,display_name:'연결됨',company_name:company.name});
+  const calls=await open(page,h);await login(page);
+  const writesBefore=h.state.writes.length,section=page.locator('#admin-unlinked');await page.locator('a[href="#admin-unlinked"]').click();await expect(section).toContainText('총 미연결 참여자 2명');
+  await expect(section).not.toContainText('연결됨');await expect(section.locator('img')).toHaveCount(0);
+  await section.locator(`[data-unlinked-review="${id}"]`).click();
+  await expect(section.locator('[data-unlinked-candidate]')).toContainText('대상 고객사: 미지정');
+  await expect(section.locator('[data-unlinked-candidate]')).toContainText(company.name);
+  await expect(section.locator(`[data-unlinked-company="${company.id}"]`)).toBeVisible();
+  await section.locator(`[data-unlinked-company="${company.id}"]`).click();
+  await expect(section.locator('[data-unlinked-candidate]')).toContainText(`ID ${company.id}`);
+  await expect(section).toContainText('연결 확정 기능은 서버 검증 및 변경 이력 설계 승인 후 제공됩니다');
+  await section.locator('[data-unlinked-cancel]').click();await expect(section.locator('[data-unlinked-candidate]')).toHaveCount(0);
+  expect(calls.filter(c=>c.method!=='GET'&&c.path.endsWith('admin-unlinked'))).toHaveLength(0);
+  expect(h.state.writes).toHaveLength(writesBefore);
+});
+
+test('unlinked failures clear old rows and late searches cannot replace current results',async({page})=>{
+  const h=harness(),options={};h.state.tables.participants.push({id:crypto.randomUUID(),organization_id:ids.org,company_id:null,display_name:'새로운 참여자',company_name:'기업'});
+  await open(page,h,options);await login(page);const section=page.locator('#admin-unlinked');await section.locator('[data-unlinked-search] button').click();
+  await expect(section).toContainText('새로운 참여자');
+  let release,entered;const pending=new Promise(r=>{release=r}),started=new Promise(r=>{entered=r});
+  options.unlinkedResponse=async(u,r)=>{if(u.searchParams.get('name')==='이전'){entered();await pending}return r};
+  await section.locator('input[name="name"]').fill('이전');await section.locator('[data-unlinked-search] button').click();await started;
+  await section.locator('input[name="name"]').fill('새로운');await section.locator('[data-unlinked-search] button').click();
+  await expect(section).toContainText('새로운 참여자');release();await expect(section).toContainText('새로운 참여자');
+  options.unlinkedStatus=503;await section.locator('[data-unlinked-search] button').click();
+  await expect(section).toContainText('처리 결과를 확인하지 못했습니다');await expect(section).not.toContainText('새로운 참여자');
 });
 
 test('company selection restores after reload, rejects revoked access and clears on back and logout',async({page})=>{

@@ -15,7 +15,7 @@ function harness(){
   const db={from(name){
     let filters=[],insert=null,update=null,columns=null,order=null,limit=Infinity,range=null,orders=[],selectOptions={},deleting=false;
     const q={delete(){deleting=true;return q},select(c,o={}){columns=c;selectOptions=o;return q},is(k,v){filters.push([k,v,'is']);return q},eq(k,v){filters.push([k,v,'eq']);return q},in(k,v){filters.push([k,[...v],'in']);return q},gt(k,v){filters.push([k,v,'gt']);return q},ilike(k,v){filters.push([k,v,'ilike']);return q},order(k,o){order=k;orders.push([k,o?.ascending!==false]);return q},limit(n){limit=n;return q},range(a,b){range=[a,b];return q},insert(row){insert=row;return q},update(row){update=row;return q},async single(){const result=await run(true);return result.data?result:{...result,error:result.error||{code:'PGRST116'}}},async maybeSingle(){return run(true)},then(resolve,reject){return run(false).then(resolve,reject)}};
-    const match=(r,[k,v,op])=>op==='is'?(r[k]??null)===v:op==='in'?v.includes(r[k]):op==='gt'?r[k]>v:r[k]===v;
+    const match=(r,[k,v,op])=>op==='is'?(r[k]??null)===v:op==='in'?v.includes(r[k]):op==='gt'?r[k]>v:op==='ilike'?new RegExp('^'+v.replace(/\\([\\%_])|[%_]|[.*+?^${}()|[\]\\]/g,(m,literal)=>literal?literal.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'):m==='%'?'.*':m==='_'?'.':m.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))+'$','iu').test(r[k]||''):r[k]===v;
     async function run(single){
       if(name==='user_profiles'&&state.failProfile)return {error:{code:'QUERY_ERROR'},data:null};
       if(!tables[name])return {error:{code:'MISSING_TABLE'},data:null};
@@ -213,6 +213,7 @@ function harness(){
   const access=load(path.join(root,'_shared/participant-access.ts'));
   const progress=load(path.join(root,'secondcareer-admin-progress/index.ts'));
   const directory=load(path.join(root,'secondcareer-admin-directory/index.ts'));
+  const unlinked=load(path.join(root,'secondcareer-admin-unlinked/index.ts'));
   const adminReport=load(path.join(root,'secondcareer-admin-report/index.ts'));
   const aggregate=load(path.join(root,'secondcareer-admin-aggregate/index.ts'));
   const companies=load(path.join(root,'secondcareer-admin-companies/index.ts'));
@@ -242,6 +243,6 @@ function harness(){
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
-  return {state,ids,login,registration,account,access,progress,directory,adminReport,aggregate,companies,counselors,managers,manager,managerProgress,assessment,call,signIn,completeCounselor:args=>db.rpc('secondcareer_complete_counselor_registration',args)};
+  return {state,ids,login,registration,account,access,progress,directory,unlinked,adminReport,aggregate,companies,counselors,managers,manager,managerProgress,assessment,call,signIn,completeCounselor:args=>db.rpc('secondcareer_complete_counselor_registration',args)};
 }
 module.exports={harness,ids};
