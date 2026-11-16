@@ -62,7 +62,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
       if((path==='/functions/v1/secondcareer-admin-aggregate'||path.startsWith('/functions/v1/secondcareer-admin-aggregate?'))&&response.status!==401){
         throw Error(response.status===403?'통합 분석보고서를 조회할 권한이 없습니다.':response.status===400?'기업 선택을 확인한 뒤 다시 불러와 주세요.':'통합 분석을 불러오지 못했습니다. 잠시 후 다시 불러와 주세요.');
       }
-      if(path==='/functions/v1/secondcareer-admin-directory'&&response.status!==401){
+      if((path==='/functions/v1/secondcareer-admin-directory'||path.startsWith('/functions/v1/secondcareer-admin-directory?'))&&response.status!==401){
         throw Error(response.status===403?'운영 관리 목록을 조회할 권한이 없습니다.':'운영 관리 목록을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
       }
       if(path.startsWith('/functions/v1/secondcareer-admin-companies')&&response.status!==401){
@@ -153,7 +153,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
     // REQ-A-004: counts only; the server derives the scope from the signed-in profile.
     adminProgress:(companyId=null)=>request('/functions/v1/secondcareer-admin-progress'+(companyId?'?companyId='+encodeURIComponent(companyId):'')),
     // REQ-A-001/002 read only: organization, companies, counselors and participants in the server-checked scope.
-    adminDirectory:()=>request('/functions/v1/secondcareer-admin-directory'),
+    adminDirectory:(companyId=null)=>request('/functions/v1/secondcareer-admin-directory'+(companyId?'?companyId='+encodeURIComponent(companyId):'')),
     companies:({search='',status='all',page=1,pageSize=20}={})=>request('/functions/v1/secondcareer-admin-companies?'+new URLSearchParams({search,status,page:String(page),pageSize:String(pageSize)})),
     company:id=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)),
     saveCompany:(id,body)=>request('/functions/v1/secondcareer-admin-companies'+(id?'?id='+encodeURIComponent(id):''),{body,method:id?'PATCH':'POST'}),

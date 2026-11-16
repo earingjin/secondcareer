@@ -25,6 +25,26 @@ function seed(){
 }
 const get=(h,token,url)=>h.call(h.directory.handleAdminDirectory,token,undefined,'GET',url);
 
+test('company directory isolates IDs, official names and actual counselors with no name-only links',async()=>{
+  const h=seed(),a='30000000-0000-4000-8000-000000000001',b='30000000-0000-4000-8000-000000000002',empty='30000000-0000-4000-8000-000000000003';
+  h.state.tables.client_companies.push(...[a,b,empty].map(id=>({id,organization_id:ids.org,name:'공식 고객사'})));
+  for(const p of h.state.tables.participants)p.company_id=['d1','d4','d5','x1'].includes(p.id)?a:p.id==='d2'?b:null;
+  h.state.tables.participants.find(p=>p.id==='d1').company_name='잘못된 기업명';
+  const url=id=>'https://fixture.invalid/?companyId='+id;
+  const r=await get(h,ids.admin,url(a));expect(r.status).toBe(200);
+  expect(r.data).toMatchObject({scope:'company',companyId:a,companyName:'공식 고객사',totals:{participants:3,counselors:1,unassigned:1,unknownCounselor:1}});
+  expect(r.data.participants.map(p=>p.id).sort()).toEqual(['d1','d4','d5']);expect(r.data.participants.every(p=>p.companyName==='공식 고객사')).toBe(true);
+  expect(r.data.counselors.map(c=>c.id)).toEqual([ids.counselor]);expect(JSON.stringify(r.data)).not.toContain(ids.other);
+  expect((await get(h,ids.admin,url(b))).data.participants.map(p=>p.id)).toEqual(['d2']);
+  expect((await get(h,ids.admin,url(empty))).data).toMatchObject({totals:{participants:0,counselors:0},participants:[],counselors:[]});
+  for(const id of ['bad',''])expect((await get(h,ids.admin,url(id))).status).toBe(400);
+  h.state.tables.client_companies.find(c=>c.id===b).organization_id='other-org';
+  for(const id of [b,'30000000-0000-4000-8000-000000000099'])expect((await get(h,ids.admin,url(id))).status).toBe(403);
+  h.state.tables.user_profiles.push({user_id:'fixture-manager',organization_id:ids.org,role:'company_manager'});h.state.users['fixture-manager']={id:'fixture-manager',app_metadata:{}};
+  for(const token of [ids.counselor,ids.participant,'fixture-manager'])expect((await get(h,token,url(a))).status).toBe(403);
+  h.state.failReadsOf='participants';expect((await get(h,ids.admin,url(a))).status).toBe(503);
+});
+
 test('1·4·5·6 admin gets scoped counselors, companies and participants with server counts',async()=>{
   const h=seed(),r=await get(h,ids.admin);
   expect(r.status).toBe(200);expect(r.headers.get('cache-control')).toBe('no-store');

@@ -22,7 +22,10 @@ async function open(page,h,options={}){
       r=await h.call(h.progress.handleAdminProgress,token,body,req.method(),url);
       if(options.progressResponse)r=await options.progressResponse(u,r);
     }
-    else if(u.pathname.endsWith('/secondcareer-admin-directory'))r=await h.call(h.directory.handleAdminDirectory,token,body,req.method(),url);
+    else if(u.pathname.endsWith('/secondcareer-admin-directory')){
+      r=await h.call(h.directory.handleAdminDirectory,token,body,req.method(),url);
+      if(options.directoryResponse)r=await options.directoryResponse(u,r);
+    }
     else if(u.pathname.endsWith('/secondcareer-admin-companies')){
       if(options.hold)await options.hold;
       r=options.companyStatus?{status:options.companyStatus,data:{error:options.companyStatus===403?'FORBIDDEN':'COMPANY_QUERY_FAILED'}}:await h.call(h.companies.handleAdminCompanies,token,body,req.method(),url);
@@ -81,6 +84,7 @@ test('company dashboard keeps the selected ID across tabs and switches without m
       await expect(page.getByRole('heading',{name:company.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(company.id);
       await expect(page.locator('#app')).not.toContainText(other.name);await expect(page.locator('#app')).not.toContainText(other.id);
       if(id==='progress')await expect(page.locator('section[aria-live="polite"] [data-kpi="total"] b')).toHaveText('0');
+      else if(id==='operations')await expect(page.locator('section[aria-live="polite"] [data-dir-kpi="participants"] b')).toHaveText('0');
       else await expect(page.locator('section[aria-live="polite"]')).toContainText('고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.');
       for(const selector of ['#admin-progress','#admin-directory','#admin-aggregate','#live-registration'])await expect(page.locator(selector)).toHaveCount(0);
     }
@@ -106,6 +110,30 @@ test('company progress discards delayed, failed and mismatched responses across 
   await page.locator('[data-company-progress-refresh]').click();await expect(total).toHaveCount(0);await expect(page.locator('#company-progress-status')).not.toBeEmpty();
   options.progressResponse=async(u,r)=>u.searchParams.has('companyId')?{status:503,data:{error:'QUERY_FAILED'}}:r;
   await page.locator('[data-company-progress-refresh]').click();await expect(total).toHaveCount(0);await expect(page.locator('[data-company-progress-refresh]')).toBeEnabled();
+});
+
+test('company operations isolates participants and ignores delayed, mismatched and failed reads',async({page})=>{
+  const h=harness(),[a,b]=await seedAssignmentCompanies(h);h.state.tables.participants.length=0;
+  h.state.tables.participants.push({id:'op-a',organization_id:ids.org,company_id:a.id,company_name:b.name,display_name:'A 전용 참여자',counselor_user_id:ids.counselor},{id:'op-b',organization_id:ids.org,company_id:b.id,company_name:a.name,display_name:'B 전용 참여자'},{id:'op-null',organization_id:ids.org,company_id:null,company_name:b.name,display_name:'미연결 숨김'});
+  let release,entered;const started=new Promise(r=>{entered=r}),held=new Promise(r=>{release=r});
+  const options={directoryResponse:async(u,r)=>{if(u.searchParams.get('companyId')===a.id){entered();await held}return r}};
+  const calls=await open(page,h,options);await login(page);
+  const select=async c=>{await sec(page).locator(`[data-company-id="${c.id}"]`).getByRole('button',{name:c.name,exact:true}).click();await page.locator('[data-company-dashboard-tab="operations"]').click()};
+  const area=page.locator('section[aria-live="polite"]');
+  await select(a);await started;await expect(page.locator('#company-directory-status')).toContainText('조회하고 있습니다');
+  await page.locator('[data-company-dashboard-back]').click();await select(b);await expect(area).toContainText('B 전용 참여자');await expect(area).not.toContainText('A 전용 참여자');await expect(area).not.toContainText('미연결 숨김');
+  const delayed=page.waitForResponse(r=>r.url().includes('admin-directory?companyId='+a.id));release();await delayed;
+  await expect(area).toContainText('B 전용 참여자');await expect(area).not.toContainText('A 전용 참여자');
+  await expect(area.locator('[data-directory-filter="company"]')).toHaveCount(0);await expect(area.locator('[data-admin-report]')).toHaveCount(0);
+  await area.locator('[data-directory-filter="counselor"]').selectOption('unassigned');await expect(area.locator('[data-dir-participant]')).toHaveCount(1);
+  options.directoryResponse=async(u,r)=>u.searchParams.has('companyId')?{...r,data:{...r.data,companyId:a.id}}:r;
+  await area.locator('[data-company-directory-refresh]').click();await expect(area.locator('[data-dir-participant]')).toHaveCount(0);await expect(page.locator('#company-directory-status')).toContainText('응답');
+  options.directoryResponse=async(u,r)=>u.searchParams.has('companyId')?{status:503,data:{error:'QUERY_FAILED'}}:r;
+  await area.locator('[data-company-directory-refresh]').click();await expect(area.locator('[data-dir-participant]')).toHaveCount(0);await expect(area.locator('[data-company-directory-refresh]')).toBeEnabled();
+  options.directoryResponse=null;await area.locator('[data-company-directory-refresh]').click();await expect(area).toContainText('B 전용 참여자');
+  expect(calls.filter(c=>c.path.endsWith('admin-directory')&&c.query.includes('companyId='+b.id)).length).toBeGreaterThan(1);
+  await page.locator('[data-company-dashboard-back]').click();await select(a);await expect(area).toContainText('A 전용 참여자');await expect(area).not.toContainText('B 전용 참여자');await expect(area.locator('[data-dir-kpi="counselors"] b')).toHaveText('1');
+  await page.getByRole('button',{name:'로그아웃',exact:true}).click();await expect(page.locator('#app')).not.toContainText('B 전용 참여자');await expect(page.locator('#app')).not.toContainText('A 전용 참여자');await login(page);await expect(page.locator('[data-dir-participant]')).toHaveCount(3);await expect(page.locator('[data-company-directory-refresh]')).toHaveCount(0);
 });
 
 test('company detail assigns multiple counselors to multiple masters, escapes names and keeps participant assignments unchanged',async({page})=>{

@@ -13,7 +13,7 @@ import {compareView} from './compare-view.js';
 import {assessmentNotice,postAssessmentNotice,postEntryUrl,POST_ENTRY_PARAM,POST_ENTRY_VALUE} from './assessment-notice.js';
 import {postTestGate} from './post-test-gate.js';
 import {adminProgressView,validProgress,adminCompanyProgressView,validCompanyProgress} from './admin-progress-view.js';
-import {adminDirectoryView,validDirectory} from './admin-directory-view.js';
+import {adminDirectoryView,validDirectory,adminCompanyDirectoryView,validCompanyDirectory} from './admin-directory-view.js';
 import {createAdminCounselors} from './admin-counselors.js';
 import {createAdminCompanies} from './admin-companies.js';
 import {adminAggregateView,adminAggregatePrintView,validAggregate} from './admin-aggregate-view.js';
@@ -64,7 +64,16 @@ const counselorAccounts=createAdminCounselors({api,canUse:()=>profile?.role==='a
 window.addEventListener('pagehide',()=>counselorAccounts.reset());
 let selectedAdminCompany=null,adminCompanyTab='progress';
 let companyProgress={data:null,loading:false,message:''},companyProgressRun=0;
-function clearCompanyProgress(){companyProgressRun++;companyProgress={data:null,loading:false,message:''}}
+let companyDirectory={data:null,loading:false,message:'',filter:{...NO_FILTER}},companyDirectoryRun=0;
+function clearCompanyDirectory(){companyDirectoryRun++;companyDirectory={data:null,loading:false,message:'',filter:{...NO_FILTER}}}
+async function loadCompanyDirectory(){
+ if(profile?.role!=='admin'||mustChangePassword||!selectedAdminCompany)return;
+ const id=selectedAdminCompany.id,run=++companyDirectoryRun;companyDirectory={...companyDirectory,data:null,loading:true,message:''};render();
+ try{const data=await api.adminDirectory(id);if(run!==companyDirectoryRun||selectedAdminCompany?.id!==id)return;if(!validCompanyDirectory(data,id))throw Error('고객사 운영 관리 응답을 확인하지 못했습니다. 다시 조회해 주세요.');companyDirectory={...companyDirectory,data,loading:false}}
+ catch(error){if(run!==companyDirectoryRun||selectedAdminCompany?.id!==id)return;companyDirectory={...companyDirectory,data:null,loading:false,message:error.message}}
+ render();
+}
+function clearCompanyProgress(){clearCompanyDirectory();companyProgressRun++;companyProgress={data:null,loading:false,message:''}}
 async function loadCompanyProgress(){
   if(profile?.role!=='admin'||mustChangePassword||!selectedAdminCompany)return;
   const id=selectedAdminCompany.id,run=++companyProgressRun;companyProgress={data:null,loading:true,message:''};render();
@@ -480,7 +489,7 @@ function render(){
   else if(profile.role==='admin'&&S.view==='admin-report'&&reportHTML)html=`<div class="narrow noprint"><div class="toolbar" id="admin-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openAdminReport('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openAdminReport('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('admin')">관리자 참여자 목록</button></div></div></div>`+reportHTML;
   else if(profile.role==='admin'&&selectedAdminCompany){
     const tabs=[['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서'],['registration','참여자 일괄 등록']];
-    html=`<div class="wrap" style="padding-top:26px"><div class="acts"><button class="btn ghost" type="button" data-company-dashboard-back>고객사 목록으로 돌아가기</button><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>${esc(selectedAdminCompany.name)}</h2><p>고객사 ID: ${esc(selectedAdminCompany.id)} · 운영 상태: ${selectedAdminCompany.status==='active'?'활성':'비활성'}</p><div class="acts" role="group" aria-label="고객사별 운영 메뉴">${tabs.map(([id,label])=>`<button class="btn ghost" type="button" data-company-dashboard-tab="${id}" aria-pressed="${adminCompanyTab===id}">${label}</button>`).join('')}</div><section aria-live="polite"><h3>${tabs.find(([id])=>id===adminCompanyTab)[1]}</h3>${adminCompanyTab==='progress'?adminCompanyProgressView(companyProgress):`<p class="hintline">고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.</p>` }</section></section></div>`;
+    html=`<div class="wrap" style="padding-top:26px"><div class="acts"><button class="btn ghost" type="button" data-company-dashboard-back>고객사 목록으로 돌아가기</button><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>${esc(selectedAdminCompany.name)}</h2><p>고객사 ID: ${esc(selectedAdminCompany.id)} · 운영 상태: ${selectedAdminCompany.status==='active'?'활성':'비활성'}</p><div class="acts" role="group" aria-label="고객사별 운영 메뉴">${tabs.map(([id,label])=>`<button class="btn ghost" type="button" data-company-dashboard-tab="${id}" aria-pressed="${adminCompanyTab===id}">${label}</button>`).join('')}</div><section aria-live="polite"><h3>${tabs.find(([id])=>id===adminCompanyTab)[1]}</h3>${adminCompanyTab==='progress'?adminCompanyProgressView(companyProgress):adminCompanyTab==='operations'?adminCompanyDirectoryView(companyDirectory):`<p class="hintline">고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.</p>` }</section></section></div>`;
   }
   else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 페이지</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button><a href="#admin-companies">고객사 관리</a><a href="#admin-directory">운영 관리</a><a href="#admin-progress">진단 진행 현황</a><a href="#admin-aggregate">통합 분석</a><a href="#live-registration">내담자 등록</a><a href="#admin-assessment-url">진단 접속 주소</a><a href="#admin-counselors">상담사 계정</a></div><section class="card sec noprint" id="admin-companies"></section><section class="card sec" id="admin-progress" aria-label="진단 진행 현황">${adminProgressView(progress)}</section><section class="card sec" id="admin-directory" aria-label="운영 관리">${adminDirectoryView(directory)}</section><section class="card sec noprint" id="admin-counselors"></section><section class="card sec" id="admin-aggregate" aria-label="통합 분석보고서">${adminAggregateView(aggregate)}</section><section class="card sec" id="admin-assessment-url"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><section class="card sec" id="admin-unlinked"><h2>미연결 참여자 관리</h2><p class="hintline">고객사 ID가 없는 참여자는 별도 목록에서 확인하고, 관리자가 검토한 뒤 고객사를 지정합니다. 이 기능은 다음 개발 단계에서 연결됩니다.</p></section><div id="live-registration"></div></div>`;
   else if(S.view==='post'&&postAllowed())html=postLocked?postConfirmView():S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):postConfirmView();
@@ -495,8 +504,9 @@ function render(){
   $('#app').innerHTML=html;
   mobileSurvey.mount();
   $('#app').querySelector('[data-company-dashboard-back]')?.addEventListener('click',()=>{clearCompanyProgress();selectedAdminCompany=null;adminCompanyTab='progress';render();window.scrollTo(0,0)});
-  $('#app').querySelectorAll('[data-company-dashboard-tab]').forEach(button=>button.addEventListener('click',()=>{if(!selectedAdminCompany||!['progress','operations','aggregate','registration'].includes(button.dataset.companyDashboardTab))return;adminCompanyTab=button.dataset.companyDashboardTab;render()}));
+  $('#app').querySelectorAll('[data-company-dashboard-tab]').forEach(button=>button.addEventListener('click',()=>{if(!selectedAdminCompany||!['progress','operations','aggregate','registration'].includes(button.dataset.companyDashboardTab))return;adminCompanyTab=button.dataset.companyDashboardTab;if(adminCompanyTab==='operations'&&!companyDirectory.data&&!companyDirectory.loading)void loadCompanyDirectory();else render()}));
   $('#app').querySelector('[data-company-progress-refresh]')?.addEventListener('click',()=>{if(!companyProgress.loading)void loadCompanyProgress()});
+  $('#app').querySelector('[data-company-directory-refresh]')?.addEventListener('click',()=>{if(!companyDirectory.loading)void loadCompanyDirectory()});
   companyManager.mount($('#admin-companies'));
   counselorAccounts.mount($('#admin-counselors'));
   const registration=$('#live-registration');
@@ -585,6 +595,7 @@ $('#app').addEventListener('change',event=>{
 });
 $('#app').addEventListener('change',event=>{
   const key=event.target.closest('[data-directory-filter]')?.dataset.directoryFilter;
+  if(selectedAdminCompany){if(profile?.role==='admin'&&!busy&&companyDirectory.data&&['counselor','status'].includes(key)){companyDirectory.filter={...companyDirectory.filter,[key]:event.target.value};render();}return}
   if(!key||!['company','counselor','status'].includes(key)||busy||!directory.data||profile?.role!=='admin')return;
   directory.filter={...directory.filter,[key]:event.target.value};paintDirectory();
   $(`#admin-directory [data-directory-filter="${key}"]`)?.focus();
