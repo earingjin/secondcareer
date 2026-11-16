@@ -28,6 +28,7 @@ async function open(page,h,options={}){
       if(options.directoryResponse)r=await options.directoryResponse(u,r);
     }
     else if(u.pathname.endsWith('/secondcareer-admin-report'))r=await h.call(h.adminReport.handleAdminReport,token,body,req.method(),url);
+    else if(u.pathname.endsWith('/secondcareer-register-participant')){r=await h.call(h.registration.handleRegistration,token,body,req.method(),url);if(options.registrationResponse)r=await options.registrationResponse(r)}
     else if(u.pathname.endsWith('/secondcareer-admin-companies')){
       if(options.hold)await options.hold;
       r=options.companyStatus?{status:options.companyStatus,data:{error:options.companyStatus===403?'FORBIDDEN':'COMPANY_QUERY_FAILED'}}:await h.call(h.companies.handleAdminCompanies,token,body,req.method(),url);
@@ -103,6 +104,7 @@ test('company dashboard keeps the selected ID across tabs and switches without m
       await expect(page.locator('#app')).not.toContainText(other.name);await expect(page.locator('#app')).not.toContainText(other.id);
       if(id==='progress')await expect(page.locator('section[aria-live="polite"] [data-kpi="total"] b')).toHaveText('0');
       else if(id==='operations')await expect(page.locator('section[aria-live="polite"] [data-dir-kpi="participants"] b')).toHaveText('0');
+      else if(id==='registration'){await expect(page.locator('[data-registration-fixed]')).toContainText(company.id);await expect(page.locator('#registration-company-mode, #registration-company')).toHaveCount(0)}
       else await expect(page.locator('section[aria-live="polite"]')).toContainText('고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.');
       for(const selector of ['#admin-progress','#admin-directory','#admin-aggregate','#live-registration'])await expect(page.locator(selector)).toHaveCount(0);
     }
@@ -111,6 +113,67 @@ test('company dashboard keeps the selected ID across tabs and switches without m
   await select(b);await verify(b,a);await page.locator('[data-company-dashboard-back]').click();await select(a);
   await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(a.id);await expect(page.locator('#app')).not.toContainText(b.id);
   expect(calls.slice(before).filter(c=>c.method==='POST'&&/register/i.test(c.path))).toHaveLength(0);
+});
+
+test('fixed company registration rejects mixed names, limits counselors and clears input on company change',async({page})=>{
+  const h=harness(),[a,b]=await seedAssignmentCompanies(h);h.state.enabled=true;
+  h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:a.id,counselor_user_id:ids.counselor,created_at:'2026-11-01T00:00:00Z'});
+  const calls=await open(page,h);await login(page);
+  const select=async company=>{await sec(page).locator(`[data-company-id="${company.id}"]`).getByRole('button',{name:company.name,exact:true}).click();await page.locator('[data-company-dashboard-tab="registration"]').click()};
+  await select(a);await expect(page.locator('[data-registration-fixed]')).toContainText(a.id);
+  await expect(page.locator('#registration-company-mode, #registration-company')).toHaveCount(0);
+  await expect(page.locator('#registration-counselor')).toContainText(ids.counselor);
+  await page.getByRole('textbox',{name:'1행 이름'}).fill('테스트');await page.getByRole('textbox',{name:'1행 연락처'}).fill('01012345678');
+  await page.locator('#registration-counselor').selectOption(ids.counselor);
+  await page.getByRole('textbox',{name:'1행 소속기업'}).fill(b.name);
+  await page.locator('#company-registration [data-action="register"]').click();
+  await expect(page.locator('#company-registration [data-preview]')).toContainText('소속기업');
+  expect(calls.filter(c=>c.path.endsWith('register-participant'))).toHaveLength(0);
+  await page.getByRole('textbox',{name:'1행 소속기업'}).fill('');
+  await page.locator('#company-registration [data-action="register"]').click();
+  await expect(page.locator('#company-registration .notice-s')).toBeVisible();
+  const writes=calls.filter(c=>c.path.endsWith('register-participant'));
+  expect(writes).toHaveLength(1);expect(writes[0].body.companyId).toBe(a.id);expect(writes[0].body.companyName).toBe(a.name);
+  await page.locator('[data-company-dashboard-back]').click();await select(b);
+  await expect(page.locator('[data-registration-fixed]')).toContainText(b.id);
+  await expect(page.locator('#company-registration .notice-s')).toHaveCount(0);
+  await expect(page.locator('#company-registration [data-action="register"]')).toBeDisabled();
+});
+
+test('fixed registration confirms unsaved navigation and blocks movement while submitting',async({page})=>{
+  const h=harness(),[a,b]=await seedAssignmentCompanies(h);h.state.enabled=true;
+  h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:a.id,counselor_user_id:ids.counselor,created_at:'2026-11-01T00:00:00Z'});
+  let release,started;const pending=new Promise(r=>{release=r}),entered=new Promise(r=>{started=r});
+  const options={registrationResponse:async r=>{started();await pending;return r}},calls=await open(page,h,options);await login(page);
+  await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:a.name,exact:true}).click();
+  await page.locator('[data-company-dashboard-tab="registration"]').click();
+  await page.getByRole('textbox',{name:'1행 이름'}).fill('대기자');
+  page.once('dialog',dialog=>dialog.dismiss());await page.locator('[data-company-dashboard-back]').click();
+  await expect(page.getByRole('textbox',{name:'1행 이름'})).toHaveValue('대기자');
+  page.once('dialog',dialog=>dialog.accept());await page.locator('[data-company-dashboard-tab="progress"]').click();
+  await page.locator('[data-company-dashboard-tab="registration"]').click();await expect(page.getByRole('textbox',{name:'1행 이름'})).toHaveValue('');
+  await page.getByRole('textbox',{name:'1행 이름'}).fill('진행자');await page.getByRole('textbox',{name:'1행 연락처'}).fill('01022223333');await page.locator('#registration-counselor').selectOption(ids.counselor);
+  await page.locator('#company-registration [data-action="register"]').click();await entered;
+  await page.locator('[data-company-dashboard-back]').click();await page.locator('[data-company-dashboard-tab="operations"]').click();
+  await expect(page.locator('#company-registration')).toBeVisible();
+  await expect(page.getByRole('textbox',{name:'1행 이름'})).toHaveValue('진행자');
+  expect(calls.filter(c=>c.path.endsWith('register-participant'))).toHaveLength(1);
+  release();await expect(page.locator('#company-registration .notice-s')).toBeVisible();
+  await page.locator('[data-company-dashboard-back]').click();await sec(page).locator(`[data-company-id="${b.id}"]`).getByRole('button',{name:b.name,exact:true}).click();
+  await page.locator('[data-company-dashboard-tab="registration"]').click();await expect(page.locator('#company-registration .notice-s')).toHaveCount(0);
+});
+
+test('inactive fixed company and failed assignment lookup cannot submit',async({page})=>{
+  const h=harness(),[a,b]=await seedAssignmentCompanies(h);h.state.enabled=true;
+  h.state.tables.client_companies.find(c=>c.id===b.id).status='inactive';
+  h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:a.id,counselor_user_id:ids.counselor,created_at:'2026-11-01T00:00:00Z'});
+  h.state.failReadsOf='client_company_counselors';const calls=await open(page,h);await login(page);
+  await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:a.name,exact:true}).click();await page.locator('[data-company-dashboard-tab="registration"]').click();
+  await expect(page.locator('[data-registration-assignments]')).toContainText('배정을 확인하기 전에는 등록할 수 없습니다');
+  await expect(page.locator('#company-registration [data-action="register"]')).toBeDisabled();
+  await page.locator('[data-company-dashboard-back]').click();await sec(page).locator(`[data-company-id="${b.id}"]`).getByRole('button',{name:b.name,exact:true}).click();await page.locator('[data-company-dashboard-tab="registration"]').click();
+  await expect(page.locator('section[aria-live="polite"]')).toContainText('비활성 고객사에는 신규 참여자를 등록할 수 없습니다');
+  await expect(page.locator('#company-registration')).toHaveCount(0);expect(calls.filter(c=>c.path.endsWith('register-participant'))).toHaveLength(0);
 });
 
 test('company progress discards delayed, failed and mismatched responses across company changes',async({page})=>{

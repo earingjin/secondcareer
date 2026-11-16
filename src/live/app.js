@@ -29,6 +29,8 @@ let satIssues=[],postLocked=false,postSubmitting=false,postAvailable=false,compa
 let postApproved=false;
 let counselorFilter={name:'',status:'all'};
 let registrationContext=null,unmountRegistration=null,mustChangePassword=false,managerCompanies=[];
+let registrationLeaving=false;
+function canLeaveRegistration(){return !selectedAdminCompany||adminCompanyTab!=='registration'||(!unmountRegistration?.isWorking?.()&&(!unmountRegistration?.isDirty?.()||window.confirm('저장하지 않은 참여자 입력이 사라집니다. 이동하시겠습니까?')))}
 let assessmentUrl='',assessmentUrlMessage='',assessmentUrlInput='';
 const registrationResults={results:[]};
 // REQ-A-004: admin progress counts. Updated in place so registration and URL inputs are not re-rendered.
@@ -317,10 +319,14 @@ async function changePassword(){
   }catch(error){S.err=error.message}finally{busy=false;render()}
 }
 async function logout(){
+  if(busy)return;
+  if(!canLeaveRegistration())return;
+  registrationLeaving=true;
   clearStoredCompany();
-  if(busy)return;clearRegistrationResults();clearPostEntry();busy=true;render();
+  clearRegistrationResults();clearPostEntry();busy=true;render();
   let message='';try{await api.logout()}catch{message='이 브라우저에서는 로그아웃했지만, 서비스에서 로그아웃 처리가 완료됐는지는 확인하지 못했습니다.'}
   reset();S.err=message;render();
+  registrationLeaving=false;
 }
 async function refresh(){
   if(busy)return;busy=true;render();
@@ -493,6 +499,7 @@ function postConfirmView(){
 }
 function leavePost(){if(!postAllowed()||S.view!=='post')return;clearPostEntry();S.mode2='pre';S.view='home';S.err='';render();window.scrollTo(0,0)}
 function render(){
+  if(profile?.role==='admin'&&selectedAdminCompany&&adminCompanyTab==='registration'&&unmountRegistration&&!registrationLeaving)return;
   mobileSurvey.capture();mobileSurvey.prepare();
   unmountRegistration?.();unmountRegistration=null;companyManager.unmount();counselorAccounts.unmount();
   if(!profile){registrationContext=null;mustChangePassword=false}
@@ -506,7 +513,7 @@ function render(){
   else if(profile.role==='admin'&&S.view==='admin-report'&&reportHTML)html=`<div class="narrow noprint"><div class="toolbar" id="admin-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openAdminReport('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openAdminReport('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('admin')">${selectedAdminCompany?'고객사 운영 관리':'관리자 참여자 목록'}</button></div></div></div>`+reportHTML;
   else if(profile.role==='admin'&&selectedAdminCompany){
     const tabs=[['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서'],['registration','참여자 일괄 등록']];
-    html=`<div class="wrap" style="padding-top:26px"><div class="acts"><button class="btn ghost" type="button" data-company-dashboard-back>고객사 목록으로 돌아가기</button><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>${esc(selectedAdminCompany.name)}</h2><p>고객사 ID: ${esc(selectedAdminCompany.id)} · 운영 상태: ${selectedAdminCompany.status==='active'?'활성':'비활성'}</p><div class="acts" role="group" aria-label="고객사별 운영 메뉴">${tabs.map(([id,label])=>`<button class="btn ghost" type="button" data-company-dashboard-tab="${id}" aria-pressed="${adminCompanyTab===id}">${label}</button>`).join('')}</div><section aria-live="polite"><h3>${tabs.find(([id])=>id===adminCompanyTab)[1]}</h3>${adminCompanyTab==='progress'?adminCompanyProgressView(companyProgress):adminCompanyTab==='operations'?adminCompanyDirectoryView(companyDirectory):`<p class="hintline">고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.</p>` }</section></section></div>`;
+    html=`<div class="wrap" style="padding-top:26px"><div class="acts"><button class="btn ghost" type="button" data-company-dashboard-back>고객사 목록으로 돌아가기</button><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>${esc(selectedAdminCompany.name)}</h2><p>고객사 ID: ${esc(selectedAdminCompany.id)} · 운영 상태: ${selectedAdminCompany.status==='active'?'활성':'비활성'}</p><div class="acts" role="group" aria-label="고객사별 운영 메뉴">${tabs.map(([id,label])=>`<button class="btn ghost" type="button" data-company-dashboard-tab="${id}" aria-pressed="${adminCompanyTab===id}">${label}</button>`).join('')}</div><section aria-live="polite"><h3>${tabs.find(([id])=>id===adminCompanyTab)[1]}</h3>${adminCompanyTab==='progress'?adminCompanyProgressView(companyProgress):adminCompanyTab==='operations'?adminCompanyDirectoryView(companyDirectory):adminCompanyTab==='registration'?(selectedAdminCompany.status==='active'?'<div id="company-registration"></div>':'<p class="hintline">비활성 고객사에는 신규 참여자를 등록할 수 없습니다.</p>'):`<p class="hintline">고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.</p>` }</section></section></div>`;
   }
   else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 페이지</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button><a href="#admin-companies">고객사 관리</a><a href="#admin-directory">운영 관리</a><a href="#admin-progress">진단 진행 현황</a><a href="#admin-aggregate">통합 분석</a><a href="#live-registration">내담자 등록</a><a href="#admin-assessment-url">진단 접속 주소</a><a href="#admin-counselors">상담사 계정</a></div><section class="card sec noprint" id="admin-companies"></section><section class="card sec" id="admin-progress" aria-label="진단 진행 현황">${adminProgressView(progress)}</section><section class="card sec" id="admin-directory" aria-label="운영 관리">${adminDirectoryView(directory)}</section><section class="card sec noprint" id="admin-counselors"></section><section class="card sec" id="admin-aggregate" aria-label="통합 분석보고서">${adminAggregateView(aggregate)}</section><section class="card sec" id="admin-assessment-url"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><section class="card sec" id="admin-unlinked"><h2>미연결 참여자 관리</h2><p class="hintline">고객사 ID가 없는 참여자는 별도 목록에서 확인하고, 관리자가 검토한 뒤 고객사를 지정합니다. 이 기능은 다음 개발 단계에서 연결됩니다.</p></section><div id="live-registration"></div></div>`;
   else if(S.view==='post'&&postAllowed())html=postLocked?postConfirmView():S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):postConfirmView();
@@ -520,14 +527,16 @@ function render(){
   if(profile&&S.err)html=`<div class="narrow err noprint" role="alert">${esc(S.err)}</div>`+html;
   $('#app').innerHTML=html;
   mobileSurvey.mount();
-  $('#app').querySelector('[data-company-dashboard-back]')?.addEventListener('click',()=>{clearStoredCompany();clearCompanyProgress();selectedAdminCompany=null;adminCompanyTab='progress';render();window.scrollTo(0,0)});
-  $('#app').querySelectorAll('[data-company-dashboard-tab]').forEach(button=>button.addEventListener('click',()=>{if(!selectedAdminCompany||!['progress','operations','aggregate','registration'].includes(button.dataset.companyDashboardTab))return;adminCompanyTab=button.dataset.companyDashboardTab;if(adminCompanyTab==='operations'&&!companyDirectory.data&&!companyDirectory.loading)void loadCompanyDirectory();else render()}));
+  $('#app').querySelector('[data-company-dashboard-back]')?.addEventListener('click',()=>{if(!canLeaveRegistration())return;registrationLeaving=true;clearRegistrationResults();clearStoredCompany();clearCompanyProgress();selectedAdminCompany=null;adminCompanyTab='progress';render();registrationLeaving=false;window.scrollTo(0,0)});
+  $('#app').querySelectorAll('[data-company-dashboard-tab]').forEach(button=>button.addEventListener('click',()=>{if(!selectedAdminCompany||!['progress','operations','aggregate','registration'].includes(button.dataset.companyDashboardTab)||button.dataset.companyDashboardTab===adminCompanyTab||!canLeaveRegistration())return;registrationLeaving=true;clearRegistrationResults();adminCompanyTab=button.dataset.companyDashboardTab;if(adminCompanyTab==='operations'&&!companyDirectory.data&&!companyDirectory.loading)void loadCompanyDirectory();else render();registrationLeaving=false}));
   $('#app').querySelector('[data-company-progress-refresh]')?.addEventListener('click',()=>{if(!companyProgress.loading)void loadCompanyProgress()});
   $('#app').querySelector('[data-company-directory-refresh]')?.addEventListener('click',()=>{if(!companyDirectory.loading)void loadCompanyDirectory()});
   companyManager.mount($('#admin-companies'));
   counselorAccounts.mount($('#admin-counselors'));
   const registration=$('#live-registration');
   if(registration&&registrationContext&&!busy){const run=epoch;unmountRegistration=mountParticipantRegistration(registration,{context:registrationContext,resultState:registrationResults,register:body=>api.register(body),loadCompanies:registrationContext.profile.role==='admin'?query=>api.companies(query):undefined,loadCompanyCounselors:registrationContext.profile.role==='admin'?id=>api.companyCounselors(id):undefined,onBusy:value=>{if(run===epoch)busy=value}})}
+  const companyRegistration=$('#company-registration');
+  if(companyRegistration&&registrationContext&&!busy){const company={...selectedAdminCompany},run=epoch;unmountRegistration=mountParticipantRegistration(companyRegistration,{context:{...registrationContext,companyMode:'linked',selectedCompany:company,fixedCompany:company,defaultCounselorId:''},resultState:registrationResults,register:body=>{if(run!==epoch||selectedAdminCompany?.id!==company.id||company.status!=='active'||body.companyId!==company.id)throw Error('선택한 고객사의 등록 대상이 변경되었습니다.');return api.register(body)},loadCompanyCounselors:id=>api.companyCounselors(id),onBusy:value=>{if(run===epoch)busy=value}})}
   // The shared server report keeps the counselor's edit button; editing is counselor-only.
   if(profile?.role==='admin'&&S.view==='admin-report')$('#app').querySelectorAll('[onclick^="startEdit"]').forEach(e=>e.remove());
   if(busy)$('#app').querySelectorAll('input,button,select,textarea').forEach(e=>e.disabled=true);
