@@ -147,6 +147,7 @@ test('fixed registration confirms unsaved navigation and blocks movement while s
   const options={registrationResponse:async r=>{started();await pending;return r}},calls=await open(page,h,options);await login(page);
   await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:a.name,exact:true}).click();
   await page.locator('[data-company-dashboard-tab="registration"]').click();
+  await expect(page.locator('[data-registration-assignments]')).toContainText('배정된 상담사만');
   await page.getByRole('textbox',{name:'1행 이름'}).fill('대기자');
   page.once('dialog',dialog=>dialog.dismiss());await page.locator('[data-company-dashboard-back]').click();
   await expect(page.getByRole('textbox',{name:'1행 이름'})).toHaveValue('대기자');
@@ -174,6 +175,41 @@ test('inactive fixed company and failed assignment lookup cannot submit',async({
   await page.locator('[data-company-dashboard-back]').click();await sec(page).locator(`[data-company-id="${b.id}"]`).getByRole('button',{name:b.name,exact:true}).click();await page.locator('[data-company-dashboard-tab="registration"]').click();
   await expect(page.locator('section[aria-live="polite"]')).toContainText('비활성 고객사에는 신규 참여자를 등록할 수 없습니다');
   await expect(page.locator('#company-registration')).toHaveCount(0);expect(calls.filter(c=>c.path.endsWith('register-participant'))).toHaveLength(0);
+});
+
+test('admin home confirms unsaved registration input before opening a company',async({page})=>{
+  const h=harness(),[a]=await seedAssignmentCompanies(h);await open(page,h);await login(page);
+  await page.locator('#live-registration [data-row="0"][data-key="displayName"]').fill('미저장 입력');
+  const customer=sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:a.name,exact:true});
+  page.once('dialog',dialog=>{expect(dialog.message()).toContain('저장하지 않은 참여자 입력');dialog.dismiss()});
+  await customer.click();await expect(page.locator('#live-registration [data-row="0"][data-key="displayName"]')).toHaveValue('미저장 입력');
+  await expect(page.locator('[data-company-dashboard-back]')).toHaveCount(0);
+  page.once('dialog',dialog=>dialog.accept());await customer.click();
+  await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();
+  await page.locator('[data-company-dashboard-back]').click();
+  await expect(page.locator('#live-registration [data-row="0"][data-key="displayName"]')).toHaveValue('');
+});
+
+test('admin home registration stays mounted during a request and its result cannot enter company registration',async({page})=>{
+  const h=harness(),[a]=await seedAssignmentCompanies(h);h.state.enabled=true;
+  let release,started;const pending=new Promise(r=>{release=r}),entered=new Promise(r=>{started=r});
+  const calls=await open(page,h,{registrationResponse:async r=>{started();await pending;return r}});await login(page);
+  await page.locator('#live-registration [data-row="0"][data-key="displayName"]').fill('홈등록자');
+  await page.locator('#live-registration [data-row="0"][data-key="phone"]').fill('01012345678');
+  await page.locator('#live-registration #registration-counselor').selectOption(ids.counselor);
+  await page.locator('#live-registration [data-action="register"]').click();await entered;
+  const customer=sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:a.name,exact:true});
+  await customer.click();await expect(page.locator('#live-registration')).toBeVisible();
+  await expect(page.locator('[data-company-dashboard-back]')).toHaveCount(0);
+  expect(calls.filter(c=>c.path.endsWith('register-participant'))).toHaveLength(1);
+  release();await expect(page.locator('#live-registration .notice-s')).toBeVisible();
+  const secret=page.getByLabel('홈등록자 임시 비밀번호');const password=await secret.inputValue();
+  await customer.click();await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();
+  await page.locator('[data-company-dashboard-tab="registration"]').click();
+  await expect(page.locator('#company-registration .notice-s')).toHaveCount(0);
+  expect(await page.content()).not.toContain(password);
+  await page.locator('[data-company-dashboard-back]').click();
+  await expect(page.locator('#live-registration .notice-s')).toHaveCount(0);
 });
 
 test('company progress discards delayed, failed and mismatched responses across company changes',async({page})=>{
