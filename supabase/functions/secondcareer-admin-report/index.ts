@@ -24,17 +24,22 @@ export async function handleAdminReport(req: Request) {
   if (req.method === 'OPTIONS') return new Response(null, {status:204, headers});
   if (req.method !== 'GET') return out({error:'METHOD_NOT_ALLOWED'}, 405);
   try {
-    const {profile, admin, params} = await authenticateAdmin(req, ['id', 'kind']);
+    const {profile, admin, params} = await authenticateAdmin(req, ['id', 'kind', 'companyId']);
     const id = params.get('id') || '';
     if (!UUID.test(id)) throw new APIError('INVALID_REQUEST', 400);
-    const {data:part, error:partError} = await admin.from('participants').select('id,display_name,counselor_user_id').eq('organization_id', profile.organization_id).eq('id', id).maybeSingle();
+    const companyId = params.get('companyId');
+    if (params.has('companyId') && !UUID.test(companyId || '')) throw new APIError('INVALID_REQUEST', 400);
+    let participantQuery = admin.from('participants').select('id,display_name,counselor_user_id').eq('organization_id', profile.organization_id).eq('id', id);
+    if (companyId) participantQuery = participantQuery.eq('company_id', companyId.toLowerCase());
+    const {data:part, error:partError} = await participantQuery.maybeSingle();
     if (partError) throw new APIError('QUERY_FAILED', 503);
     if (!part) return out({error:'NOT_AVAILABLE'}, 403);
     const {data:a, error:assessmentError} = await admin.from('assessments').select('id,participant_id,phase,status,answers,result,updated_at,submitted_at').eq('participant_id', part.id).eq('phase', 'pre').maybeSingle();
     if (assessmentError) throw new APIError('QUERY_FAILED', 503);
     const {counselors, error:counselorError} = await reportCounselors(admin, profile.organization_id, part.counselor_user_id ? [part.counselor_user_id] : []);
     if (counselorError) throw new APIError('QUERY_FAILED', 503);
-    const [status, body] = await submittedReport(admin, part, a, counselors, params.get('kind'), {toolbar:ADMIN_TOOLBAR, withHistory:false});
+    const toolbar = companyId ? {...ADMIN_TOOLBAR, backLbl:() => '고객사 운영 관리'} : ADMIN_TOOLBAR;
+    const [status, body] = await submittedReport(admin, part, a, counselors, params.get('kind'), {toolbar, withHistory:false});
     return out(body, status);
   } catch (error) { return failure(error); }
 }

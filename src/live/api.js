@@ -170,7 +170,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
     // REQ-A-006/007: server-side aggregate; company narrows inside the server-checked organization.
     adminAggregate:(company=null)=>request('/functions/v1/secondcareer-admin-aggregate'+(company?'?company='+encodeURIComponent(company):'')),
     // REQ-A-005: the server re-checks the participant's organization and final submission.
-    adminReport:(id,kind='c')=>{if(!['c','p'].includes(kind))throw Error('보고서 종류를 확인해 주세요.');return request('/functions/v1/secondcareer-admin-report?id='+encodeURIComponent(id)+'&kind='+kind)},
+    adminReport:(id,kind='c',companyId=null)=>{if(!['c','p'].includes(kind))throw Error('보고서 종류를 확인해 주세요.');return request('/functions/v1/secondcareer-admin-report?id='+encodeURIComponent(id)+'&kind='+kind+(companyId?'&companyId='+encodeURIComponent(companyId):''))},
     postDraft:()=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?phase=post')},
     compare:id=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?compare='+encodeURIComponent(id))},
     write:(action,body)=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment',{body:{action,...body}})},

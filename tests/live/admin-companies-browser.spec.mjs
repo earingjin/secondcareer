@@ -17,6 +17,7 @@ async function open(page,h,options={}){
     calls.push({path:u.pathname,query:u.search,method:req.method(),body});let r;
     const url='https://fixture.invalid/'+u.search;
     if(u.pathname.endsWith('/secondcareer-login')){const id=h.signIn(body.loginId,body.password)?.id;r=id?{status:200,data:{access_token:id,refresh_token:'refresh-'+id,expires_at:Math.floor(Date.now()/1000)+3600}}:{status:401,data:{error:'INVALID_CREDENTIALS'}}}
+    else if(u.pathname==='/auth/v1/token'){const id=body.refresh_token?.replace(/^refresh-/,'');r=h.state.users[id]?{status:200,data:{access_token:id,refresh_token:'refresh-'+id,expires_at:Math.floor(Date.now()/1000)+3600}}:{status:401,data:{error:'INVALID_CREDENTIALS'}}}
     else if(u.pathname.endsWith('/secondcareer-account'))r=await h.call(h.account.handleAccount,token,body,req.method());
     else if(u.pathname.endsWith('/secondcareer-admin-progress')){
       r=await h.call(h.progress.handleAdminProgress,token,body,req.method(),url);
@@ -26,6 +27,7 @@ async function open(page,h,options={}){
       r=await h.call(h.directory.handleAdminDirectory,token,body,req.method(),url);
       if(options.directoryResponse)r=await options.directoryResponse(u,r);
     }
+    else if(u.pathname.endsWith('/secondcareer-admin-report'))r=await h.call(h.adminReport.handleAdminReport,token,body,req.method(),url);
     else if(u.pathname.endsWith('/secondcareer-admin-companies')){
       if(options.hold)await options.hold;
       r=options.companyStatus?{status:options.companyStatus,data:{error:options.companyStatus===403?'FORBIDDEN':'COMPANY_QUERY_FAILED'}}:await h.call(h.companies.handleAdminCompanies,token,body,req.method(),url);
@@ -71,6 +73,22 @@ test('admin starts with the company list, opens a customer by name and returns w
     await expect(page.locator(`a[href="#${id}"]`)).toBeVisible();await expect(page.locator(`#${id}`)).toBeVisible();
   }
   const before=companyCalls(calls).length;await page.getByRole('button',{name:'로그아웃',exact:true}).click();await login(page);await expect(sec(page).locator('[data-company-list]')).toContainText(a.name);expect(companyCalls(calls).length).toBeGreaterThan(before);
+});
+
+test('company selection restores after reload, rejects revoked access and clears on back and logout',async({page})=>{
+  const h=harness(),[a]=await seedAssignmentCompanies(h),options={};const calls=await open(page,h,options);await login(page);
+  const key='sp-admin-selected-company';
+  const select=async()=>sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:a.name,exact:true}).click();
+  await select();await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();
+  expect(await page.evaluate(k=>sessionStorage.getItem(k),key)).toBe(a.id);
+  const before=calls.length;await page.reload();await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();
+  expect(calls.slice(before).some(c=>c.path.endsWith('admin-companies')&&c.query.includes('id='+a.id))).toBe(true);
+  await page.locator('[data-company-dashboard-back]').click();expect(await page.evaluate(k=>sessionStorage.getItem(k),key)).toBeNull();
+  await select();options.companyStatus=403;await page.reload();await expect(page.locator('#admin-companies')).toBeVisible();expect(await page.evaluate(k=>sessionStorage.getItem(k),key)).toBeNull();
+  options.companyStatus=null;await page.reload();await expect(sec(page).locator('[data-company-list]')).toBeVisible();await select();
+  await page.getByRole('button',{name:'로그아웃',exact:true}).click();expect(await page.evaluate(k=>sessionStorage.getItem(k),key)).toBeNull();await login(page);await expect(page.locator('#admin-companies')).toBeVisible();
+  await page.getByRole('button',{name:'로그아웃',exact:true}).click();await login(page,'consult01');await page.evaluate(([k,id])=>sessionStorage.setItem(k,id),[key,a.id]);await page.reload();
+  await expect(page.getByRole('button',{name:'로그아웃',exact:true})).toBeVisible();await expect(page.locator('[data-company-dashboard-back]')).toHaveCount(0);expect(await page.evaluate(k=>sessionStorage.getItem(k),key)).toBeNull();
 });
 
 test('company dashboard keeps the selected ID across tabs and switches without mixing companies',async({page})=>{

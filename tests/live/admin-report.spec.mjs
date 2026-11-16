@@ -35,6 +35,28 @@ const admin=(h,token,id,kind,extra)=>h.call(h.adminReport.handleAdminReport,toke
 const counselor=(h,token,id,kind)=>h.call(h.assessment,token,undefined,'GET',url(id,kind));
 const sheets=html=>html.slice(html.indexOf('<section class="sheet'));
 const printable=html=>(html.match(/<section class="sheet(?![^"]*noprintpage)/g)||[]).length;
+const COMPANY_A='40000000-0000-4000-8000-000000000001',COMPANY_B='40000000-0000-4000-8000-000000000002';
+function seedCompanies(h){
+  for(const [id,name] of [[COMPANY_A,'가 기업'],[COMPANY_B,'나 기업']])h.state.tables.client_companies.push({id,organization_id:ids.org,name,start_date:'2026-11-01',end_date:'2027-01-31',pm_name:'담당 PM',pm_email:'pm@example.invalid',pm_phone:'01000000000',status:'active',created_at:'2026-11-01T00:00:00Z',updated_at:'2026-11-01T00:00:00Z'});
+  for(const p of h.state.tables.participants)p.company_id=p.id===P.submitted?COMPANY_A:p.id===P.otherCounselor?COMPANY_B:null;
+  return h;
+}
+
+test('company report requires the matching linked participant while organization report remains available',async()=>{
+  const h=seedCompanies(seed());
+  for(const kind of ['c','p']){
+    const r=await admin(h,ids.admin,P.submitted,kind,'&companyId='+COMPANY_A);
+    expect(r.status).toBe(200);expect(printable(r.data.html)).toBe(kind==='c'?5:3);expect(r.data.html).toContain('고객사 운영 관리');
+  }
+  for(const id of [P.otherCounselor,P.draft,P.otherOrg]){
+    const r=await admin(h,ids.admin,id,'c','&companyId='+COMPANY_A);expect(r.status).toBe(403);expect(r.data).toEqual({error:'NOT_AVAILABLE'});
+  }
+  expect((await admin(h,ids.admin,P.submitted,'c','&companyId='+COMPANY_B)).status).toBe(403);
+  expect((await admin(h,ids.admin,P.submitted,'c','&companyId=bad')).status).toBe(400);
+  expect((await admin(h,ids.admin,P.otherCounselor,'c')).status).toBe(200);
+  const reads=h.state.reads.filter(x=>x.table==='participants'&&x.filters.some(([k])=>k==='company_id'));
+  expect(reads.length).toBeGreaterThan(0);expect(reads.every(x=>x.filters.some(([k,v])=>k==='organization_id'&&v===ids.org))).toBe(true);
+});
 
 test('1·7·8 allowed admin gets the 5-page counselor and 3-page client report',async()=>{
   const h=seed();
@@ -168,6 +190,32 @@ test.describe('admin report screen',()=>{
     await expect(page.locator('#dir-company')).toHaveValue('0');await expect(page.locator('[data-dir-participants] tr[data-dir-participant]')).toHaveCount(2);
     await expect(page.locator('#admin-progress [data-kpi="total"] b')).toHaveText('4');
     expect(errors).toEqual([]);
+  });
+
+  test('company operations opens the existing printable reports and returns to the selected company',async({page})=>{
+    const h=seedCompanies(seed()),calls=await open(page,h);await login(page);
+    await page.locator(`[data-company-id="${COMPANY_A}"]`).getByRole('button',{name:'가 기업',exact:true}).click();
+    await page.locator('[data-company-dashboard-tab="operations"]').click();
+    const companyRow=page.locator('section[aria-live="polite"] [data-dir-participant]').filter({hasText:'보고서대상'});
+    await expect(companyRow).toBeVisible();await expect(companyRow.getByRole('button',{name:'상담사용 5쪽'})).toBeVisible();
+    await companyRow.getByRole('button',{name:'상담사용 5쪽'}).click();
+    await expect(page.locator('section.sheet:not(.noprintpage)')).toHaveCount(5);expect(await pdfPages(page)).toBe(5);
+    expect(calls.some(c=>c.includes('companyId='+COMPANY_A)&&c.includes('secondcareer-admin-report'))).toBe(true);
+    await page.locator('#admin-report-kind').getByRole('button',{name:'내담자용 3쪽'}).click();
+    await expect(page.locator('section.sheet:not(.noprintpage)')).toHaveCount(3);
+    await page.getByRole('button',{name:'← 고객사 운영 관리'}).click();
+    await expect(page.getByRole('heading',{name:'가 기업',exact:true})).toBeVisible();
+    await expect(page.locator('[data-company-dashboard-tab="operations"]')).toHaveAttribute('aria-pressed','true');
+    await expect(companyRow).toBeVisible();await expect(page.locator('section.sheet')).toHaveCount(0);
+  });
+
+  test('failed company report leaves the selected company and no previous report visible',async({page})=>{
+    const h=seedCompanies(seed());await open(page,h,{reportStatus:503});await login(page);
+    await page.locator(`[data-company-id="${COMPANY_A}"]`).getByRole('button',{name:'가 기업',exact:true}).click();
+    await page.locator('[data-company-dashboard-tab="operations"]').click();
+    await page.locator('section[aria-live="polite"] [data-dir-participant]').filter({hasText:'보고서대상'}).getByRole('button',{name:'상담사용 5쪽'}).click();
+    await expect(page.getByRole('alert')).toContainText('보고서를 불러오지 못했습니다');
+    await expect(page.getByRole('heading',{name:'가 기업',exact:true})).toBeVisible();await expect(page.locator('section.sheet')).toHaveCount(0);
   });
 
   test('9 browser print page counts match the assigned counselor view',async({page})=>{

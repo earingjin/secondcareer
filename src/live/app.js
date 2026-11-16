@@ -59,10 +59,25 @@ async function enterPostFromLink(){
 }
 function clearRegistrationResults(){registrationResults.results.forEach(r=>delete r.temporaryPassword);registrationResults.results.length=0}
 window.addEventListener('pagehide',()=>{clearRegistrationResults();unmountRegistration?.();unmountRegistration=null});
-const api=createAPI(()=>{reset();S.err='세션이 만료되었습니다. 다시 로그인해 주세요.';render()});
+const api=createAPI(()=>{clearStoredCompany();reset();S.err='세션이 만료되었습니다. 다시 로그인해 주세요.';render()});
 const counselorAccounts=createAdminCounselors({api,canUse:()=>profile?.role==='admin'&&!mustChangePassword});
 window.addEventListener('pagehide',()=>counselorAccounts.reset());
 let selectedAdminCompany=null,adminCompanyTab='progress';
+const companyStorageKey='sp-admin-selected-company';
+function clearStoredCompany(){try{sessionStorage.removeItem(companyStorageKey)}catch{}}
+function storeCompany(id){try{sessionStorage.setItem(companyStorageKey,id)}catch{}}
+async function restoreCompany(){
+  let id;try{id=sessionStorage.getItem(companyStorageKey)}catch{return}
+  if(!id)return;
+  if(profile?.role!=='admin'||mustChangePassword||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)){clearStoredCompany();return}
+  const run=epoch;
+  try{
+    const result=await api.company(id),c=result?.company;
+    if(run!==epoch||profile?.role!=='admin'||mustChangePassword)return;
+    if(c?.id!==id||typeof c.name!=='string'||!c.name.trim()||!['active','inactive'].includes(c.status))throw Error('Invalid company');
+    selectedAdminCompany={id:c.id,name:c.name,status:c.status};adminCompanyTab='progress';void loadCompanyProgress();
+  }catch{if(run===epoch)clearStoredCompany()}
+}
 let companyProgress={data:null,loading:false,message:''},companyProgressRun=0;
 let companyDirectory={data:null,loading:false,message:'',filter:{...NO_FILTER}},companyDirectoryRun=0;
 function clearCompanyDirectory(){companyDirectoryRun++;companyDirectory={data:null,loading:false,message:'',filter:{...NO_FILTER}}}
@@ -81,7 +96,7 @@ async function loadCompanyProgress(){
   catch(error){if(run!==companyProgressRun||selectedAdminCompany?.id!==id)return;companyProgress={data:null,loading:false,message:error.message}}
   render();
 }
-const companyManager=createAdminCompanies({api,canUse:()=>profile?.role==='admin'&&!mustChangePassword,onOpenDashboard:company=>{clearCompanyProgress();selectedAdminCompany=company;adminCompanyTab='progress';void loadCompanyProgress();window.scrollTo(0,0)}});
+const companyManager=createAdminCompanies({api,canUse:()=>profile?.role==='admin'&&!mustChangePassword,onOpenDashboard:company=>{clearCompanyProgress();selectedAdminCompany=company;storeCompany(company.id);adminCompanyTab='progress';void loadCompanyProgress();window.scrollTo(0,0)}});
 const byId=id=>records.find(p=>p.id===id),pname=p=>p.reg?.name||p.nick;
 const view=createSurveyView({missing:p=>survey.missing(p),pname});
 const full=a=>Array.isArray(a)&&a.length===ITEM_COUNT&&a.every(v=>Number.isInteger(v)&&v>=SCALE_MIN&&v<=SCALE_MAX);
@@ -302,6 +317,7 @@ async function changePassword(){
   }catch(error){S.err=error.message}finally{busy=false;render()}
 }
 async function logout(){
+  clearStoredCompany();
   if(busy)return;clearRegistrationResults();clearPostEntry();busy=true;render();
   let message='';try{await api.logout()}catch{message='이 브라우저에서는 로그아웃했지만, 서비스에서 로그아웃 처리가 완료됐는지는 확인하지 못했습니다.'}
   reset();S.err=message;render();
@@ -339,12 +355,13 @@ async function openCompare(id){
 // listed as submitted is requested; the server re-checks organization and state.
 async function openAdminReport(id,kind='c'){
   if(busy||profile?.role!=='admin'||mustChangePassword)return;
-  const row=directory.data?.participants.find(p=>p.id===id);
+  const companyId=selectedAdminCompany?.id||null;
+  const row=(companyId?companyDirectory.data?.companyId===companyId?companyDirectory.data.participants:null:directory.data?.participants)?.find(p=>p.id===id);
   if(!['c','p'].includes(kind)||!row){S.err='관리자 참여자 목록과 보고서 종류를 확인해 주세요.';render();return}
   if(row.preStatus!=='submitted'){S.err='사전진단 최종 제출이 완료된 참여자만 보고서를 조회할 수 있습니다.';render();return}
   const run=epoch;busy=true;reportHTML='';render();
   try{
-    const data=await api.adminReport(id,kind);if(run!==epoch)return;
+    const data=await api.adminReport(id,kind,companyId);if(run!==epoch||(selectedAdminCompany?.id||null)!==companyId)return;
     if(typeof data?.html!=='string'||!data.html.trim())throw Error('보고서를 확인하지 못했습니다.');
     reportHTML=data.html;S.res={id,role:kind};S.view='admin-report';S.err='';
   }catch(e){if(run===epoch&&profile){reportHTML='';S.res=null;S.view='admin';S.err=e.message}}
@@ -486,7 +503,7 @@ function render(){
   else if(!profile)html=(postEntry&&postTestGate?'<div class="narrow noprint"><p id="post-entry-hint" role="status">사후진단 안내 링크로 접속했습니다. 기존 아이디와 비밀번호로 로그인하면 사후진단으로 이동합니다.</p></div>':'')+loginView();
   else if(mustChangePassword)html=passwordChangeView(profile?.role==='company_manager');
   else if(profile.role==='company_manager')html=`<div class="wrap" style="padding-top:26px"><section class="card sec" id="company-manager-dashboard" aria-label="고객사 진단 현황">${managerDashboardView({companies:managerCompanies,...managerProgress})}</section></div>`;
-  else if(profile.role==='admin'&&S.view==='admin-report'&&reportHTML)html=`<div class="narrow noprint"><div class="toolbar" id="admin-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openAdminReport('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openAdminReport('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('admin')">관리자 참여자 목록</button></div></div></div>`+reportHTML;
+  else if(profile.role==='admin'&&S.view==='admin-report'&&reportHTML)html=`<div class="narrow noprint"><div class="toolbar" id="admin-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openAdminReport('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openAdminReport('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('admin')">${selectedAdminCompany?'고객사 운영 관리':'관리자 참여자 목록'}</button></div></div></div>`+reportHTML;
   else if(profile.role==='admin'&&selectedAdminCompany){
     const tabs=[['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서'],['registration','참여자 일괄 등록']];
     html=`<div class="wrap" style="padding-top:26px"><div class="acts"><button class="btn ghost" type="button" data-company-dashboard-back>고객사 목록으로 돌아가기</button><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>${esc(selectedAdminCompany.name)}</h2><p>고객사 ID: ${esc(selectedAdminCompany.id)} · 운영 상태: ${selectedAdminCompany.status==='active'?'활성':'비활성'}</p><div class="acts" role="group" aria-label="고객사별 운영 메뉴">${tabs.map(([id,label])=>`<button class="btn ghost" type="button" data-company-dashboard-tab="${id}" aria-pressed="${adminCompanyTab===id}">${label}</button>`).join('')}</div><section aria-live="polite"><h3>${tabs.find(([id])=>id===adminCompanyTab)[1]}</h3>${adminCompanyTab==='progress'?adminCompanyProgressView(companyProgress):adminCompanyTab==='operations'?adminCompanyDirectoryView(companyDirectory):`<p class="hintline">고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.</p>` }</section></section></div>`;
@@ -503,7 +520,7 @@ function render(){
   if(profile&&S.err)html=`<div class="narrow err noprint" role="alert">${esc(S.err)}</div>`+html;
   $('#app').innerHTML=html;
   mobileSurvey.mount();
-  $('#app').querySelector('[data-company-dashboard-back]')?.addEventListener('click',()=>{clearCompanyProgress();selectedAdminCompany=null;adminCompanyTab='progress';render();window.scrollTo(0,0)});
+  $('#app').querySelector('[data-company-dashboard-back]')?.addEventListener('click',()=>{clearStoredCompany();clearCompanyProgress();selectedAdminCompany=null;adminCompanyTab='progress';render();window.scrollTo(0,0)});
   $('#app').querySelectorAll('[data-company-dashboard-tab]').forEach(button=>button.addEventListener('click',()=>{if(!selectedAdminCompany||!['progress','operations','aggregate','registration'].includes(button.dataset.companyDashboardTab))return;adminCompanyTab=button.dataset.companyDashboardTab;if(adminCompanyTab==='operations'&&!companyDirectory.data&&!companyDirectory.loading)void loadCompanyDirectory();else render()}));
   $('#app').querySelector('[data-company-progress-refresh]')?.addEventListener('click',()=>{if(!companyProgress.loading)void loadCompanyProgress()});
   $('#app').querySelector('[data-company-directory-refresh]')?.addEventListener('click',()=>{if(!companyDirectory.loading)void loadCompanyDirectory()});
@@ -620,8 +637,8 @@ window.addEventListener('beforeprint',()=>fitSheets(true));window.addEventListen
 window.addEventListener('beforeunload',e=>{if(dirty||saving||postDirty||postSaving){e.preventDefault();e.returnValue=''}});
 reset();render();
 (async()=>{
-  try{const data=await api.restore();if(data)openAccount(data)}
-  catch{api.clear();reset();S.err='세션을 확인하지 못했습니다. 다시 로그인해 주세요.'}
+  try{const data=await api.restore();if(data){openAccount(data);await restoreCompany()}else clearStoredCompany()}
+  catch{clearStoredCompany();api.clear();reset();S.err='세션을 확인하지 못했습니다. 다시 로그인해 주세요.'}
   finally{restoring=false;render()}
   await enterPostFromLink();
 })();
