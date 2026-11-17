@@ -182,7 +182,7 @@ function harness(){
     const r=tables.participant_registration_requests.find(r=>r.id===args.request_id);
     if(name==='secondcareer_recover_company_registration'){
       if(state.failRecovery)return {error:{code:'RECOVERY_FAILED'}};
-      if(r.status==='complete'&&r.auth_user_id===args.new_user_id)return {data:{outcome:'complete',participantId:r.participant_id,companyId:r.company_id,companyName:r.company_name},error:null};
+      if(r.status==='complete'&&r.auth_user_id===args.new_user_id&&tables.participants.some(p=>p.id===r.participant_id&&p.auth_user_id===args.new_user_id&&p.organization_id===r.organization_id&&p.company_id===r.company_id))return {data:{outcome:'complete',participantId:r.participant_id,companyId:r.company_id,companyName:r.company_name},error:null};
       if(r.status==='complete'||users[args.new_user_id]?.id!==args.new_user_id||users[args.new_user_id]?.email!==args.new_internal_email||users[args.new_user_id]?.app_metadata.registration_request_id!==r.id||tables.user_profiles.some(p=>p.user_id===args.new_user_id))return {error:{code:'UNSAFE_RECOVERY'}};
       r.company_cancelled_auth_user_id=args.new_user_id;return {data:{outcome:'cancelled'},error:null};
     }
@@ -264,6 +264,6 @@ function harness(){
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
-  return {state,ids,login,registration,account,access,progress,directory,unlinked,unlinkedLink,adminReport,aggregate,companies,counselors,managers,manager,managerProgress,assessment,call,signIn,completeCounselor:args=>db.rpc('secondcareer_complete_counselor_registration',args)};
+  return {state,ids,login,registration,account,access,progress,directory,unlinked,unlinkedLink,adminReport,aggregate,companies,counselors,managers,manager,managerProgress,assessment,call,signIn,completeCounselor:args=>db.rpc('secondcareer_complete_counselor_registration',args),recoverCompany:args=>db.rpc('secondcareer_recover_company_registration',args)};
 }
 module.exports={harness,ids};
