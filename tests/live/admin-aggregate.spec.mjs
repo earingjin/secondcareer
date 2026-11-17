@@ -52,6 +52,21 @@ function seed(list,{postEnabled=true,extras=true}={}){
 }
 const get=(h,token,query='')=>h.call(h.aggregate.handleAdminAggregate,token,undefined,'GET','https://fixture.invalid/'+query);
 
+test('company ID restricts the population while preserving all nine calculations and rejects invalid scope',async()=>{
+  const h=seed(DATASETS.varied,{extras:false}),a=crypto.randomUUID(),b=crypto.randomUUID(),empty=crypto.randomUUID(),foreign=crypto.randomUUID();
+  h.state.tables.client_companies.push({id:a,organization_id:ids.org,name:'공식 A',status:'inactive'},{id:b,organization_id:ids.org,name:'공식 B',status:'active'},{id:empty,organization_id:ids.org,name:'빈 기업',status:'active'},{id:foreign,organization_id:'other-org',name:'외부',status:'active'});
+  h.state.tables.participants.forEach((p,i)=>{p.company_id=i<3?a:i<6?b:null;p.company_name='동일 기업'});
+  const result=await get(h,ids.admin,'?companyId='+a);expect(result.status).toBe(200);expect(result.data).toMatchObject({scope:'company',companyId:a,companyName:'공식 A'});
+  const scoped=seed(DATASETS.varied.slice(0,3),{extras:false}),reference=await get(scoped,ids.admin);
+  expect(result.data.analyses).toEqual(reference.data.analyses);expect(result.data.population).toEqual(reference.data.population);expect(result.data.prePopulation).toEqual(reference.data.prePopulation);
+  const other=await get(h,ids.admin,'?companyId='+b);expect(other.status).toBe(200);expect(other.data.analyses).not.toEqual(result.data.analyses);
+  const zero=await get(h,ids.admin,'?companyId='+empty);expect(zero.status).toBe(200);expect(zero.data.population.n).toBe(0);expect(zero.data.prePopulation.n).toBe(0);
+  for(const query of ['?companyId=bad','?companyId='+a+'&company=동일','?organizationId=x'])expect((await get(h,ids.admin,query)).status).toBe(400);
+  for(const id of [foreign,crypto.randomUUID()])expect((await get(h,ids.admin,'?companyId='+id)).status).toBe(403);
+  for(const actor of [ids.counselor,ids.participant,ids.other])expect((await get(h,actor,'?companyId='+a)).status).toBe(403);
+  expect(JSON.stringify(result.data)).not.toMatch(/개인-|01012341234|응답원문|자유의견원문/);
+});
+
 // Legacy figures for the same people (company filter as legacy S.rep.company).
 async function legacyFigures(page,list,company='전체'){
   await page.goto(LEGACY);
