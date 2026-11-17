@@ -32,7 +32,7 @@ async function setup(page,{postEnabled=false,progressStatus=null}={}){
   await page.goto(server.url);
   return {h,calls,errors};
 }
-async function login(page,id='admin01'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill('Fixture-password-123!');await page.getByRole('button',{name:'로그인',exact:true}).click()}
+async function login(page,id='admin01'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill('Fixture-password-123!');await page.getByRole('button',{name:'로그인',exact:true}).click();if(id==='admin01')await page.locator('a[href="#admin-progress"]').click()}
 const kpi=(page,name)=>page.locator(`#admin-progress [data-kpi="${name}"] b`);
 function addPopulation(h){
   const t=h.state.tables;
@@ -46,7 +46,7 @@ function addPopulation(h){
 
 test('admin sees organization totals, completion rate and per-company counts; post shown only when enabled',async({page})=>{
   const {h,errors}=await setup(page,{postEnabled:true});addPopulation(h);await login(page);
-  await expect(page.getByRole('heading',{name:'관리자 페이지'})).toBeVisible();
+  await expect(page.locator('#admin-progress')).toBeVisible();
   await expect(kpi(page,'total')).toHaveText('5');
   await expect(kpi(page,'pre-submitted')).toHaveText('2');await expect(kpi(page,'pre-incomplete')).toHaveText('3');
   await expect(kpi(page,'pre-rate')).toHaveText('40.0%');await expect(kpi(page,'post-submitted')).toHaveText('1');
@@ -73,22 +73,18 @@ test('post disabled is explained without a rate; zero participants show "-" inst
   await expect(page.locator('#admin-progress')).not.toContainText('NaN');await expect(page.locator('#admin-progress')).not.toContainText('Infinity');
 });
 
-test('10 registration and URL settings keep working; refresh reloads counts without clearing other inputs',async({page})=>{
+test('URL settings and organization progress refresh remain available',async({page})=>{
   const {h,calls}=await setup(page);await login(page);
   await expect(kpi(page,'total')).toHaveText('1');
-  await page.getByLabel('진단 접속 주소 (HTTPS)').fill('https://example.invalid/assessment');
+  await page.locator('a[href="#admin-assessment-url"]').click();await page.getByLabel('진단 접속 주소 (HTTPS)').fill('https://example.invalid/assessment');
   await page.getByRole('button',{name:'주소 저장'}).click();await expect(page.getByText('진단 접속 주소를 저장했습니다.')).toBeVisible();
   expect(h.state.tables.organizations[0].assessment_url).toBe('https://example.invalid/assessment');
-  await page.locator('#registration-counselor').selectOption(ids.counselor);
-  for(const [label,value] of Object.entries({'이름':'현황확인','연락처':'010-1357-2468','소속기업':'새 기업'}))await page.getByRole('textbox',{name:`1행 ${label}`}).fill(value);
-  await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();await expect(page.getByRole('cell',{name:'등록 완료',exact:true})).toBeVisible();
   await page.getByLabel('진단 접속 주소 (HTTPS)').fill('https://example.invalid/unsaved');
+  await page.locator('a[href="#admin-progress"]').click();
   await page.getByRole('button',{name:'새로 조회'}).click();
-  await expect(kpi(page,'total')).toHaveText('2');
-  await expect(page.locator('[data-progress-companies] tbody tr')).toHaveCount(2);
-  // In-place refresh: the unsaved URL input and the one-time password row stay as they were.
+  await expect(kpi(page,'total')).toHaveText('1');
+  await page.locator('a[href="#admin-assessment-url"]').click();
   await expect(page.getByLabel('진단 접속 주소 (HTTPS)')).toHaveValue('https://example.invalid/unsaved');
-  await expect(page.getByLabel('현황확인 임시 비밀번호')).toHaveCount(1);
   expect(calls.filter(c=>c.startsWith('/functions/v1/secondcareer-admin-progress'))).toEqual(['/functions/v1/secondcareer-admin-progress','/functions/v1/secondcareer-admin-progress']);
 });
 
@@ -97,7 +93,7 @@ test('refused or failed progress reads show a message and no stale counts',async
     await setup(page,{progressStatus:status});await login(page);
     await expect(page.locator('#admin-progress-status')).toContainText(message);
     await expect(page.locator('#admin-progress [data-kpi]')).toHaveCount(0);
-    await expect(page.getByRole('button',{name:'주소 저장'})).toBeVisible();
+    await page.locator('a[href="#admin-assessment-url"]').click();await expect(page.getByRole('button',{name:'주소 저장'})).toBeVisible();
     await page.getByRole('button',{name:'로그아웃',exact:true}).click();
   }
 });

@@ -27,7 +27,7 @@ async function setup(page){
   });
   await page.goto(server.url);return {h,c,b,calls};
 }
-async function login(page,id='admin01',pw='Fixture-password-123!'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill(pw);await page.getByRole('button',{name:'로그인',exact:true}).click()}
+async function login(page,id='admin01',pw='Fixture-password-123!'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill(pw);await page.getByRole('button',{name:'로그인',exact:true}).click();if(id==='admin01')await page.locator('a[href="#admin-counselors"]').click()}
 
 async function issueForm(page,id='new_counselor'){
   await page.getByRole('button',{name:'상담사 목록 조회',exact:true}).click();
@@ -41,12 +41,12 @@ test('live admin issues counselor, existing company candidate refresh connects, 
   const id=h.state.tables.user_profiles.find(p=>p.display_name==='합성 상담사').user_id;
   expect(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).not.toContain(pw);
   await page.getByRole('button',{name:'상담사 목록 조회',exact:true}).click();await expect(page.locator('#admin-counselors tbody')).toContainText('new_counselor');
-  await page.getByRole('button',{name:'고객사 목록 조회',exact:true}).click();
+  await issued.getByRole('button',{name:'비밀번호 숨기기'}).click();await expect(issued).toHaveCount(0);
+  await page.locator('a[href="#admin-companies"]').click();await page.getByRole('button',{name:'고객사 목록 조회',exact:true}).click();
   await page.locator(`[data-company-id="${c.id}"]`).getByRole('button',{name:'상세 관리'}).click();
   await page.getByRole('button',{name:'상담사 배정 조회',exact:true}).click();
   await page.locator('#company-counselor').selectOption(id);await page.getByRole('button',{name:'상담사 배정',exact:true}).click();
   await expect(page.locator('[data-company-assignments] tbody')).toContainText('합성 상담사');
-  await issued.getByRole('button',{name:'비밀번호 숨기기'}).click();await expect(issued).toHaveCount(0);
   await page.getByRole('button',{name:'로그아웃',exact:true}).first().click();await login(page,'new_counselor',pw);
   await expect(page.locator('#new-password')).toBeVisible();await expect(page.locator('#admin-counselors')).toHaveCount(0);
   await page.locator('#new-password').fill('Changed-password-123!');await page.locator('#confirm-password').fill('Changed-password-123!');

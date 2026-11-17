@@ -42,7 +42,7 @@ async function setup(page,{answers={},role='participant',disableMobile=false}={}
   await page.locator('#lg-id').fill('client01');await page.locator('#lg-pw').fill('Fixture-password-123!');
   await page.getByRole('button',{name:'로그인',exact:true}).click();
   if(role==='participant')await expect(page.locator('#live-save')).toBeVisible();
-  else await expect(page.getByRole('heading',{name:role==='admin'?'관리자 페이지':'상담사 페이지'})).toBeVisible();
+  else await expect(page.getByRole('heading',{name:role==='admin'?'고객사 관리':'상담사 페이지'})).toBeVisible();
   return {state,errors};
 }
 const question=page=>page.locator('.single-question .q:visible');
@@ -185,6 +185,7 @@ test('counselor and admin receive no mobile navigation; pre/post and edit gates 
   for(const role of ['counselor','admin']){
     const page=await browser.newPage({viewport:{width:375,height:900}});await setup(page,{role,answers:complete()});
     await expect(page.locator('.mobile-question-nav,[data-mobile-edit]')).toHaveCount(0);
+    if(role==='admin'){await page.getByRole('button',{name:'관리 메뉴'}).click();await page.locator('a[href="#admin-assessment-url"]').click()}
     const input=page.locator(role==='admin'?'#assessment-url':'#cns-name');await input.fill('미저장 입력');
     await page.setViewportSize({width:1440,height:900});await page.setViewportSize({width:375,height:900});
     await expect(input).toHaveValue('미저장 입력');await page.close();
