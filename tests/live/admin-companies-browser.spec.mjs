@@ -27,6 +27,7 @@ async function open(page,h,options={}){
       r=await h.call(h.directory.handleAdminDirectory,token,body,req.method(),url);
       if(options.directoryResponse)r=await options.directoryResponse(u,r);
     }
+    else if(u.pathname.endsWith('/secondcareer-admin-unlinked-link')){r=await h.call(h.unlinkedLink.handleAdminUnlinkedLink,token,body,req.method(),url);if(options.unlinkedLinkResponse)r=await options.unlinkedLinkResponse(r)}
     else if(u.pathname.endsWith('/secondcareer-admin-unlinked')){
       r=options.unlinkedStatus?{status:options.unlinkedStatus,data:{error:'QUERY_FAILED'}}:await h.call(h.unlinked.handleAdminUnlinked,token,body,req.method(),url);
       if(options.unlinkedResponse)r=await options.unlinkedResponse(u,r);
@@ -68,7 +69,7 @@ test('admin starts with the company list, opens a customer by name and returns w
   await sec(page).getByRole('button',{name:a.name,exact:true}).click();
   await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(a.id);
   for(const [id,label] of [['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서'],['registration','참여자 일괄 등록']]){
-    const button=page.locator(`[data-company-dashboard-tab="${id}"]`);await expect(button).toHaveText(label);await button.click();await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('[aria-live="polite"] h3')).toHaveText(label);
+    const button=page.locator(`[data-company-dashboard-tab="${id}"]`);await expect(button).toHaveText(label);await button.click();await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('section[aria-live="polite"] > h3')).toHaveText(label);
   }
   await page.locator('[data-company-dashboard-back]').click();await expect(list).toBeVisible();
   await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:'상세 관리'}).click();await expect(sec(page).locator('[data-company-target]')).toContainText(a.id);
@@ -92,7 +93,8 @@ test('unlinked review lists only NULL company IDs and never writes or auto-selec
   await expect(section.locator(`[data-unlinked-company="${company.id}"]`)).toBeVisible();
   await section.locator(`[data-unlinked-company="${company.id}"]`).click();
   await expect(section.locator('[data-unlinked-candidate]')).toContainText(`ID ${company.id}`);
-  await expect(section).toContainText('연결 확정 기능은 서버 검증 및 변경 이력 설계 승인 후 제공됩니다');
+  await expect(section.locator('[data-unlinked-review-status]')).toContainText('운영 배정되지 않아 연결을 보류합니다');
+  await expect(section.locator('[data-unlinked-confirm]')).toHaveCount(0);
   await section.locator('[data-unlinked-cancel]').click();await expect(section.locator('[data-unlinked-candidate]')).toHaveCount(0);
   expect(calls.filter(c=>c.method!=='GET'&&c.path.endsWith('admin-unlinked'))).toHaveLength(0);
   expect(h.state.writes).toHaveLength(writesBefore);
@@ -109,6 +111,37 @@ test('unlinked failures clear old rows and late searches cannot replace current 
   await expect(section).toContainText('새로운 참여자');release();await expect(section).toContainText('새로운 참여자');
   options.unlinkedStatus=503;await section.locator('[data-unlinked-search] button').click();
   await expect(section).toContainText('처리 결과를 확인하지 못했습니다');await expect(section).not.toContainText('새로운 참여자');
+});
+
+test('unlinked confirmation links one participant and refreshes the list and company scope',async({page})=>{
+  const h=harness(),[company]=await seedAssignmentCompanies(h),id=crypto.randomUUID();
+  h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:company.id,counselor_user_id:ids.counselor,created_at:'2026-11-01T00:00:00Z'});
+  h.state.tables.participants.push({id,organization_id:ids.org,company_id:null,display_name:'연결 대상',company_name:'옛 기업명',counselor_user_id:ids.counselor});
+  const calls=await open(page,h);await login(page);const section=page.locator('#admin-unlinked');
+  await page.locator('a[href="#admin-unlinked"]').click();await section.locator(`[data-unlinked-review="${id}"]`).click();
+  await section.locator(`[data-unlinked-company="${company.id}"]`).click();
+  await expect(section.locator('[data-unlinked-review-status]')).toContainText('운영 배정을 확인했습니다');
+  page.once('dialog',dialog=>{expect(dialog.message()).toContain(id);expect(dialog.message()).toContain(company.id);dialog.accept()});
+  await section.locator('[data-unlinked-confirm]').click();
+  await expect(section).toContainText('고객사에 연결했습니다');await expect(section.locator(`[data-unlinked-review="${id}"]`)).toHaveCount(0);
+  expect(h.state.tables.participants.find(p=>p.id===id).company_id).toBe(company.id);
+  expect(h.state.tables.participant_company_link_events).toHaveLength(1);
+  expect(calls.filter(c=>c.path.endsWith('admin-unlinked-link')&&c.method==='POST')).toHaveLength(1);
+  await sec(page).locator(`[data-company-id="${company.id}"]`).getByRole('button',{name:company.name,exact:true}).click();
+  await page.locator('[data-company-dashboard-tab="operations"]').click();await expect(page.locator('section[aria-live="polite"]')).toContainText('연결 대상');
+});
+
+test('unlinked delayed failed link keeps the candidate and never automatically retries',async({page})=>{
+  const h=harness(),[company]=await seedAssignmentCompanies(h),id=crypto.randomUUID();
+  h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:company.id,counselor_user_id:ids.counselor,created_at:'2026-11-01T00:00:00Z'});
+  h.state.tables.participants.push({id,organization_id:ids.org,company_id:null,display_name:'지연 대상',company_name:'옛 기업명',counselor_user_id:ids.counselor});
+  let release,started;const pending=new Promise(r=>{release=r}),entered=new Promise(r=>{started=r});
+  const options={unlinkedLinkResponse:async()=>{started();await pending;return {status:503,data:{error:'LINK_OUTCOME_UNKNOWN'}}}},calls=await open(page,h,options);await login(page);
+  const section=page.locator('#admin-unlinked');await page.locator('a[href="#admin-unlinked"]').click();await section.locator(`[data-unlinked-review="${id}"]`).click();await section.locator(`[data-unlinked-company="${company.id}"]`).click();
+  await expect(section.locator('[data-unlinked-confirm]')).toBeVisible();page.once('dialog',dialog=>dialog.accept());await section.locator('[data-unlinked-confirm]').click();await entered;
+  await sec(page).locator(`[data-company-id="${company.id}"]`).getByRole('button',{name:company.name,exact:true}).click();await expect(section).toBeVisible();
+  release();await expect(section.locator('[data-unlinked-review-status]')).toContainText('자동 재시도하지 말고');
+  await expect(section.locator('[data-unlinked-confirm]')).toHaveCount(0);expect(calls.filter(c=>c.path.endsWith('admin-unlinked-link')&&c.method==='POST')).toHaveLength(1);
 });
 
 test('company selection restores after reload, rejects revoked access and clears on back and logout',async({page})=>{
@@ -134,7 +167,7 @@ test('company dashboard keeps the selected ID across tabs and switches without m
   const verify=async(company,other)=>{
     for(const [id,label] of tabs){
       const button=page.locator(`[data-company-dashboard-tab="${id}"]`);await button.click();
-      await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('[aria-live="polite"] h3')).toHaveText(label);
+      await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('section[aria-live="polite"] > h3')).toHaveText(label);
       await expect(page.getByRole('heading',{name:company.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(company.id);
       await expect(page.locator('#app')).not.toContainText(other.name);await expect(page.locator('#app')).not.toContainText(other.id);
       if(id==='progress')await expect(page.locator('section[aria-live="polite"] [data-kpi="total"] b')).toHaveText('0');

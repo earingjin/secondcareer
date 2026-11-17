@@ -1,6 +1,8 @@
 # 미연결 참여자 연결 확정 계약 설계안 (4-B, 승인 대기)
 
-이 문서는 4-A 읽기 화면 이후의 설계안이다. 연결 API·RPC·이력 테이블은 구현하거나 적용하지 않았다. 조회 엔드포인트는 `GET /functions/v1/secondcareer-admin-unlinked`이며 관리자 조직의 `participants.company_id IS NULL`만 반환한다.
+4-B 정책은 2026-11-17에 확정되었다. 연결 API 소스와 RPC·이력 테이블의 검토용 SQL 제안을 작성했지만 운영 DB 적용·Edge Function 배포는 하지 않았다. 조회 엔드포인트는 `GET /functions/v1/secondcareer-admin-unlinked`이며 관리자 조직의 `participants.company_id IS NULL`만 반환한다.
+
+로컬 산출물은 `supabase/functions/secondcareer-admin-unlinked-link/index.ts`와 `supabase/proposals/admin-unlinked-link.sql`이다. SQL은 기존 제약·인덱스·트리거가 없거나 신규 객체와 이름이 충돌하면 DDL 전에 중단한다. 이 검사는 운영 객체의 실제 정의·권한 확인을 대신하지 않는다.
 
 ## 독립 서버 계약
 
@@ -17,7 +19,7 @@
 1. 관리자 프로필의 역할·조직과 참여자·고객사의 조직을 재확인한다.
 2. 요청 ID의 기존 완료 기록이 있으면 본문 일치 여부를 확인한다.
 3. 참여자 행을 잠그고 `company_id IS NULL`을 다시 확인한다. 고객사 행도 조회해 동일 조직인지 확인한다.
-4. 확정될 활성 상태·상담사 배정 정책을 검사한다.
+4. 활성 고객사인지 확인하고, 기존 담당 상담사가 없거나 해당 고객사에 운영 배정되지 않았으면 연결을 보류한다. 담당자를 변경하지 않는다.
 5. `UPDATE participants SET company_id = 대상 ID WHERE id = 참여자 ID AND organization_id = 관리자 조직 AND company_id IS NULL RETURNING id`의 단일 행 성공을 확인한다.
 6. 같은 트랜잭션에 성공 이력을 삽입한다. 고유 제약 충돌이나 이력 저장 실패 시 전체 변경을 롤백한다.
 
@@ -27,10 +29,10 @@
 
 수정 열은 `participants.company_id` 하나로 제한한다. `company_name`, 담당 상담사, Auth 계정, 사전·사후 응답, 계산 결과, 개인 보고서 원본과 등록 이력은 그대로 둔다. 연결 후 고객사명 표시는 `client_companies` 마스터에서 조회한다. 공유 관리자 계정의 `actor_admin_user_id`는 계정을 기록할 뿐 실제 작업자 개인을 식별하지 못한다.
 
-## 사용자 결정 필요
+## 확정된 정책
 
-- **비활성 고객사:** 기본 제안은 신규 연결 거부다. 승인 전에는 연결 API를 만들지 않는다.
-- **기존 담당 상담사와 고객사 운영 배정 불일치:** 기본 제안은 담당자를 자동 변경하지 않고 불일치를 표시하며 연결을 보류하는 것이다. 승인 전에는 연결 API를 만들지 않는다.
+- **비활성 고객사:** 연결을 거부한다.
+- **기존 담당 상담사 부재·운영 배정 불일치:** 담당자를 자동 변경하지 않고 연결을 보류한다.
 
 ## 적용 전 확인·검증
 

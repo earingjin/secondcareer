@@ -26,6 +26,7 @@ export async function handleAdminUnlinked(req: Request) {
     }
     return respond({scope:'unlinked',generatedAt:new Date().toISOString(),total:count,page,pageSize,name,companyName,
       participants:data.map(p=>({id:p.id,name:p.display_name||'',companyName:p.company_name||'',
+        counselorId:counselors.has(p.counselor_user_id)?p.counselor_user_id:null,
         counselorName:!p.counselor_user_id?'미배정':counselors.get(p.counselor_user_id)||'담당 확인 필요',status:'unlinked'}))});
   } catch(error) {return failure(error)}
 }

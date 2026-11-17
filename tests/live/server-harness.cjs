@@ -10,7 +10,7 @@ function harness(){
   const loginIds={[ids.counselor]:'consult01',[ids.admin]:'admin01',[ids.participant]:'client01',[ids.other]:'other01'};
   const tables={user_profiles:profiles,organizations:[{id:ids.org,name:'테스트 기업'}],server_login_lookup:profiles.map(p=>({user_id:p.user_id,login_id:loginIds[p.user_id],internal_email:users[p.user_id].email})),participant_registration_requests:[],participants:[{id:'existing-participant',auth_user_id:ids.participant,counselor_user_id:ids.counselor,organization_id:ids.org,display_name:'기존참여자',company_name:'테스트기업'}],assessments:[],assessment_history:[]};
   // pageSize caps each read like the Data API row limit; reads/failReadsOf record and fail reads per table.
-  tables.counselor_registration_requests=[];tables.client_companies=[];tables.client_company_counselors=[];tables.company_manager_accounts=[];tables.company_manager_access=[];tables.company_manager_registration_requests=[];
+  tables.counselor_registration_requests=[];tables.client_companies=[];tables.client_company_counselors=[];tables.company_manager_accounts=[];tables.company_manager_access=[];tables.company_manager_registration_requests=[];tables.participant_company_link_events=[];
   const state={tables,users,created:[],updated:[],enabled:true,postEnabled:false,managerEnabled:false,pageSize:Infinity,reads:[],writes:[],failWritesOf:null,failReadsOf:null,failCreate:false,failComplete:false,failProfile:false,failUpdate:false,companyClock:0};
   const db={from(name){
     let filters=[],insert=null,update=null,columns=null,order=null,limit=Infinity,range=null,orders=[],selectOptions={},deleting=false;
@@ -122,6 +122,26 @@ function harness(){
       state.updated.push({id,...input});credentials.set(id,input.password);users[id].app_metadata={...input.app_metadata};return {data:{user:users[id]},error:null};
     }
   }},async rpc(name,args){
+    if(name==='secondcareer_link_unlinked_participant'){
+      const {actor_id,actor_org,target_participant_id,target_company_id,operation_id}=args;
+      const prior=()=>tables.participant_company_link_events.find(e=>e.request_id===operation_id);
+      const completed=()=>{const e=prior();if(!e)return null;return e.organization_id===actor_org&&e.participant_id===target_participant_id&&e.new_company_id===target_company_id&&e.actor_admin_user_id===actor_id?{data:{outcome:'already_completed',participantId:e.participant_id,companyId:e.new_company_id,linkedAt:e.linked_at,requestId:e.request_id},error:null}:{data:null,error:{message:'REQUEST_CONFLICT'}}};
+      if(!tables.user_profiles.some(u=>u.user_id===actor_id&&u.organization_id===actor_org&&u.role==='admin'))return {data:null,error:{message:'FORBIDDEN'}};
+      if(completed())return completed();
+      const p=tables.participants.find(p=>p.id===target_participant_id&&p.organization_id===actor_org);
+      if(!p)return {data:null,error:{message:'FORBIDDEN'}};
+      if(state.beforeUnlinkedCommit)await state.beforeUnlinkedCommit();
+      if(completed())return completed();
+      if(p.company_id!=null)return {data:null,error:{message:'COMPANY_CONFLICT'}};
+      const c=tables.client_companies.find(c=>c.id===target_company_id&&c.organization_id===actor_org);
+      if(!c)return {data:null,error:{message:'FORBIDDEN'}};
+      if(c.status!=='active')return {data:null,error:{message:'COMPANY_INACTIVE'}};
+      if(!p.counselor_user_id||!tables.user_profiles.some(u=>u.user_id===p.counselor_user_id&&u.organization_id===actor_org&&u.role==='counselor')||!tables.client_company_counselors.some(a=>a.organization_id===actor_org&&a.company_id===c.id&&a.counselor_user_id===p.counselor_user_id))return {data:null,error:{message:'COUNSELOR_REVIEW_REQUIRED'}};
+      p.company_id=c.id;
+      if(state.failUnlinkedAudit){p.company_id=null;return {data:null,error:{message:'AUDIT_FAILED'}}} // Model transaction rollback, not a PostgreSQL proof.
+      const e={organization_id:actor_org,participant_id:p.id,old_company_id:null,new_company_id:c.id,actor_admin_user_id:actor_id,request_id:operation_id,linked_at:new Date().toISOString()};tables.participant_company_link_events.push(e);state.writes.push({table:'participants',operation:'update',columns:['company_id']},{table:'participant_company_link_events',operation:'insert'});
+      return {data:{outcome:'linked',participantId:p.id,companyId:c.id,linkedAt:e.linked_at,requestId:operation_id},error:null};
+    }
     if(name==='secondcareer_complete_counselor_registration'){
       if(state.throwCounselorComplete)throw Error('transport failure');
       if(state.failCounselorComplete)return {error:{code:'COMPLETE_FAILED'}};
@@ -214,6 +234,7 @@ function harness(){
   const progress=load(path.join(root,'secondcareer-admin-progress/index.ts'));
   const directory=load(path.join(root,'secondcareer-admin-directory/index.ts'));
   const unlinked=load(path.join(root,'secondcareer-admin-unlinked/index.ts'));
+  const unlinkedLink=load(path.join(root,'secondcareer-admin-unlinked-link/index.ts'));
   const adminReport=load(path.join(root,'secondcareer-admin-report/index.ts'));
   const aggregate=load(path.join(root,'secondcareer-admin-aggregate/index.ts'));
   const companies=load(path.join(root,'secondcareer-admin-companies/index.ts'));
@@ -243,6 +264,6 @@ function harness(){
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
-  return {state,ids,login,registration,account,access,progress,directory,unlinked,adminReport,aggregate,companies,counselors,managers,manager,managerProgress,assessment,call,signIn,completeCounselor:args=>db.rpc('secondcareer_complete_counselor_registration',args)};
+  return {state,ids,login,registration,account,access,progress,directory,unlinked,unlinkedLink,adminReport,aggregate,companies,counselors,managers,manager,managerProgress,assessment,call,signIn,completeCounselor:args=>db.rpc('secondcareer_complete_counselor_registration',args)};
 }
 module.exports={harness,ids};
