@@ -38,6 +38,12 @@ async function setup(page){
   return {state,calls,reportCalls:()=>calls.filter(c=>c.query.includes('id='))};
 }
 
+test('counselor keeps assigned list without a participant registration form',async({page})=>{
+  await setup(page);await expect(page.locator('#plist')).toContainText('서버 응답자');
+  await expect(page.locator('#live-registration,[aria-label="참여자 일괄 등록"]')).toHaveCount(0);
+  await page.locator('#cns-name').fill('서버 응답자');await expect(page.locator('#plist')).toContainText('서버 응답자');
+});
+
 for(const [kind,pages,label] of [['p',3,'내담자용 3쪽'],['c',5,'결과 리포트 · 상담사용 5쪽']]){
   test(`${kind}: list opens server HTML and reuses window.print`,async({page})=>{
     const h=await setup(page);

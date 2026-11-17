@@ -9,7 +9,7 @@ export async function handleRegistration(req: Request) {
   if (req.method !== 'POST') return respond({error:'METHOD_NOT_ALLOWED'}, 405);
   try {
     const {user, profile, admin} = await authenticate(req);
-    if (!['admin','counselor'].includes(profile.role)) throw new APIError('FORBIDDEN', 403);
+    if (profile.role !== 'admin') throw new APIError('FORBIDDEN', 403);
     const accessError=participantAccessError(user);
     if(accessError)throw new APIError(accessError,403);
     // Enable only after SQL review and the existing assessment guard/RLS

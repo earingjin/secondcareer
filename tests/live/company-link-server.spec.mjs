@@ -10,6 +10,45 @@ const body=c=>({displayName:'합성참여자',phone:'01012345678',counselorUserI
 const call=(h,b,actor=ids.admin)=>h.call(h.registration.handleRegistration,actor,b);
 const detail=(h,id)=>h.call(h.companies.handleAdminCompanies,ids.admin,null,'GET','https://fixture.invalid/?id='+id);
 
+test('registered participant submits calculated diagnosis and only assigned counselor can open report',async()=>{
+  const h=harness(),c=master();addCompany(h,c);
+  const other=randomUUID();h.state.tables.user_profiles.push({user_id:other,organization_id:ids.org,role:'counselor',display_name:'Other'});h.state.users[other]={id:other,email:'other@example.invalid',app_metadata:{}};
+  const created=await call(h,body(c));expect(created.status).toBe(201);
+  const user=h.signIn(created.data.loginId,created.data.temporaryPassword);expect(user).toBeTruthy();
+  expect((await h.call(h.account.handleAccount,user.id)).data.mustChangePassword).toBe(true);
+  expect((await h.call(h.account.handleAccount,user.id,{action:'change-password',password:'New-password-123!'})).status).toBe(200);
+  expect(h.signIn(created.data.loginId,created.data.temporaryPassword)).toBeNull();expect(h.signIn(created.data.loginId,'New-password-123!')?.id).toBe(user.id);
+  const fixture=JSON.parse(fs.readFileSync(new URL('../snapshot/fixture.json',import.meta.url),'utf8')).db[0];
+  const answers=Object.fromEntries(['reg','goal','pre','expect','done'].map(k=>[k,structuredClone(fixture[k])]));
+  h.state.testAssessmentWrite=async args=>{
+    const part=h.state.tables.participants.find(p=>p.id===args.target);
+    if(!part||part.auth_user_id!==args.actor||args.operation!=='submit')return {data:null,error:{code:'403'}};
+    const time='2026-11-17T00:00:00.000Z',id=randomUUID();
+    h.state.tables.assessments.push({id,participant_id:part.id,phase:'pre',status:'submitted',answers:args.payload,result:args.calculated,updated_at:time,submitted_at:time});
+    return {data:{assessmentId:id,status:'submitted',updatedAt:time},error:null};
+  };
+  const submitted=await h.call(h.assessment,user.id,{action:'submit',answers});expect(submitted.status).toBe(200);
+  const saved=h.state.tables.assessments.find(a=>a.participant_id===created.data.participantId);
+  const expected=Array.from({length:5},(_,i)=>answers.pre.slice(i*3,i*3+3).reduce((a,b)=>a+b,0));
+  expect(saved.result.raw).toEqual(expected);
+  expect(h.signIn('consult01','Fixture-password-123!')?.id).toBe(ids.counselor);
+  const url='https://fixture.invalid/?id='+created.data.participantId+'&kind=c';
+  const report=await h.call(h.assessment,ids.counselor,null,'GET',url);expect(report.status).toBe(200);expect(report.data.html).toContain('<section class="sheet');
+  for(const actor of [other,ids.other,user.id])expect((await h.call(h.assessment,actor,null,'GET',url)).status).toBe(403);
+});
+
+test('admin registration appears only in the assigned counselor assessment list',async()=>{
+  const h=harness(),c=master();addCompany(h,c);
+  const other=randomUUID();h.state.tables.user_profiles.push({user_id:other,organization_id:ids.org,role:'counselor',display_name:'Other'});
+  h.state.users[other]={id:other,email:'other@example.invalid',app_metadata:{}};
+  const created=await call(h,body(c));expect(created.status).toBe(201);
+  expect(h.state.tables.participants.find(p=>p.id===created.data.participantId)).toMatchObject({company_id:c.id,counselor_user_id:ids.counselor});
+  for(const [actor,visible] of [[ids.counselor,true],[other,false],[ids.other,false]]){
+    const result=await h.call(h.assessment,actor,null,'GET');expect(result.status).toBe(200);
+    expect(result.data.participants.some(p=>p.id===created.data.participantId)).toBe(visible);
+  }
+});
+
 test('ID registration snapshots canonical master name, keeps legacy NULL data and duplicate protection',async()=>{
   const h=harness(),c=master();addCompany(h,c);
   const old=structuredClone(h.state.tables.participants),b=body(c),r=await call(h,{...b,companyId:b.companyId.toUpperCase()});

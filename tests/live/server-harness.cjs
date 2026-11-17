@@ -122,6 +122,7 @@ function harness(){
       state.updated.push({id,...input});credentials.set(id,input.password);users[id].app_metadata={...input.app_metadata};return {data:{user:users[id]},error:null};
     }
   }},async rpc(name,args){
+    if(name==='secondcareer_write_v1'&&state.testAssessmentWrite)return state.testAssessmentWrite(args);
     if(name==='secondcareer_link_unlinked_participant'){
       const {actor_id,actor_org,target_participant_id,target_company_id,operation_id}=args;
       const prior=()=>tables.participant_company_link_events.find(e=>e.request_id===operation_id);

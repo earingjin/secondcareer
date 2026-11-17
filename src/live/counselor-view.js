@@ -33,7 +33,6 @@ export function counselorView({profile,records,counselorFilter,pname,assessmentU
   const postLabels={new:'미시작',draft:'작성 중',submitted:'제출 완료'},postDone=rows.filter(p=>p.postStatus==='submitted').length;
   const options=[['all','전체'],['new','미시작'],['draft','작성 중'],['submitted','진단 완료'],['incomplete','미완료']];
   return `<div class="wrap" style="padding-top:26px"><div class="filters" style="justify-content:space-between"><div><h2>상담사 페이지</h2><p class="sub">${esc(profile.display_name||'상담사')} · 담당 내담자 관리</p></div><div class="acts"><button class="btn ghost" onclick="refresh()">새로 조회</button><button class="btn ghost" onclick="logout()">로그아웃</button></div></div>
-  <div id="live-registration"></div>
   <div class="part"><h2>내 내담자 현황</h2></div>
   <section class="sec" aria-label="담당 내담자 현황"><p class="hintline">검색·상태 조건이 적용된 담당 내담자 기준입니다. 진단 완료는 최종 제출한 경우입니다.</p>
   <div class="tiles" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))"><div class="tile" data-kpi="total"><span>대상자</span><b>${rows.length}</b></div><div class="tile c2" data-kpi="completed"><span>진단 완료</span><b>${completed}</b></div><div class="tile c3" data-kpi="incomplete"><span>미완료 인원</span><b>${rows.length-completed}</b></div>${postAvailable?`<div class="tile" data-kpi="post-submitted"><span>사후진단 제출 완료</span><b>${postDone}</b></div>`:''}</div></section>

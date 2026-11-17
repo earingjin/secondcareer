@@ -675,7 +675,7 @@ function render(){
     });
   }
   const registration=$('#live-registration');
-  if(registration&&registrationContext&&!busy){const run=epoch;unmountRegistration=mountParticipantRegistration(registration,{context:registrationContext,resultState:registrationResults,register:body=>api.register(body),loadCompanies:registrationContext.profile.role==='admin'?query=>api.companies(query):undefined,loadCompanyCounselors:registrationContext.profile.role==='admin'?id=>api.companyCounselors(id):undefined,onBusy:value=>{if(run===epoch)busy=value}})}
+  if(registration&&registrationContext&&profile?.role==='admin'&&!busy){const run=epoch;unmountRegistration=mountParticipantRegistration(registration,{context:registrationContext,resultState:registrationResults,register:body=>api.register(body),loadCompanies:query=>api.companies(query),loadCompanyCounselors:id=>api.companyCounselors(id),onBusy:value=>{if(run===epoch)busy=value}})}
   const companyRegistration=$('#company-registration');
   if(companyRegistration&&registrationContext&&!busy){const company={...selectedAdminCompany},run=epoch;unmountRegistration=mountParticipantRegistration(companyRegistration,{context:{...registrationContext,companyMode:'linked',selectedCompany:company,fixedCompany:company,defaultCounselorId:''},resultState:registrationResults,register:body=>{if(run!==epoch||selectedAdminCompany?.id!==company.id||company.status!=='active'||body.companyId!==company.id)throw Error('선택한 고객사의 등록 대상이 변경되었습니다.');return api.register(body)},loadCompanyCounselors:id=>api.companyCounselors(id),onBusy:value=>{if(run===epoch)busy=value}})}
   // The shared server report keeps the counselor's edit button; editing is counselor-only.

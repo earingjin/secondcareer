@@ -20,8 +20,8 @@ test('organization assessment URL is validated, scoped to admins and returned on
   expect((await save('   ')).data.assessmentUrl).toBeNull();
 });
 
-test('authenticated counselor provisions linked Auth account, server password and own assignment',async()=>{
-  const h=harness(),r=await h.call(h.registration.handleRegistration,ids.counselor,input());
+test('admin provisions Auth account, server password and assigned counselor',async()=>{
+  const h=harness(),body={...input(),counselorUserId:ids.counselor},r=await h.call(h.registration.handleRegistration,ids.admin,body);
   expect(r.status).toBe(201);expect(r.data.loginId).toBe('12345678');expect(r.data.temporaryPassword.length).toBeGreaterThanOrEqual(12);
   expect(r.headers.get('cache-control')).toBe('no-store');
   const auth=h.state.created[0],p=h.state.tables.participants.find(p=>p.id===r.data.participantId);
@@ -32,16 +32,23 @@ test('authenticated counselor provisions linked Auth account, server password an
   expect(h.access.participantAccessError(h.state.users[auth.id])).toBe('PASSWORD_CHANGE_REQUIRED');
   const unchanged=await h.call(h.account.handleAccount,auth.id,{action:'change-password',password:r.data.temporaryPassword});
   expect(unchanged.status).toBe(400);expect(h.state.users[auth.id].app_metadata.must_change_password).toBe(true);
-  const duplicate=await h.call(h.registration.handleRegistration,ids.counselor,input());
+  const duplicate=await h.call(h.registration.handleRegistration,ids.admin,{...body,requestId:randomUUID()});
   expect(duplicate.status).toBe(409);expect(h.state.created).toHaveLength(1);expect(duplicate.data.temporaryPassword).toBeUndefined();
+});
+
+test('counselor registration is rejected before any writes',async()=>{
+  const h=harness(),before=JSON.stringify(h.state.tables);
+  const r=await h.call(h.registration.handleRegistration,ids.counselor,input());
+  expect(r.status).toBe(403);expect(r.data.error).toBe('FORBIDDEN');expect(h.state.created).toHaveLength(0);expect(JSON.stringify(h.state.tables)).toBe(before);
+  expect((await h.call(h.account.handleAccount,ids.counselor)).data.registrationAvailable).toBe(false);
 });
 
 test('basic authentication, permission, validation and disabled registration prevent Auth writes',async()=>{
   const h=harness();
-  for(const [token,body,status] of [[null,input(),401],['expired',input(),401],[ids.participant,input(),403],[ids.admin,input(),403],[ids.counselor,{...input(),phone:'123'},400],[ids.counselor,{...input(),password:'browser-password'},400],[ids.counselor,{...input(),organizationId:ids.org},400]]){
+  for(const [token,body,status] of [[null,input(),401],['expired',input(),401],[ids.participant,input(),403],[ids.admin,input(),403],[ids.counselor,input(),403],[ids.admin,{...input(),counselorUserId:ids.counselor,phone:'123'},400],[ids.admin,{...input(),password:'browser-password'},400],[ids.admin,{...input(),organizationId:ids.org},400]]){
     expect((await h.call(h.registration.handleRegistration,token,body)).status).toBe(status);
   }
-  h.state.enabled=false;expect((await h.call(h.registration.handleRegistration,ids.counselor,input())).status).toBe(503);
+  h.state.enabled=false;expect((await h.call(h.registration.handleRegistration,ids.admin,input())).status).toBe(503);
   expect(h.state.created).toHaveLength(0);
 });
 
@@ -54,9 +61,9 @@ test('admin can select only same-organization counselor; account context does no
 
 test('pending reservation blocks retry after Auth/DB failure without returning or persisting a password',async()=>{
   for(const failure of ['failCreate','failComplete']){
-    const h=harness();h.state[failure]=true;const body=input();
-    const first=await h.call(h.registration.handleRegistration,ids.counselor,body);expect(first.status).toBe(503);expect(first.data).toEqual({error:'REGISTRATION_OUTCOME_UNKNOWN'});
-    const retry=await h.call(h.registration.handleRegistration,ids.counselor,body);expect(retry.status).toBe(409);
+    const h=harness();h.state[failure]=true;const body={...input(),counselorUserId:ids.counselor};
+    const first=await h.call(h.registration.handleRegistration,ids.admin,body);expect(first.status).toBe(503);expect(first.data).toEqual({error:'REGISTRATION_OUTCOME_UNKNOWN'});
+    const retry=await h.call(h.registration.handleRegistration,ids.admin,body);expect(retry.status).toBe(409);
     expect(h.state.created.length).toBe(failure==='failCreate'?0:1);
     expect(JSON.stringify(h.state.tables)).not.toMatch(/password/i);
   }
@@ -78,7 +85,7 @@ test('fresh trusted flag requires password update; legacy participant remains un
 
 test('new account uses the existing private login mapping and only the changed password works afterwards',async()=>{
   const h=harness(),before=JSON.parse(JSON.stringify(h.state.tables));
-  const created=await h.call(h.registration.handleRegistration,ids.counselor,input());
+  const created=await h.call(h.registration.handleRegistration,ids.admin,{...input(),counselorUserId:ids.counselor});
   const {loginId,temporaryPassword,participantId}=created.data;
   const user=h.signIn(loginId,temporaryPassword);
   expect(user).toBeTruthy();expect(h.signIn(loginId,'incorrect-password')).toBeNull();
@@ -117,12 +124,12 @@ test('registration remains unavailable without the server enable flag while coun
   const response=await h.call(h.account.handleAccount,ids.counselor);
   expect(response.status).toBe(200);expect(response.data.profile.role).toBe('counselor');
   expect(response.data.registrationAvailable).toBe(false);
-  expect((await h.call(h.registration.handleRegistration,ids.counselor,input())).status).toBe(503);
+  expect((await h.call(h.registration.handleRegistration,ids.admin,input())).status).toBe(503);
   expect(h.state.created).toHaveLength(0);expect(h.state.tables.participant_registration_requests).toHaveLength(0);
 });
 
 test('failed Auth password update leaves the gate and temporary credential intact',async()=>{
-  const h=harness(),created=await h.call(h.registration.handleRegistration,ids.counselor,input());
+  const h=harness(),created=await h.call(h.registration.handleRegistration,ids.admin,{...input(),counselorUserId:ids.counselor});
   const user=h.signIn(created.data.loginId,created.data.temporaryPassword);h.state.failUpdate=true;
   expect((await h.call(h.account.handleAccount,user.id,{action:'change-password',password:'Changed-password-123!'})).status).toBe(503);
   expect(h.state.users[user.id].app_metadata.must_change_password).toBe(true);
