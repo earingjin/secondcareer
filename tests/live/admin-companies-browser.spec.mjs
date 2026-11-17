@@ -222,6 +222,7 @@ test('fixed registration confirms unsaved navigation and blocks movement while s
   await expect(page.getByRole('textbox',{name:'1행 이름'})).toHaveValue('대기자');
   page.once('dialog',dialog=>dialog.accept());await page.locator('[data-company-dashboard-tab="progress"]').click();
   await page.locator('[data-company-dashboard-tab="registration"]').click();await expect(page.getByRole('textbox',{name:'1행 이름'})).toHaveValue('');
+  await expect(page.locator('[data-registration-assignments]')).toContainText('배정된 상담사만');
   await page.getByRole('textbox',{name:'1행 이름'}).fill('진행자');await page.getByRole('textbox',{name:'1행 연락처'}).fill('01022223333');await page.locator('#registration-counselor').selectOption(ids.counselor);
   await page.locator('#company-registration [data-action="register"]').click();await entered;
   await page.locator('[data-company-dashboard-back]').click();await page.locator('[data-company-dashboard-tab="operations"]').click();
