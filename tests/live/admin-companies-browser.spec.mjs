@@ -27,6 +27,7 @@ async function open(page,h,options={}){
       r=await h.call(h.directory.handleAdminDirectory,token,body,req.method(),url);
       if(options.directoryResponse)r=await options.directoryResponse(u,r);
     }
+    else if(u.pathname.endsWith('/secondcareer-admin-aggregate')){r=await h.call(h.aggregate.handleAdminAggregate,token,body,req.method(),url);if(options.aggregateResponse)r=await options.aggregateResponse(u,r)}
     else if(u.pathname.endsWith('/secondcareer-admin-unlinked-link')){r=await h.call(h.unlinkedLink.handleAdminUnlinkedLink,token,body,req.method(),url);if(options.unlinkedLinkResponse)r=await options.unlinkedLinkResponse(r)}
     else if(u.pathname.endsWith('/secondcareer-admin-unlinked')){
       r=options.unlinkedStatus?{status:options.unlinkedStatus,data:{error:'QUERY_FAILED'}}:await h.call(h.unlinked.handleAdminUnlinked,token,body,req.method(),url);
@@ -173,7 +174,7 @@ test('company dashboard keeps the selected ID across tabs and switches without m
       if(id==='progress')await expect(page.locator('section[aria-live="polite"] [data-kpi="total"] b')).toHaveText('0');
       else if(id==='operations')await expect(page.locator('section[aria-live="polite"] [data-dir-kpi="participants"] b')).toHaveText('0');
       else if(id==='registration'){await expect(page.locator('[data-registration-fixed]')).toContainText(company.id);await expect(page.locator('#registration-company-mode, #registration-company')).toHaveCount(0)}
-      else await expect(page.locator('section[aria-live="polite"]')).toContainText('고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.');
+      else {await expect(page.locator('[data-agg-tab="r8"]')).toBeVisible();await expect(page.locator('[data-aggregate-company]')).toHaveCount(0);await page.locator('[data-agg-tab="r8"]').click();await expect(page.locator('[data-agg-base]')).toContainText(company.name)}
       for(const selector of ['#admin-progress','#admin-directory','#admin-aggregate','#live-registration'])await expect(page.locator(selector)).toHaveCount(0);
     }
   };
@@ -278,6 +279,22 @@ test('admin home registration stays mounted during a request and its result cann
   expect(await page.content()).not.toContain(password);
   await page.locator('[data-company-dashboard-back]').click();
   await expect(page.locator('#live-registration .notice-s')).toHaveCount(0);
+});
+
+test('company aggregate rejects stale and mismatched responses and prints the selected company',async({page})=>{
+  const h=harness(),[a,b]=await seedAssignmentCompanies(h);let release,started;const hold=new Promise(r=>{release=r}),entered=new Promise(r=>{started=r});
+  const options={aggregateResponse:async(u,r)=>{if(u.searchParams.get('companyId')===a.id){started();await hold}return r}},calls=await open(page,h,options);await login(page);
+  const select=async c=>sec(page).locator(`[data-company-id="${c.id}"]`).getByRole('button',{name:c.name,exact:true}).click();
+  await select(a);await page.locator('[data-company-dashboard-tab="aggregate"]').click();await entered;
+  await expect(page.locator('[data-admin-aggregate="print"]')).toBeDisabled();await page.locator('[data-company-dashboard-back]').click();
+  await select(b);await page.locator('[data-company-dashboard-tab="aggregate"]').click();await page.locator('[data-agg-tab="r8"]').click();await expect(page.locator('[data-agg-base]')).toContainText(b.name);
+  release();await expect(page.locator('[data-agg-base]')).toContainText(b.name);
+  expect(calls.some(c=>c.path.endsWith('admin-aggregate')&&c.query.includes('companyId='+b.id))).toBe(true);
+  await page.evaluate(()=>{window.print=()=>{}});await page.locator('[data-admin-aggregate="print"]').click();
+  await expect(page.locator('#admin-aggregate-print')).toContainText(b.name);await expect(page.locator('#admin-aggregate-print [data-aggp]')).toHaveCount(9);
+  options.aggregateResponse=async(u,r)=>({...r,data:{...r.data,companyId:a.id}});
+  await page.locator('[data-admin-aggregate="load"]').click();await expect(page.locator('[role="status"]').filter({hasText:'응답을 확인하지 못했습니다'})).toBeVisible();
+  await expect(page.locator('[data-admin-aggregate="print"]')).toBeDisabled();await expect(page.locator('#admin-aggregate-print')).toHaveCount(0);
 });
 
 test('company progress discards delayed, failed and mismatched responses across company changes',async({page})=>{

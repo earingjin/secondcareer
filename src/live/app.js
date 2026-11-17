@@ -16,7 +16,7 @@ import {adminProgressView,validProgress,adminCompanyProgressView,validCompanyPro
 import {adminDirectoryView,validDirectory,adminCompanyDirectoryView,validCompanyDirectory} from './admin-directory-view.js';
 import {createAdminCounselors} from './admin-counselors.js';
 import {createAdminCompanies} from './admin-companies.js';
-import {adminAggregateView,adminAggregatePrintView,validAggregate} from './admin-aggregate-view.js';
+import {adminAggregateView,adminAggregatePrintView,validAggregate,validCompanyAggregate} from './admin-aggregate-view.js';
 import {managerDashboardView,validManagerProgress} from './company-manager-dashboard.js';
 import {esc,getPath,setPath} from './fields.js';
 import {$,toast} from '../browser/dom.js';
@@ -41,6 +41,7 @@ let unlinked={data:null,loading:false,loaded:false,message:'',name:'',companyNam
 function resetUnlinked(){unlinked.run++;unlinked.companyRun++;unlinked={...unlinked,data:null,loading:false,loaded:false,message:'',name:'',companyName:'',page:1,candidateId:null,companies:null,companySearch:'',companyPage:1,companyLoading:false,companyMessage:'',selectedCompany:null,review:null,linking:false,linkRequestId:null}}
 // REQ-A-006/007: loaded only when the administrator opens it.
 let aggregate={data:null,loading:false,message:'',tab:'r1'},aggregateRun=0;
+let companyAggregate={data:null,loading:false,message:'',tab:'r1',companyId:null},companyAggregateRun=0;
 // REQ-A-016: organization name from the server account response (organizations.name), shown on the printed report only when present.
 let organizationName='';
 // STEP 14-D: company manager counts for the selected allowed company. Kept in memory only.
@@ -92,7 +93,7 @@ async function loadCompanyDirectory(){
  catch(error){if(run!==companyDirectoryRun||selectedAdminCompany?.id!==id)return;companyDirectory={...companyDirectory,data:null,loading:false,message:error.message}}
  render();
 }
-function clearCompanyProgress(){clearCompanyDirectory();companyProgressRun++;companyProgress={data:null,loading:false,message:''}}
+function clearCompanyProgress(){clearCompanyDirectory();companyProgressRun++;companyProgress={data:null,loading:false,message:''};companyAggregateRun++;companyAggregate={data:null,loading:false,message:'',tab:'r1',companyId:null};clearAggregatePrint()}
 async function loadCompanyProgress(){
   if(profile?.role!=='admin'||mustChangePassword||!selectedAdminCompany)return;
   const id=selectedAdminCompany.id,run=++companyProgressRun;companyProgress={data:null,loading:true,message:''};render();
@@ -263,6 +264,18 @@ async function loadAggregate(company=null){
 // (no new request, no recalculation, nothing stored) outside #app so re-rendering cannot change it,
 // and it is removed after printing, on reload, on company change and on logout.
 function clearAggregatePrint(){document.getElementById('admin-aggregate-print')?.remove();document.body.classList.remove('agg-printing')}
+async function loadCompanyAggregate(){
+  if(profile?.role!=='admin'||!selectedAdminCompany||mustChangePassword)return;
+  const id=selectedAdminCompany.id,run=++companyAggregateRun;clearAggregatePrint();companyAggregate={...companyAggregate,companyId:id,data:null,loading:true,message:''};render();
+  try{const data=await api.adminCompanyAggregate(id);if(run!==companyAggregateRun||selectedAdminCompany?.id!==id)return;if(!validCompanyAggregate(data,id))throw Error('선택한 고객사의 통합 분석 응답을 확인하지 못했습니다.');companyAggregate={...companyAggregate,data,loading:false}}
+  catch(error){if(run!==companyAggregateRun||selectedAdminCompany?.id!==id)return;companyAggregate={...companyAggregate,data:null,loading:false,message:error.message}}
+  render();
+}
+function printCompanyAggregate(){
+  const id=selectedAdminCompany?.id,data=companyAggregate.data;clearAggregatePrint();
+  if(!id||adminCompanyTab!=='aggregate'||companyAggregate.loading||companyAggregate.companyId!==id||!validCompanyAggregate(data,id))return;
+  const el=document.createElement('div');el.id='admin-aggregate-print';el.hidden=true;el.innerHTML=adminAggregatePrintView(data,{organizationName});document.body.appendChild(el);document.body.classList.add('agg-printing');window.addEventListener('afterprint',clearAggregatePrint,{once:true});try{window.print()}catch{clearAggregatePrint()}
+}
 function printAggregate(){
   const data=aggregate.data,select=$('#admin-aggregate [data-aggregate-company]'),status=$('#admin-aggregate-status');
   clearAggregatePrint();
@@ -571,7 +584,7 @@ function render(){
   else if(profile.role==='admin'&&S.view==='admin-report'&&reportHTML)html=`<div class="narrow noprint"><div class="toolbar" id="admin-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openAdminReport('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openAdminReport('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('admin')">${selectedAdminCompany?'고객사 운영 관리':'관리자 참여자 목록'}</button></div></div></div>`+reportHTML;
   else if(profile.role==='admin'&&selectedAdminCompany){
     const tabs=[['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서'],['registration','참여자 일괄 등록']];
-    html=`<div class="wrap" style="padding-top:26px"><div class="acts"><button class="btn ghost" type="button" data-company-dashboard-back>고객사 목록으로 돌아가기</button><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>${esc(selectedAdminCompany.name)}</h2><p>고객사 ID: ${esc(selectedAdminCompany.id)} · 운영 상태: ${selectedAdminCompany.status==='active'?'활성':'비활성'}</p><div class="acts" role="group" aria-label="고객사별 운영 메뉴">${tabs.map(([id,label])=>`<button class="btn ghost" type="button" data-company-dashboard-tab="${id}" aria-pressed="${adminCompanyTab===id}">${label}</button>`).join('')}</div><section aria-live="polite"><h3>${tabs.find(([id])=>id===adminCompanyTab)[1]}</h3>${adminCompanyTab==='progress'?adminCompanyProgressView(companyProgress):adminCompanyTab==='operations'?adminCompanyDirectoryView(companyDirectory):adminCompanyTab==='registration'?(selectedAdminCompany.status==='active'?'<div id="company-registration"></div>':'<p class="hintline">비활성 고객사에는 신규 참여자를 등록할 수 없습니다.</p>'):`<p class="hintline">고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.</p>` }</section></section></div>`;
+    html=`<div class="wrap" style="padding-top:26px"><div class="acts"><button class="btn ghost" type="button" data-company-dashboard-back>고객사 목록으로 돌아가기</button><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>${esc(selectedAdminCompany.name)}</h2><p>고객사 ID: ${esc(selectedAdminCompany.id)} · 운영 상태: ${selectedAdminCompany.status==='active'?'활성':'비활성'}</p><div class="acts" role="group" aria-label="고객사별 운영 메뉴">${tabs.map(([id,label])=>`<button class="btn ghost" type="button" data-company-dashboard-tab="${id}" aria-pressed="${adminCompanyTab===id}">${label}</button>`).join('')}</div><section aria-live="polite"><h3>${tabs.find(([id])=>id===adminCompanyTab)[1]}</h3>${adminCompanyTab==='progress'?adminCompanyProgressView(companyProgress):adminCompanyTab==='operations'?adminCompanyDirectoryView(companyDirectory):adminCompanyTab==='aggregate'?adminAggregateView(companyAggregate):adminCompanyTab==='registration'?(selectedAdminCompany.status==='active'?'<div id="company-registration"></div>':'<p class="hintline">비활성 고객사에는 신규 참여자를 등록할 수 없습니다.</p>'):`<p class="hintline">고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.</p>` }</section></section></div>`;
   }
   else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 페이지</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button><a href="#admin-companies">고객사 관리</a><a href="#admin-directory">운영 관리</a><a href="#admin-progress">진단 진행 현황</a><a href="#admin-aggregate">통합 분석</a><a href="#live-registration">내담자 등록</a><a href="#admin-assessment-url">진단 접속 주소</a><a href="#admin-counselors">상담사 계정</a><a href="#admin-unlinked">미연결 참여자 관리</a></div><section class="card sec noprint" id="admin-companies"></section><section class="card sec" id="admin-progress" aria-label="진단 진행 현황">${adminProgressView(progress)}</section><section class="card sec" id="admin-directory" aria-label="운영 관리">${adminDirectoryView(directory)}</section><section class="card sec noprint" id="admin-counselors"></section><section class="card sec" id="admin-aggregate" aria-label="통합 분석보고서">${adminAggregateView(aggregate)}</section><section class="card sec" id="admin-assessment-url"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section><section class="card sec" id="admin-unlinked"></section><div id="live-registration"></div></div>`;
   else if(S.view==='post'&&postAllowed())html=postLocked?postConfirmView():S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):postConfirmView();
@@ -586,7 +599,7 @@ function render(){
   $('#app').innerHTML=html;
   mobileSurvey.mount();
   $('#app').querySelector('[data-company-dashboard-back]')?.addEventListener('click',()=>{if(!canLeaveRegistration())return;registrationLeaving=true;clearRegistrationResults();clearStoredCompany();clearCompanyProgress();selectedAdminCompany=null;adminCompanyTab='progress';render();registrationLeaving=false;window.scrollTo(0,0)});
-  $('#app').querySelectorAll('[data-company-dashboard-tab]').forEach(button=>button.addEventListener('click',()=>{if(!selectedAdminCompany||!['progress','operations','aggregate','registration'].includes(button.dataset.companyDashboardTab)||button.dataset.companyDashboardTab===adminCompanyTab||!canLeaveRegistration())return;registrationLeaving=true;clearRegistrationResults();adminCompanyTab=button.dataset.companyDashboardTab;if(adminCompanyTab==='operations'&&!companyDirectory.data&&!companyDirectory.loading)void loadCompanyDirectory();else render();registrationLeaving=false}));
+  $('#app').querySelectorAll('[data-company-dashboard-tab]').forEach(button=>button.addEventListener('click',()=>{if(!selectedAdminCompany||!['progress','operations','aggregate','registration'].includes(button.dataset.companyDashboardTab)||button.dataset.companyDashboardTab===adminCompanyTab||!canLeaveRegistration())return;registrationLeaving=true;clearRegistrationResults();adminCompanyTab=button.dataset.companyDashboardTab;if(adminCompanyTab==='operations'&&!companyDirectory.data&&!companyDirectory.loading)void loadCompanyDirectory();else if(adminCompanyTab==='aggregate'&&!companyAggregate.data&&!companyAggregate.loading)void loadCompanyAggregate();else render();registrationLeaving=false}));
   $('#app').querySelector('[data-company-progress-refresh]')?.addEventListener('click',()=>{if(!companyProgress.loading)void loadCompanyProgress()});
   $('#app').querySelector('[data-company-directory-refresh]')?.addEventListener('click',()=>{if(!companyDirectory.loading)void loadCompanyDirectory()});
   companyManager.mount($('#admin-companies'));
@@ -675,16 +688,19 @@ $('#app').addEventListener('click',event=>{
 });
 $('#app').addEventListener('click',event=>{
   const button=event.target.closest('[data-admin-aggregate="load"]');
+  if(button&&selectedAdminCompany&&adminCompanyTab==='aggregate'){if(!button.disabled&&!busy)void loadCompanyAggregate();return}
   if(!button||button.disabled||busy||aggregate.loading||profile?.role!=='admin')return;
   loadAggregate(aggregate.data?.company??null);
 });
 $('#app').addEventListener('click',event=>{
   const button=event.target.closest('[data-admin-aggregate="print"]');
+  if(button&&selectedAdminCompany&&adminCompanyTab==='aggregate'){if(!button.disabled&&!busy)printCompanyAggregate();return}
   if(!button||button.disabled||busy||aggregate.loading||!aggregate.data||profile?.role!=='admin'||mustChangePassword)return;
   printAggregate();
 });
 $('#app').addEventListener('click',event=>{
   const tab=event.target.closest('[data-agg-tab]');
+  if(tab&&selectedAdminCompany&&adminCompanyTab==='aggregate'){if(!tab.disabled&&!busy&&!companyAggregate.loading&&validCompanyAggregate(companyAggregate.data,selectedAdminCompany.id)&&/^r[1-9]$/.test(tab.dataset.aggTab)){companyAggregate.tab=tab.dataset.aggTab;render()}return}
   if(!tab||tab.disabled||busy||aggregate.loading||!aggregate.data||profile?.role!=='admin'||!['r1','r2','r3','r4','r5','r6','r7','r8','r9'].includes(tab.dataset.aggTab))return;
   aggregate.tab=tab.dataset.aggTab;paintAggregate();$(`#admin-aggregate [data-agg-tab="${aggregate.tab}"]`)?.focus();
 });

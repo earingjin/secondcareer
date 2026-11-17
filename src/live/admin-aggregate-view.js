@@ -64,6 +64,7 @@ export function validAggregate(d){
   if(N===0)return r4===null&&r5===null&&r6===null;
   return !!r4&&r4.n===N&&validStability(r4,N)&&!!r5&&r5.n===N&&validChoices(r5,N,{rankBy:'pre',change:true})&&!!r6&&r6.n===N&&validChoices(r6.q5,N,{single:true,rankBy:'pre'})&&validChoices(r6.q6,N,{rankBy:'post'})&&validSatItem(r6.fit,N);
 }
+export function validCompanyAggregate(d,id){return !!d&&d.scope==='company'&&d.companyId===id&&typeof d.companyName==='string'&&!!d.companyName.trim()&&d.company===null&&Array.isArray(d.companies)&&d.companies.length===0&&validAggregate({...d,scope:'organization'})}
 
 // Display helpers from the legacy report (arrow, sgn, legend2, gbars, hbrow); no calculation.
 const arrow=v=>v>0?'▲':v<0?'▼':'';
@@ -189,7 +190,7 @@ export function r9View(d){
   <h3 class="st">의견 키워드 (문구 포함 여부 기준 자동 집계)</h3>${r.keywords.map(k=>hbrow(esc(k.label),k.pct,`<b>${k.pct}%</b>${k.count}건`)).join('')}
   <p class="hintline" data-agg-method>의견 앞뒤 공백을 제거한 후 내용이 있는 응답을 셉니다. 키워드는 표시 순서대로 고정하며 문구가 일부 문자열에 포함되어도 집계합니다. 같은 키워드의 반복은 의견당 1건이며 한 의견에 여러 키워드가 포함될 수 있습니다. 비율은 키워드 포함 의견 수 ÷ 내용이 있는 의견 ${r.opinions}건 × 100(소수 첫째 자리 반올림)이며 의견이 없으면 0%입니다. 대소문자 변환이나 내부 공백 제거는 하지 않습니다.</p>`;
 }
-const companyLabel=d=>d.company===null?'전체 기업':esc(d.company);
+const companyLabel=d=>d.scope==='company'?esc(d.companyName):d.company===null?'전체 기업':esc(d.company);
 const generatedLabel=d=>esc(new Date(d.generatedAt).toLocaleString('ko-KR'));
 // One analysis as the screen shows it: Base line, body, base/exclusion notes. The screen tab and
 // the printed report both use this, so they render the same server figures the same way.
@@ -209,14 +210,15 @@ function tabParts(data,key){
 }
 export function adminAggregateView({data,loading=false,message='',tab='r1'}){
   const active=IMPLEMENTED.includes(tab)?tab:'r1';
-  const select=data?`<label class="hintline" for="agg-company">기업</label><select class="in" id="agg-company" data-aggregate-company ${loading?'disabled':''}><option value="" ${data.company===null?'selected':''}>전체</option>${data.companies.map(c=>`<option value="${esc(c)}" ${data.company===c?'selected':''}>${esc(c)}</option>`).join('')}</select>`:'';
+  const select=data&&data.scope!=='company'?`<label class="hintline" for="agg-company">기업</label><select class="in" id="agg-company" data-aggregate-company ${loading?'disabled':''}><option value="" ${data.company===null?'selected':''}>전체</option>${data.companies.map(c=>`<option value="${esc(c)}" ${data.company===c?'selected':''}>${esc(c)}</option>`).join('')}</select>`:'';
   const print=`<button class="btn" data-admin-aggregate="print" ${data&&!loading?'':'disabled'} title="${data&&!loading?'1~9번 분석 전체를 인쇄하거나 PDF로 저장합니다':'통합 분석을 불러온 뒤 인쇄할 수 있습니다'}">전체 보고서 인쇄</button>`;
   const head=`<div class="filters" style="justify-content:space-between"><h2>통합 분석보고서</h2><div class="acts">${select}<button class="btn ghost" data-admin-aggregate="load" ${loading?'disabled aria-busy="true"':''}>${data?'통합 분석 다시 불러오기':'통합 분석보고서 열기'}</button>${print}</div></div>`;
   const status=`<p role="status" class="hintline" id="admin-aggregate-status">${esc(loading?'통합 분석을 집계하고 있습니다.':message)}</p>`;
   const intro='<p class="hintline">관리자 소속 조직의 사전·사후 최종 제출자를 기준으로 집계하며, 8번은 사전진단 최종 제출자를 기준으로 합니다. 개인별 응답은 화면에 내려오지 않습니다. 전체 보고서 인쇄는 현재 불러온 집계 결과로 1~9번 분석을 모두 출력합니다.</p>';
   if(!data)return head+status+intro;
   const tabs=`<div class="filters" role="tablist" aria-label="통합 분석 화면" data-agg-tabs>${AGGREGATE_TABS.map(([k,l,on])=>on?`<button class="btn ${k===active?'':'ghost '}sm" role="tab" aria-selected="${k===active}" data-agg-tab="${k}">${esc(l)}</button>`:`<button class="btn ghost sm" role="tab" aria-selected="false" disabled data-agg-tab="${k}" title="구현 예정">${esc(l)} · 구현 예정</button>`).join('')}</div>`;
-  return head+status+intro+tabs+tabParts(data,active);
+  const companyInfo=data.scope==='company'?`<p class="hintline" data-aggregate-company-info>고객사: ${esc(data.companyName)} · 사전진단 완료 ${data.prePopulation.n}명${data.post.available?` · 사전·사후 참여 ${data.population.n}명`:''} · 집계 시각 ${generatedLabel(data)}</p>`:'';
+  return head+status+companyInfo+intro+tabs+tabParts(data,active);
 }
 // REQ-A-016: the whole report for printing or saving as PDF. It takes the same checked server
 // response the screen shows and renders all nine analyses with the screen renderers, whatever tab
@@ -224,7 +226,7 @@ export function adminAggregateView({data,loading=false,message='',tab='r1'}){
 export function adminAggregatePrintView(data,{organizationName=''}={}){
   const p=data.population,org=typeof organizationName==='string'&&organizationName.trim()?esc(organizationName.trim()):'관리자 계정의 소속 조직 (조직명 정보 없음)';
   const counts=[`사전진단 완료자 ${data.prePopulation.n}명`,...(data.post.available?[`사전·사후 참여자 ${p.n}명`,`만족도 응답 ${p.satN}명`]:['사전·사후 분석 미집계 (사후진단 기능 사용 안 함)'])].join(' · ');
-  const meta=[['대상 조직',org],['선택 기업',data.company===null?'전체':esc(data.company)],['집계 시각',generatedLabel(data)],['기준 인원',counts]].map(([k,v])=>`<div><dt>${k}</dt><dd data-aggp-meta="${k}">${v}</dd></div>`).join('');
+  const meta=[['대상 조직',org],['선택 기업',data.scope==='company'?esc(data.companyName):data.company===null?'전체':esc(data.company)],['집계 시각',generatedLabel(data)],['기준 인원',counts]].map(([k,v])=>`<div><dt>${k}</dt><dd data-aggp-meta="${k}">${v}</dd></div>`).join('');
   const head=`<header class="aggp-head"><h1>세컨플래닝 통합 분석보고서</h1><dl class="aggp-meta">${meta}</dl>
   <p class="hintline" data-aggp-privacy>서버에서 집계한 인원·평균·비율만 담습니다. 개인별 응답, 이름, 연락처, 로그인 ID, 참여자 ID와 자유 의견 원문은 포함하지 않습니다. 화면과 같은 집계 결과를 그대로 출력하며 다시 계산하지 않습니다.</p></header>`;
   const sections=AGGREGATE_TABS.map(([k,l])=>`<section class="aggp-sec" data-aggp="${k}"><h2 class="aggp-h">${esc(l)}</h2>${tabParts(data,k)}</section>`).join('');
