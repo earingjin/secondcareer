@@ -168,7 +168,8 @@ test.describe('admin report screen',()=>{
 
   test('10 admin opens both report kinds from the list, prints and returns with filters kept',async({page})=>{
     const errors=[];page.on('pageerror',e=>errors.push(String(e)));
-    const h=seed();await open(page,h);await login(page);
+    const h=seed();const calls=await open(page,h);await login(page);
+    await page.locator('a[href="#admin-directory"]').click();
     await expect(row(page,'보고서대상')).toBeVisible();
     await expect(row(page,'임시저장대상').locator('[data-admin-report]')).toHaveCount(0);await expect(row(page,'임시저장대상')).toContainText('임시저장 상태 · 최종 제출 후 조회 가능');
     await expect(row(page,'미시작대상').locator('[data-admin-report]')).toHaveCount(0);await expect(row(page,'미시작대상')).toContainText('미시작 · 최종 제출 후 조회 가능');
@@ -185,10 +186,11 @@ test.describe('admin report screen',()=>{
     await expect(page.locator('section.sheet:not(.noprintpage)')).toHaveCount(3);
     expect(await pdfPages(page)).toBe(3);
     await page.getByRole('button',{name:'← 관리자 참여자 목록'}).click();
-    await expect(page.getByRole('heading',{name:'관리자 페이지'})).toBeVisible();
+    await expect(page.locator('a[href="#admin-directory"]')).toHaveAttribute('aria-current','page');
     await expect(page.locator('section.sheet')).toHaveCount(0);
     await expect(page.locator('#dir-company')).toHaveValue('0');await expect(page.locator('[data-dir-participants] tr[data-dir-participant]')).toHaveCount(2);
     await expect(page.locator('#admin-progress [data-kpi="total"] b')).toHaveText('4');
+    expect(calls.filter(c=>c.includes('secondcareer-admin-report')).every(c=>!c.includes('companyId='))).toBe(true);
     expect(errors).toEqual([]);
   });
 

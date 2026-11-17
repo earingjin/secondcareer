@@ -66,20 +66,49 @@ async function openAssignments(page,id){
 test('admin starts with the company list, opens a customer by name and returns without losing other admin entry points',async({page})=>{
   const h=harness(),[a]=await seedAssignmentCompanies(h),calls=await open(page,h);await login(page);
   const list=sec(page).locator('[data-company-list-view]');await expect(list).toBeVisible();await expect(list).toContainText(a.name);
-  expect(await page.locator('#admin-companies').evaluate(el=>el.compareDocumentPosition(document.querySelector('#admin-progress')) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+  const sidebar=await page.locator('.admin-sidebar').boundingBox(),content=await page.locator('.admin-content').boundingBox();
+  expect(sidebar.x+sidebar.width).toBeLessThanOrEqual(content.x);
+  await expect(page.locator('.admin-content > :visible')).toHaveCount(1);
+  await expect(page.locator('#admin-progress')).toBeHidden();
   await sec(page).getByRole('button',{name:a.name,exact:true}).click();
   await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(a.id);
   for(const [id,label] of [['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서'],['registration','참여자 일괄 등록']]){
-    const button=page.locator(`[data-company-dashboard-tab="${id}"]`);await expect(button).toHaveText(label);await button.click();await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('section[aria-live="polite"] > h3')).toHaveText(label);
+    const button=page.locator(`[data-company-dashboard-tab="${id}"]`);await expect(button).toHaveText(label);await button.click();await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('section[aria-live="polite"] > h3').first()).toHaveText(label);
   }
   await page.locator('[data-company-dashboard-back]').click();await expect(list).toBeVisible();
   await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:'상세 관리'}).click();await expect(sec(page).locator('[data-company-target]')).toContainText(a.id);
   await expect(sec(page).locator('[data-company-manager-host]')).toBeVisible();await expect(sec(page).locator('[data-company-assignments]')).toBeVisible();
   await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();await expect(list).toBeVisible();await expect(sec(page).locator('[data-company-form]')).toHaveCount(0);
   for(const id of ['admin-directory','admin-progress','admin-aggregate','live-registration','admin-assessment-url','admin-counselors']){
-    await expect(page.locator(`a[href="#${id}"]`)).toBeVisible();await expect(page.locator(`#${id}`)).toBeVisible();
+    await page.locator(`a[href="#${id}"]`).click();await expect(page.locator(`#${id}`)).toBeVisible();
+    await expect(page.locator(`a[href="#${id}"]`)).toHaveAttribute('aria-current','page');
+    await expect(page.locator('.admin-content > :visible')).toHaveCount(1);
   }
   const before=companyCalls(calls).length;await page.getByRole('button',{name:'로그아웃',exact:true}).click();await login(page);await expect(sec(page).locator('[data-company-list]')).toContainText(a.name);expect(companyCalls(calls).length).toBeGreaterThan(before);
+});
+
+test('organization navigation preserves scope and confirms leaving registration',async({page})=>{
+  const h=harness(),[company]=await seedAssignmentCompanies(h),calls=await open(page,h);await login(page);
+  await page.locator('a[href="#admin-directory"]').click();
+  await expect(page.locator('#admin-directory')).toBeVisible();
+  await page.locator('#admin-directory [data-admin-directory="refresh"]').click();
+  await expect.poll(()=>calls.filter(c=>c.path.endsWith('admin-directory')).length).toBeGreaterThan(1);
+  expect(calls.filter(c=>c.path.endsWith('admin-directory')).at(-1).query).not.toContain('companyId');
+  await page.locator('a[href="#live-registration"]').click();
+  await page.locator('#live-registration [data-row="0"][data-key="displayName"]').fill('미저장 입력');
+  page.once('dialog',dialog=>dialog.dismiss());
+  await page.locator('a[href="#admin-companies"]').click();
+  await expect(page.locator('#live-registration')).toBeVisible();
+  await expect(page.locator('#live-registration [data-row="0"][data-key="displayName"]')).toHaveValue('미저장 입력');
+  page.once('dialog',dialog=>dialog.accept());
+  await page.locator('a[href="#admin-companies"]').click();
+  await expect(sec(page)).toBeVisible();
+  await sec(page).getByRole('button',{name:company.name,exact:true}).click();
+  await expect(page.locator('[data-company-dashboard-tab="progress"]')).toBeVisible();
+  await page.locator('[data-company-dashboard-back]').click();
+  await expect(sec(page)).toBeVisible();
+  await page.locator('a[href="#live-registration"]').click();
+  await expect(page.locator('#live-registration [data-row="0"][data-key="displayName"]')).toHaveValue('');
 });
 
 test('unlinked review lists only NULL company IDs and never writes or auto-selects a matching master',async({page})=>{

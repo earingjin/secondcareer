@@ -30,7 +30,7 @@ let postApproved=false;
 let counselorFilter={name:'',status:'all'};
 let registrationContext=null,unmountRegistration=null,mustChangePassword=false,managerCompanies=[];
 let registrationLeaving=false;
-function canLeaveRegistration(){return !selectedAdminCompany||adminCompanyTab!=='registration'||(!unmountRegistration?.isWorking?.()&&(!unmountRegistration?.isDirty?.()||window.confirm('저장하지 않은 참여자 입력이 사라집니다. 이동하시겠습니까?')))}
+function canLeaveRegistration(){return !unmountRegistration||(!unmountRegistration.isWorking?.()&&(!unmountRegistration.isDirty?.()||window.confirm('저장하지 않은 참여자 입력이 사라집니다. 이동하시겠습니까?')))}
 let assessmentUrl='',assessmentUrlMessage='',assessmentUrlInput='';
 const registrationResults={results:[]};
 // REQ-A-004: admin progress counts. Updated in place so registration and URL inputs are not re-rendered.
@@ -68,6 +68,7 @@ const api=createAPI(()=>{clearStoredCompany();reset();S.err='세션이 만료되
 const counselorAccounts=createAdminCounselors({api,canUse:()=>profile?.role==='admin'&&!mustChangePassword});
 window.addEventListener('pagehide',()=>counselorAccounts.reset());
 let selectedAdminCompany=null,adminCompanyTab='progress';
+let adminScope='organization',adminMenu='admin-companies';
 const companyStorageKey='sp-admin-selected-company';
 function clearStoredCompany(){try{sessionStorage.removeItem(companyStorageKey)}catch{}}
 function storeCompany(id){try{sessionStorage.setItem(companyStorageKey,id)}catch{}}
@@ -80,7 +81,7 @@ async function restoreCompany(){
     const result=await api.company(id),c=result?.company;
     if(run!==epoch||profile?.role!=='admin'||mustChangePassword)return;
     if(c?.id!==id||typeof c.name!=='string'||!c.name.trim()||!['active','inactive'].includes(c.status))throw Error('Invalid company');
-    selectedAdminCompany={id:c.id,name:c.name,status:c.status};adminCompanyTab='progress';void loadCompanyProgress();
+    selectedAdminCompany={id:c.id,name:c.name,status:c.status};adminScope='company';adminCompanyTab='progress';void loadCompanyProgress();
   }catch{if(run===epoch)clearStoredCompany()}
 }
 let companyProgress={data:null,loading:false,message:''},companyProgressRun=0;
@@ -101,7 +102,7 @@ async function loadCompanyProgress(){
   catch(error){if(run!==companyProgressRun||selectedAdminCompany?.id!==id)return;companyProgress={data:null,loading:false,message:error.message}}
   render();
 }
-const companyManager=createAdminCompanies({api,canUse:()=>profile?.role==='admin'&&!mustChangePassword,onOpenDashboard:company=>{if(busy||unlinked.linking||unmountRegistration?.isWorking?.()||(unmountRegistration?.isDirty?.()&&!window.confirm('저장하지 않은 참여자 입력이 사라집니다. 이동하시겠습니까?')))return;clearRegistrationResults();clearCompanyProgress();selectedAdminCompany=company;storeCompany(company.id);adminCompanyTab='progress';void loadCompanyProgress();window.scrollTo(0,0)}});
+const companyManager=createAdminCompanies({api,canUse:()=>profile?.role==='admin'&&!mustChangePassword,onOpenDashboard:company=>{if(busy||unlinked.linking||unmountRegistration?.isWorking?.()||(unmountRegistration?.isDirty?.()&&!window.confirm('저장하지 않은 참여자 입력이 사라집니다. 이동하시겠습니까?')))return;clearRegistrationResults();clearCompanyProgress();selectedAdminCompany=company;adminScope='company';storeCompany(company.id);adminCompanyTab='progress';void loadCompanyProgress();window.scrollTo(0,0)}});
 const byId=id=>records.find(p=>p.id===id),pname=p=>p.reg?.name||p.nick;
 const view=createSurveyView({missing:p=>survey.missing(p),pname});
 const full=a=>Array.isArray(a)&&a.length===ITEM_COUNT&&a.every(v=>Number.isInteger(v)&&v>=SCALE_MIN&&v<=SCALE_MAX);
@@ -432,13 +433,13 @@ async function openCompare(id){
 // listed as submitted is requested; the server re-checks organization and state.
 async function openAdminReport(id,kind='c'){
   if(busy||profile?.role!=='admin'||mustChangePassword)return;
-  const companyId=selectedAdminCompany?.id||null;
+  const companyId=adminScope==='company'?(selectedAdminCompany?.id||null):null;
   const row=(companyId?companyDirectory.data?.companyId===companyId?companyDirectory.data.participants:null:directory.data?.participants)?.find(p=>p.id===id);
   if(!['c','p'].includes(kind)||!row){S.err='관리자 참여자 목록과 보고서 종류를 확인해 주세요.';render();return}
   if(row.preStatus!=='submitted'){S.err='사전진단 최종 제출이 완료된 참여자만 보고서를 조회할 수 있습니다.';render();return}
   const run=epoch;busy=true;reportHTML='';render();
   try{
-    const data=await api.adminReport(id,kind,companyId);if(run!==epoch||(selectedAdminCompany?.id||null)!==companyId)return;
+    const data=await api.adminReport(id,kind,companyId);if(run!==epoch||(adminScope==='company'?(selectedAdminCompany?.id||null):null)!==companyId)return;
     if(typeof data?.html!=='string'||!data.html.trim())throw Error('보고서를 확인하지 못했습니다.');
     reportHTML=data.html;S.res={id,role:kind};S.view='admin-report';S.err='';
   }catch(e){if(run===epoch&&profile){reportHTML='';S.res=null;S.view='admin';S.err=e.message}}
@@ -569,11 +570,45 @@ function postConfirmView(){
   return `<div class="narrow mobile-survey" style="padding-top:20px"><div class="card"><h2>최종 제출 확인</h2><p>사후 진단 15문항과 만족도 응답을 모두 확인했습니다. 제출하면 응답을 수정할 수 없습니다.</p><p>임시저장 상태</p><p id="post-save-status" role="status">${esc(postMessage)}</p><div class="acts"><button class="btn ghost" onclick="backSat()" ${postSubmitting?'disabled':''}>만족도 응답으로 돌아가기</button><button class="btn ghost" onclick="backPost()" ${postSubmitting?'disabled':''}>사후 진단으로 돌아가기</button><button class="btn mint" onclick="submitPost()" ${postSubmitting?'disabled aria-busy="true"':''}>${postSubmitting?'제출 중…':S.err?'다시 제출':'최종 제출'}</button></div></div></div>`;
 }
 function leavePost(){if(!postAllowed()||S.view!=='post')return;clearPostEntry();S.mode2='pre';S.view='home';S.err='';render();window.scrollTo(0,0)}
+// Keep the existing mounted sections and their event handlers; show one organization view.
+function setupAdminNavigation(){
+  const root=$('#app > .wrap'), links=root?.querySelector('.acts');
+  if(!root||!links)return;
+  const sections=['admin-companies','admin-counselors','admin-unlinked','admin-assessment-url','admin-progress','admin-directory','admin-aggregate','live-registration'];
+  const labels=['고객사 관리','상담사 계정 관리','미연결 참여자 관리','진단 접속 주소 설정','조직 전체 진단 진행 현황','조직 전체 운영 관리','조직 전체 통합 분석','기존 내담자 등록'];
+  const layout=document.createElement('div'),side=document.createElement('aside'),content=document.createElement('main');
+  layout.className='admin-layout';side.className='admin-sidebar noprint';content.className='admin-content';
+  const heading=document.createElement('h2');heading.textContent='조직 전체 관리';side.append(heading);
+  const nav=document.createElement('nav');nav.setAttribute('aria-label','조직 전체 관리');
+  sections.forEach((id,i)=>{
+    const link=links.querySelector(`a[href="#${id}"]`),section=root.querySelector(`#${id}`);
+    if(!link||!section)return;
+    link.textContent=labels[i];nav.append(link);content.append(section);
+    link.addEventListener('click',event=>{
+      event.preventDefault();
+      if(adminMenu===id||busy||unlinked.linking)return;
+      if(adminMenu==='live-registration'){
+        if(unmountRegistration?.isWorking?.())return;
+        if(unmountRegistration?.isDirty?.()&&!window.confirm('저장하지 않은 참여자 입력이 사라집니다. 이동하시겠습니까?'))return;
+        clearRegistrationResults();adminMenu=id;registrationLeaving=true;render();registrationLeaving=false;
+      }else{adminMenu=id;showAdminMenu()}
+      if(id==='admin-unlinked'&&!unlinked.loaded)void loadUnlinked();
+    });
+  });
+  side.append(nav);
+  const logoutButton=links.querySelector('button');if(logoutButton)side.append(logoutButton);
+  layout.append(side,content);root.replaceChildren(layout);showAdminMenu();
+}
+function showAdminMenu(){
+  const layout=$('#app .admin-layout');if(!layout)return;
+  layout.querySelectorAll('.admin-content > *').forEach(section=>section.hidden=section.id!==adminMenu);
+  layout.querySelectorAll('.admin-sidebar nav a').forEach(link=>link.setAttribute('aria-current',link.hash==='#'+adminMenu?'page':'false'));
+}
 function render(){
-  if(profile?.role==='admin'&&selectedAdminCompany&&adminCompanyTab==='registration'&&unmountRegistration&&!registrationLeaving)return;
+  if(profile?.role==='admin'&&adminScope==='company'&&adminCompanyTab==='registration'&&unmountRegistration&&!registrationLeaving)return;
   mobileSurvey.capture();mobileSurvey.prepare();
   unmountRegistration?.();unmountRegistration=null;companyManager.unmount();counselorAccounts.unmount();
-  if(!profile){registrationContext=null;mustChangePassword=false}
+  if(!profile){registrationContext=null;mustChangePassword=false;adminScope='organization';adminMenu='admin-companies'}
   $('.seg')?.remove();
   $('.proto-note').textContent=profile?'세컨플래닝 · '+({counselor:'상담사',admin:'관리자',participant:'내담자',company_manager:'고객사 담당자'}[profile.role]):'계정으로 로그인해 주세요.';
   let html;
@@ -581,8 +616,8 @@ function render(){
   else if(!profile)html=(postEntry&&postTestGate?'<div class="narrow noprint"><p id="post-entry-hint" role="status">사후진단 안내 링크로 접속했습니다. 기존 아이디와 비밀번호로 로그인하면 사후진단으로 이동합니다.</p></div>':'')+loginView();
   else if(mustChangePassword)html=passwordChangeView(profile?.role==='company_manager');
   else if(profile.role==='company_manager')html=`<div class="wrap" style="padding-top:26px"><section class="card sec" id="company-manager-dashboard" aria-label="고객사 진단 현황">${managerDashboardView({companies:managerCompanies,...managerProgress})}</section></div>`;
-  else if(profile.role==='admin'&&S.view==='admin-report'&&reportHTML)html=`<div class="narrow noprint"><div class="toolbar" id="admin-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openAdminReport('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openAdminReport('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('admin')">${selectedAdminCompany?'고객사 운영 관리':'관리자 참여자 목록'}</button></div></div></div>`+reportHTML;
-  else if(profile.role==='admin'&&selectedAdminCompany){
+  else if(profile.role==='admin'&&S.view==='admin-report'&&reportHTML)html=`<div class="narrow noprint"><div class="toolbar" id="admin-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openAdminReport('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openAdminReport('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('admin')">${adminScope==='company'?'고객사 운영 관리':'관리자 참여자 목록'}</button></div></div></div>`+reportHTML;
+  else if(profile.role==='admin'&&adminScope==='company'&&selectedAdminCompany){
     const tabs=[['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서'],['registration','참여자 일괄 등록']];
     html=`<div class="wrap" style="padding-top:26px"><div class="acts"><button class="btn ghost" type="button" data-company-dashboard-back>고객사 목록으로 돌아가기</button><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>${esc(selectedAdminCompany.name)}</h2><p>고객사 ID: ${esc(selectedAdminCompany.id)} · 운영 상태: ${selectedAdminCompany.status==='active'?'활성':'비활성'}</p><div class="acts" role="group" aria-label="고객사별 운영 메뉴">${tabs.map(([id,label])=>`<button class="btn ghost" type="button" data-company-dashboard-tab="${id}" aria-pressed="${adminCompanyTab===id}">${label}</button>`).join('')}</div><section aria-live="polite"><h3>${tabs.find(([id])=>id===adminCompanyTab)[1]}</h3>${adminCompanyTab==='progress'?adminCompanyProgressView(companyProgress):adminCompanyTab==='operations'?adminCompanyDirectoryView(companyDirectory):adminCompanyTab==='aggregate'?adminAggregateView(companyAggregate):adminCompanyTab==='registration'?(selectedAdminCompany.status==='active'?'<div id="company-registration"></div>':'<p class="hintline">비활성 고객사에는 신규 참여자를 등록할 수 없습니다.</p>'):`<p class="hintline">고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.</p>` }</section></section></div>`;
   }
@@ -597,14 +632,14 @@ function render(){
     :`<div class="narrow" style="padding-top:34px"><div class="card"><h2>설문 작성 중</h2><p class="sub">${esc(saveMessage)}</p><div class="acts"><button class="btn" onclick="nav('wizard')">이어서 작성</button><button class="btn ghost" onclick="logout()">로그아웃</button></div></div></div>`;
   if(profile&&S.err)html=`<div class="narrow err noprint" role="alert">${esc(S.err)}</div>`+html;
   $('#app').innerHTML=html;
+  if(profile?.role==='admin'&&!mustChangePassword&&S.view!=='admin-report'&&adminScope==='organization')setupAdminNavigation();
   mobileSurvey.mount();
-  $('#app').querySelector('[data-company-dashboard-back]')?.addEventListener('click',()=>{if(!canLeaveRegistration())return;registrationLeaving=true;clearRegistrationResults();clearStoredCompany();clearCompanyProgress();selectedAdminCompany=null;adminCompanyTab='progress';render();registrationLeaving=false;window.scrollTo(0,0)});
+  $('#app').querySelector('[data-company-dashboard-back]')?.addEventListener('click',()=>{if(!canLeaveRegistration())return;registrationLeaving=true;clearRegistrationResults();clearStoredCompany();clearCompanyProgress();selectedAdminCompany=null;adminScope='organization';adminMenu='admin-companies';adminCompanyTab='progress';render();registrationLeaving=false;window.scrollTo(0,0)});
   $('#app').querySelectorAll('[data-company-dashboard-tab]').forEach(button=>button.addEventListener('click',()=>{if(!selectedAdminCompany||!['progress','operations','aggregate','registration'].includes(button.dataset.companyDashboardTab)||button.dataset.companyDashboardTab===adminCompanyTab||!canLeaveRegistration())return;registrationLeaving=true;clearRegistrationResults();adminCompanyTab=button.dataset.companyDashboardTab;if(adminCompanyTab==='operations'&&!companyDirectory.data&&!companyDirectory.loading)void loadCompanyDirectory();else if(adminCompanyTab==='aggregate'&&!companyAggregate.data&&!companyAggregate.loading)void loadCompanyAggregate();else render();registrationLeaving=false}));
   $('#app').querySelector('[data-company-progress-refresh]')?.addEventListener('click',()=>{if(!companyProgress.loading)void loadCompanyProgress()});
   $('#app').querySelector('[data-company-directory-refresh]')?.addEventListener('click',()=>{if(!companyDirectory.loading)void loadCompanyDirectory()});
   companyManager.mount($('#admin-companies'));
   counselorAccounts.mount($('#admin-counselors'));
-  $('#app').querySelector('a[href="#admin-unlinked"]')?.addEventListener('click',()=>{if(!unlinked.loaded)void loadUnlinked()});
   const unlinkedHost=$('#admin-unlinked');
   if(unlinkedHost){
     paintUnlinked();
@@ -688,19 +723,19 @@ $('#app').addEventListener('click',event=>{
 });
 $('#app').addEventListener('click',event=>{
   const button=event.target.closest('[data-admin-aggregate="load"]');
-  if(button&&selectedAdminCompany&&adminCompanyTab==='aggregate'){if(!button.disabled&&!busy)void loadCompanyAggregate();return}
+  if(button&&adminScope==='company'&&selectedAdminCompany&&adminCompanyTab==='aggregate'){if(!button.disabled&&!busy)void loadCompanyAggregate();return}
   if(!button||button.disabled||busy||aggregate.loading||profile?.role!=='admin')return;
   loadAggregate(aggregate.data?.company??null);
 });
 $('#app').addEventListener('click',event=>{
   const button=event.target.closest('[data-admin-aggregate="print"]');
-  if(button&&selectedAdminCompany&&adminCompanyTab==='aggregate'){if(!button.disabled&&!busy)printCompanyAggregate();return}
+  if(button&&adminScope==='company'&&selectedAdminCompany&&adminCompanyTab==='aggregate'){if(!button.disabled&&!busy)printCompanyAggregate();return}
   if(!button||button.disabled||busy||aggregate.loading||!aggregate.data||profile?.role!=='admin'||mustChangePassword)return;
   printAggregate();
 });
 $('#app').addEventListener('click',event=>{
   const tab=event.target.closest('[data-agg-tab]');
-  if(tab&&selectedAdminCompany&&adminCompanyTab==='aggregate'){if(!tab.disabled&&!busy&&!companyAggregate.loading&&validCompanyAggregate(companyAggregate.data,selectedAdminCompany.id)&&/^r[1-9]$/.test(tab.dataset.aggTab)){companyAggregate.tab=tab.dataset.aggTab;render()}return}
+  if(tab&&adminScope==='company'&&selectedAdminCompany&&adminCompanyTab==='aggregate'){if(!tab.disabled&&!busy&&!companyAggregate.loading&&validCompanyAggregate(companyAggregate.data,selectedAdminCompany.id)&&/^r[1-9]$/.test(tab.dataset.aggTab)){companyAggregate.tab=tab.dataset.aggTab;render()}return}
   if(!tab||tab.disabled||busy||aggregate.loading||!aggregate.data||profile?.role!=='admin'||!['r1','r2','r3','r4','r5','r6','r7','r8','r9'].includes(tab.dataset.aggTab))return;
   aggregate.tab=tab.dataset.aggTab;paintAggregate();$(`#admin-aggregate [data-agg-tab="${aggregate.tab}"]`)?.focus();
 });
@@ -711,7 +746,7 @@ $('#app').addEventListener('change',event=>{
 });
 $('#app').addEventListener('change',event=>{
   const key=event.target.closest('[data-directory-filter]')?.dataset.directoryFilter;
-  if(selectedAdminCompany){if(profile?.role==='admin'&&!busy&&companyDirectory.data&&['counselor','status'].includes(key)){companyDirectory.filter={...companyDirectory.filter,[key]:event.target.value};render();}return}
+  if(adminScope==='company'&&selectedAdminCompany){if(profile?.role==='admin'&&!busy&&companyDirectory.data&&['counselor','status'].includes(key)){companyDirectory.filter={...companyDirectory.filter,[key]:event.target.value};render();}return}
   if(!key||!['company','counselor','status'].includes(key)||busy||!directory.data||profile?.role!=='admin')return;
   directory.filter={...directory.filter,[key]:event.target.value};paintDirectory();
   $(`#admin-directory [data-directory-filter="${key}"]`)?.focus();
