@@ -174,7 +174,7 @@ test.describe('admin report screen',()=>{
     await expect(row(page,'임시저장대상').locator('[data-admin-report]')).toHaveCount(0);await expect(row(page,'임시저장대상')).toContainText('임시저장 상태 · 최종 제출 후 조회 가능');
     await expect(row(page,'미시작대상').locator('[data-admin-report]')).toHaveCount(0);await expect(row(page,'미시작대상')).toContainText('미시작 · 최종 제출 후 조회 가능');
     await page.locator('#dir-company').selectOption({label:'가 기업'});
-    await row(page,'보고서대상').getByRole('button',{name:'상담사용 5쪽'}).click();
+    await page.locator('a[href="#admin-directory"]').click();await row(page,'보고서대상').getByRole('button',{name:'상담사용 5쪽'}).click();
     await expect(page.locator('section.sheet:not(.noprintpage)')).toHaveCount(5);
     await expect(page.locator('#admin-report-kind')).toContainText('상담사용 5쪽');
     await expect(page.getByRole('button',{name:'응답 수정 (상담사)'})).toHaveCount(0);await expect(page.locator('.editpanel')).toHaveCount(0);
@@ -225,7 +225,7 @@ test.describe('admin report screen',()=>{
     await page.locator(`[data-participant="${P.submitted}"] button[onclick^="openRes"]`).first().click();
     await expect(page.locator('section.sheet:not(.noprintpage)')).toHaveCount(5);const counselorPages=await pdfPages(page);
     const counselorSheets=await page.locator('section.sheet').evaluateAll(s=>s.map(e=>e.outerHTML).join(''));
-    await page.evaluate(()=>logout());await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();await login(page);
+    await page.evaluate(()=>logout());await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();await login(page);await page.locator('a[href="#admin-directory"]').click();
     await row(page,'보고서대상').getByRole('button',{name:'상담사용 5쪽'}).click();
     await expect(page.locator('section.sheet:not(.noprintpage)')).toHaveCount(5);
     expect(await pdfPages(page)).toBe(counselorPages);expect(counselorPages).toBe(5);
@@ -233,12 +233,12 @@ test.describe('admin report screen',()=>{
   });
 
   test('11 failed report and expired session are handled without leaving a report on screen',async({page})=>{
-    const h=seed();await open(page,h,{reportStatus:503});await login(page);
+    const h=seed();await open(page,h,{reportStatus:503});await login(page);await page.locator('a[href="#admin-directory"]').click();
     await row(page,'보고서대상').getByRole('button',{name:'내담자용 3쪽'}).click();
     await expect(page.getByRole('alert')).toContainText('보고서를 불러오지 못했습니다');
     await expect(page.locator('section.sheet')).toHaveCount(0);await expect(page.locator('#admin-directory')).toBeVisible();
     await page.evaluate(()=>logout());await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();
-    await open(page,h,{reportStatus:401});await login(page);
+    await open(page,h,{reportStatus:401});await login(page);await page.locator('a[href="#admin-directory"]').click();
     await row(page,'보고서대상').getByRole('button',{name:'상담사용 5쪽'}).click();
     await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();
     await expect(page.locator('section.sheet')).toHaveCount(0);

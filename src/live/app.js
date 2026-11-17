@@ -570,39 +570,59 @@ function postConfirmView(){
   return `<div class="narrow mobile-survey" style="padding-top:20px"><div class="card"><h2>최종 제출 확인</h2><p>사후 진단 15문항과 만족도 응답을 모두 확인했습니다. 제출하면 응답을 수정할 수 없습니다.</p><p>임시저장 상태</p><p id="post-save-status" role="status">${esc(postMessage)}</p><div class="acts"><button class="btn ghost" onclick="backSat()" ${postSubmitting?'disabled':''}>만족도 응답으로 돌아가기</button><button class="btn ghost" onclick="backPost()" ${postSubmitting?'disabled':''}>사후 진단으로 돌아가기</button><button class="btn mint" onclick="submitPost()" ${postSubmitting?'disabled aria-busy="true"':''}>${postSubmitting?'제출 중…':S.err?'다시 제출':'최종 제출'}</button></div></div></div>`;
 }
 function leavePost(){if(!postAllowed()||S.view!=='post')return;clearPostEntry();S.mode2='pre';S.view='home';S.err='';render();window.scrollTo(0,0)}
-// Keep the existing mounted sections and their event handlers; show one organization view.
+// Organize the existing views without changing their data scope.
 function setupAdminNavigation(){
-  const root=$('#app > .wrap'), links=root?.querySelector('.acts');
-  if(!root||!links)return;
+  const root=$('#app > .wrap');if(!root)return;
   const sections=['admin-companies','admin-counselors','admin-unlinked','admin-assessment-url','admin-progress','admin-directory','admin-aggregate','live-registration'];
   const labels=['고객사 관리','상담사 계정 관리','미연결 참여자 관리','진단 접속 주소 설정','조직 전체 진단 진행 현황','조직 전체 운영 관리','조직 전체 통합 분석','기존 내담자 등록'];
   const layout=document.createElement('div'),side=document.createElement('aside'),content=document.createElement('main');
   layout.className='admin-layout';side.className='admin-sidebar noprint';content.className='admin-content';
-  const heading=document.createElement('h2');heading.textContent='조직 전체 관리';side.append(heading);
+  const toggle=document.createElement('button');toggle.type='button';toggle.className='admin-menu-toggle';toggle.textContent='관리 메뉴';toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-controls','admin-navigation');
+  const navigation=document.createElement('div');navigation.id='admin-navigation';navigation.className='admin-navigation';
+  toggle.addEventListener('click',()=>{const open=toggle.getAttribute('aria-expanded')!=='true';toggle.setAttribute('aria-expanded',String(open));navigation.classList.toggle('is-open',open)});
+  const closeMenu=()=>{toggle.setAttribute('aria-expanded','false');navigation.classList.remove('is-open')};
+  const heading=document.createElement('h2');heading.textContent='조직 전체 관리';navigation.append(heading);
   const nav=document.createElement('nav');nav.setAttribute('aria-label','조직 전체 관리');
   sections.forEach((id,i)=>{
-    const link=links.querySelector(`a[href="#${id}"]`),section=root.querySelector(`#${id}`);
-    if(!link||!section)return;
-    link.textContent=labels[i];nav.append(link);content.append(section);
+    const link=document.createElement('a');link.href='#'+id;link.textContent=labels[i];nav.append(link);
+    const section=root.querySelector('#'+id);if(section)content.append(section);
     link.addEventListener('click',event=>{
       event.preventDefault();
-      if(adminMenu===id||busy||unlinked.linking)return;
-      if(adminMenu==='live-registration'){
-        if(unmountRegistration?.isWorking?.())return;
-        if(unmountRegistration?.isDirty?.()&&!window.confirm('저장하지 않은 참여자 입력이 사라집니다. 이동하시겠습니까?'))return;
-        clearRegistrationResults();adminMenu=id;registrationLeaving=true;render();registrationLeaving=false;
-      }else{adminMenu=id;showAdminMenu()}
+      if(busy||unlinked.linking)return;
+      if(adminScope==='organization'&&adminMenu===id){closeMenu();return}
+      if(!canLeaveRegistration())return;
+      if(adminScope==='company'||adminMenu==='live-registration'){
+        clearRegistrationResults();adminScope='organization';adminMenu=id;registrationLeaving=true;render();registrationLeaving=false;
+      }else{adminMenu=id;showAdminMenu();closeMenu()}
       if(id==='admin-unlinked'&&!unlinked.loaded)void loadUnlinked();
     });
   });
-  side.append(nav);
-  const logoutButton=links.querySelector('button');if(logoutButton)side.append(logoutButton);
-  layout.append(side,content);root.replaceChildren(layout);showAdminMenu();
+  navigation.append(nav);
+  if(selectedAdminCompany){
+    const title=document.createElement('h2');title.textContent='선택한 고객사: '+selectedAdminCompany.name;navigation.append(title);
+    const companyNav=document.createElement('nav');companyNav.setAttribute('aria-label','선택한 고객사 관리');
+    const tabs=[['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서'],['registration','참여자 일괄 등록']];
+    tabs.forEach(([id,label])=>{
+      let button=root.querySelector('[data-company-dashboard-tab="'+id+'"]');
+      if(!button){button=document.createElement('button');button.type='button';button.dataset.companyDashboardTab=id;button.textContent=label}
+      button.setAttribute('aria-pressed',String(adminScope==='company'&&adminCompanyTab===id));companyNav.append(button);
+    });
+    navigation.append(companyNav);
+    if(adminScope==='organization'){
+      const context=document.createElement('p');context.className='admin-company-context';context.textContent='선택한 고객사: '+selectedAdminCompany.name;content.prepend(context);
+    }
+  }
+  if(adminScope==='company'){
+    const section=root.querySelector('section.card');if(section)content.append(section);
+    const back=root.querySelector('[data-company-dashboard-back]');if(back)navigation.append(back);
+  }
+  const logoutButton=root.querySelector('button[onclick="logout()"]');if(logoutButton)navigation.append(logoutButton);
+  side.append(toggle,navigation);layout.append(side,content);root.replaceChildren(layout);showAdminMenu();
 }
 function showAdminMenu(){
   const layout=$('#app .admin-layout');if(!layout)return;
-  layout.querySelectorAll('.admin-content > *').forEach(section=>section.hidden=section.id!==adminMenu);
-  layout.querySelectorAll('.admin-sidebar nav a').forEach(link=>link.setAttribute('aria-current',link.hash==='#'+adminMenu?'page':'false'));
+  if(adminScope==='organization')layout.querySelectorAll('.admin-content > [id]').forEach(section=>section.hidden=section.id!==adminMenu);
+  layout.querySelectorAll('.admin-sidebar nav a').forEach(link=>link.setAttribute('aria-current',adminScope==='organization'&&link.hash==='#'+adminMenu?'page':'false'));
 }
 function render(){
   if(profile?.role==='admin'&&adminScope==='company'&&adminCompanyTab==='registration'&&unmountRegistration&&!registrationLeaving)return;
@@ -632,10 +652,10 @@ function render(){
     :`<div class="narrow" style="padding-top:34px"><div class="card"><h2>설문 작성 중</h2><p class="sub">${esc(saveMessage)}</p><div class="acts"><button class="btn" onclick="nav('wizard')">이어서 작성</button><button class="btn ghost" onclick="logout()">로그아웃</button></div></div></div>`;
   if(profile&&S.err)html=`<div class="narrow err noprint" role="alert">${esc(S.err)}</div>`+html;
   $('#app').innerHTML=html;
-  if(profile?.role==='admin'&&!mustChangePassword&&S.view!=='admin-report'&&adminScope==='organization')setupAdminNavigation();
+  if(profile?.role==='admin'&&!mustChangePassword&&S.view!=='admin-report')setupAdminNavigation();
   mobileSurvey.mount();
   $('#app').querySelector('[data-company-dashboard-back]')?.addEventListener('click',()=>{if(!canLeaveRegistration())return;registrationLeaving=true;clearRegistrationResults();clearStoredCompany();clearCompanyProgress();selectedAdminCompany=null;adminScope='organization';adminMenu='admin-companies';adminCompanyTab='progress';render();registrationLeaving=false;window.scrollTo(0,0)});
-  $('#app').querySelectorAll('[data-company-dashboard-tab]').forEach(button=>button.addEventListener('click',()=>{if(!selectedAdminCompany||!['progress','operations','aggregate','registration'].includes(button.dataset.companyDashboardTab)||button.dataset.companyDashboardTab===adminCompanyTab||!canLeaveRegistration())return;registrationLeaving=true;clearRegistrationResults();adminCompanyTab=button.dataset.companyDashboardTab;if(adminCompanyTab==='operations'&&!companyDirectory.data&&!companyDirectory.loading)void loadCompanyDirectory();else if(adminCompanyTab==='aggregate'&&!companyAggregate.data&&!companyAggregate.loading)void loadCompanyAggregate();else render();registrationLeaving=false}));
+  $('#app').querySelectorAll('[data-company-dashboard-tab]').forEach(button=>button.addEventListener('click',()=>{if(!selectedAdminCompany||!['progress','operations','aggregate','registration'].includes(button.dataset.companyDashboardTab)||(adminScope==='company'&&button.dataset.companyDashboardTab===adminCompanyTab)||!canLeaveRegistration())return;registrationLeaving=true;clearRegistrationResults();adminScope='company';adminCompanyTab=button.dataset.companyDashboardTab;if(adminCompanyTab==='operations'&&!companyDirectory.data&&!companyDirectory.loading)void loadCompanyDirectory();else if(adminCompanyTab==='aggregate'&&!companyAggregate.data&&!companyAggregate.loading)void loadCompanyAggregate();else render();registrationLeaving=false}));
   $('#app').querySelector('[data-company-progress-refresh]')?.addEventListener('click',()=>{if(!companyProgress.loading)void loadCompanyProgress()});
   $('#app').querySelector('[data-company-directory-refresh]')?.addEventListener('click',()=>{if(!companyDirectory.loading)void loadCompanyDirectory()});
   companyManager.mount($('#admin-companies'));
