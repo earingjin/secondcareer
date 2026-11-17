@@ -140,6 +140,19 @@ test('mock committed recovery returns stored result after Auth email changes and
   expect(h.state.tables.participants.find(p=>p.id===r.data.participantId)).toMatchObject({company_id:c.id,counselor_user_id:ids.counselor});
 });
 
+test('completed recovery uses stable identities and permits a different current counselor',async()=>{
+  const h=harness(),c=master();addCompany(h,c);const issued=await call(h,body(c));expect(issued.status).toBe(201);
+  const request=h.state.tables.participant_registration_requests[0],p=h.state.tables.participants.find(p=>p.id===issued.data.participantId);
+  const args={request_id:request.id,new_user_id:request.auth_user_id,new_internal_email:'unused'};
+  for(const current of [request.counselor_user_id,randomUUID()]){p.counselor_user_id=current;expect((await h.recoverCompany(args)).data?.outcome).toBe('complete')}
+  h.state.tables.client_company_counselors=[];expect((await h.recoverCompany(args)).data?.outcome).toBe('complete');
+  for(const [field,value] of [['id',randomUUID()],['auth_user_id',randomUUID()],['organization_id','other-org'],['company_id',randomUUID()]]){
+    const original=p[field];p[field]=value;expect((await h.recoverCompany(args)).error).toBeTruthy();p[field]=original;
+  }
+  expect((await h.recoverCompany({...args,new_user_id:randomUUID()})).error).toBeTruthy();
+  expect(request.counselor_user_id).toBe(ids.counselor);expect(h.state.deleted||[]).toHaveLength(0);
+});
+
 test('mock pending recovery refuses cancellation and Auth deletion when Auth identity no longer matches',async()=>{
   for(const change of ['email','request','missing']){
     const h=harness(),c=master();addCompany(h,c);h.state.failComplete=true;
@@ -160,6 +173,7 @@ test('unapplied supplemental RPC proposal locks assignment only in completion an
   expect(sql).toContain('SCHEMA_REVIEW_REQUIRED');expect(sql).toContain('__REVIEW_COMPLETE_FUNCTION_MD5__');
   expect(sql).toContain('a.counselor_user_id=r.counselor_user_id for share');expect(sql).toContain('grant update(counselor_user_id)');
   const recovery=sql.slice(sql.indexOf('create or replace function public.secondcareer_recover_company_registration'));
-  expect(recovery).not.toContain('from public.client_company_counselors');expect(recovery).toContain('p.counselor_user_id=r.counselor_user_id');
+  expect(recovery).not.toContain('from public.client_company_counselors');expect(recovery).not.toContain('p.counselor_user_id=r.counselor_user_id');
+  for(const condition of ['p.id=r.participant_id','p.auth_user_id=new_user_id','p.organization_id=r.organization_id','p.company_id=r.company_id'])expect(recovery).toContain(condition);
   expect(sql).not.toMatch(/create table|delete from public\.participants|alter table public\.participants/i);
 });

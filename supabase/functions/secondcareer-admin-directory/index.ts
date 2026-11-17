@@ -27,12 +27,25 @@ export async function handleAdminDirectory(req: Request) {
   if (req.method === 'OPTIONS') return new Response(null, {status:204, headers});
   if (req.method !== 'GET') return respond({error:'METHOD_NOT_ALLOWED'}, 405);
   try {
-    const {profile, admin} = await authenticateAdmin(req);
+    const {profile, admin, params} = await authenticateAdmin(req,['companyId']);
     const org = profile.organization_id;
+    let selectedCompany: {id:string,name:string} | null = null;
+    if(params.has('companyId')){
+      const id=params.get('companyId')!;
+      if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))throw new APIError('INVALID_REQUEST',400);
+      const {data,error}=await admin.from('client_companies').select('id,name').eq('organization_id',org).eq('id',id.toLowerCase()).maybeSingle();
+      if(error)throw new APIError('QUERY_FAILED',503);
+      if(!data)throw new APIError('FORBIDDEN',403);
+      selectedCompany=data;
+    }
     const {data:organization, error:orgError} = await admin.from('organizations').select('name').eq('id', org).maybeSingle();
     if (orgError || !organization) throw new APIError('ORGANIZATION_QUERY_FAILED', 503);
-    const counselorRows = await readAll(() => admin.from('user_profiles').select('user_id,display_name').eq('organization_id', org).eq('role', 'counselor'), 'user_id');
-    const participants = await readAll(() => admin.from('participants').select('id,display_name,company_name,counselor_user_id,auth_user_id').eq('organization_id', org), 'id');
+    const participants = await readAll(() => {
+      const query=admin.from('participants').select(selectedCompany?'id,display_name,counselor_user_id,auth_user_id':'id,display_name,company_name,counselor_user_id,auth_user_id').eq('organization_id',org);
+      return selectedCompany?query.eq('company_id',selectedCompany.id):query;
+    }, 'id');
+    const assignedIds=new Set(participants.map(p=>p.counselor_user_id).filter(Boolean));
+    const counselorRows = (await readAll(() => admin.from('user_profiles').select('user_id,display_name').eq('organization_id', org).eq('role', 'counselor'), 'user_id')).filter(c=>!selectedCompany||assignedIds.has(c.user_id));
     const pre = await phaseStates(admin, participants.map(p => p.id), 'pre');
     const logins = await loginIds(admin, [...new Set([...counselorRows.map(c => c.user_id), ...participants.map(p => p.auth_user_id).filter(Boolean)])]);
 
@@ -41,7 +54,7 @@ export async function handleAdminDirectory(req: Request) {
     const companies = new Map<string, {name: string | null, total: number, counselors: Set<string>}>();
     let unassigned = 0, unknownCounselor = 0;
     const list = participants.map(p => {
-      const companyName = companyOf(p.company_name), key = companyName ?? '';
+      const companyName = selectedCompany?selectedCompany.name:companyOf(p.company_name), key = companyName ?? '';
       if (!companies.has(key)) companies.set(key, {name:companyName, total:0, counselors:new Set()});
       const company = companies.get(key)!; company.total++;
       // A reference to someone who is not a counselor of this organization is reported as
@@ -57,10 +70,10 @@ export async function handleAdminDirectory(req: Request) {
     });
     list.sort((a, b) => byCompany({name:a.companyName}, {name:b.companyName}) || collator.compare(a.name, b.name) || collator.compare(a.loginId || '', b.loginId || ''));
     return respond({
-      scope:'organization', generatedAt:new Date().toISOString(), organizationName:organization.name || '',
+      ...(selectedCompany?{scope:'company',companyId:selectedCompany.id,companyName:selectedCompany.name}:{scope:'organization',organizationName:organization.name || ''}), generatedAt:new Date().toISOString(),
       totals:{participants:list.length, counselors:counselors.size, unassigned, unknownCounselor},
       counselors:[...counselors.values()].sort((a, b) => collator.compare(a.name, b.name) || collator.compare(a.loginId || '', b.loginId || '')),
-      companies:[...companies.values()].sort(byCompany).map(c => ({name:c.name, total:c.total, counselors:c.counselors.size})),
+      ...(!selectedCompany?{companies:[...companies.values()].sort(byCompany).map(c => ({name:c.name, total:c.total, counselors:c.counselors.size}))}:{}),
       participants:list
     });
   } catch (error) { return failure(error); }

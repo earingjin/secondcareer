@@ -21,6 +21,8 @@ export function progressRate(part,whole){return whole>0?Math.round(part/whole*10
 const rateText=(part,whole)=>{const r=progressRate(part,whole);return r===null?'-':r.toFixed(1)+'%'};
 const fmtTime=t=>{const d=new Date(t);return Number.isFinite(d.getTime())?d.toLocaleString('ko-KR'):'-'};
 
+export function validCompanyProgress(d,id){return !!d&&d.scope==='company'&&d.companyId===id&&typeof d.companyName==='string'&&count(d.total)&&typeof d.generatedAt==='string'&&Number.isFinite(Date.parse(d.generatedAt))&&validCounts(d.pre,d.total)&&validPost(d.post,d.total)}
+export function adminCompanyProgressView(state){return adminProgressView(state).replaceAll('data-admin-progress="refresh"','data-company-progress-refresh').replace('id="admin-progress-status"','id="company-progress-status"')}
 export function adminProgressView({data,loading=false,message=''}){
   const head=`<div class="filters" style="justify-content:space-between"><h2>진단 진행 현황</h2><div class="acts"><button class="btn ghost" data-admin-progress="refresh" ${loading?'disabled aria-busy="true"':''}>새로 조회</button></div></div>`;
   const status=`<p role="status" class="hintline" id="admin-progress-status">${esc(loading?'진단 현황을 조회하고 있습니다.':message)}</p>`;
@@ -37,9 +39,9 @@ export function adminProgressView({data,loading=false,message=''}){
   const postNote=postOn
     ?'<p class="hintline" data-post-note>사후진단은 상태별 인원만 표시합니다. 사후진단 완료율의 기준 인원(분모)은 아직 정해지지 않아 계산하지 않습니다.</p>'
     :'<p class="hintline" data-post-note>사후진단 기능이 이 서비스 환경에서 사용 설정되어 있지 않아 사후진단 현황을 표시하지 않습니다.</p>';
-  const companyRows=data.companies.map(c=>`<tr data-company><td>${c.name===null?'소속기업 미지정':esc(c.name)}</td><td>${c.total}</td><td>${c.pre.submitted}</td><td>${c.pre.notStarted+c.pre.draft}</td><td>${rateText(c.pre.submitted,c.total)}</td>${postOn?`<td>${c.post.submitted}</td>`:''}</tr>`).join('');
-  const companies=`<h3>기업별 진단 현황</h3><div class="scroll"><table class="t zebra" data-progress-companies><thead><tr><th scope="col">소속기업</th><th scope="col">참여자</th><th scope="col">사전 완료</th><th scope="col">사전 미완료</th><th scope="col">사전 완료율</th>${postOn?'<th scope="col">사후 완료</th>':''}</tr></thead><tbody>${companyRows||`<tr><td colspan="${postOn?6:5}" class="empty">등록된 참여자가 없습니다.</td></tr>`}</tbody>${data.companies.length?`<tfoot><tr><th scope="row">합계</th><td>${total}</td><td>${pre.submitted}</td><td>${pre.notStarted+pre.draft}</td><td>${rateText(pre.submitted,total)}</td>${postOn?`<td>${post.submitted}</td>`:''}</tr></tfoot>`:''}</table></div>`;
-  return head+status+`<p class="hintline">집계 대상: 관리자 계정이 속한 조직에 등록된 참여자 전체 ${total}명 · 조회 시각 ${esc(fmtTime(data.generatedAt))}</p>
+  const companyRows=(data.companies||[]).map(c=>`<tr data-company><td>${c.name===null?'소속기업 미지정':esc(c.name)}</td><td>${c.total}</td><td>${c.pre.submitted}</td><td>${c.pre.notStarted+c.pre.draft}</td><td>${rateText(c.pre.submitted,c.total)}</td>${postOn?`<td>${c.post.submitted}</td>`:''}</tr>`).join('');
+  const companies=`<h3>기업별 진단 현황</h3><div class="scroll"><table class="t zebra" data-progress-companies><thead><tr><th scope="col">소속기업</th><th scope="col">참여자</th><th scope="col">사전 완료</th><th scope="col">사전 미완료</th><th scope="col">사전 완료율</th>${postOn?'<th scope="col">사후 완료</th>':''}</tr></thead><tbody>${companyRows||`<tr><td colspan="${postOn?6:5}" class="empty">등록된 참여자가 없습니다.</td></tr>`}</tbody>${data.companies?.length?`<tfoot><tr><th scope="row">합계</th><td>${total}</td><td>${pre.submitted}</td><td>${pre.notStarted+pre.draft}</td><td>${rateText(pre.submitted,total)}</td>${postOn?`<td>${post.submitted}</td>`:''}</tr></tfoot>`:''}</table></div>`;
+  return head+status+`<p class="hintline">집계 대상: ${data.scope==='company'?esc(data.companyName)+' 고객사에 연결된 참여자':'관리자 계정이 속한 조직에 등록된 참여자 전체'} ${total}명 · 조회 시각 ${esc(fmtTime(data.generatedAt))}</p>${data.scope==='company'&&total===0?'<p class="hintline">연결된 참여자가 없습니다.</p>':''}
   <p class="hintline">완료는 최종 제출, 작성 중은 임시저장만 된 상태, 미시작은 저장된 응답이 없는 상태입니다. 사전진단 완료율 = 사전진단 완료 인원 ÷ 전체 참여자 수이며, 참여자가 0명이면 '-'로 표시합니다.</p>
-  ${tiles}${breakdown}${postNote}${companies}`;
+  ${tiles}${breakdown}${postNote}${data.scope==='company'?'':companies}`;
 }

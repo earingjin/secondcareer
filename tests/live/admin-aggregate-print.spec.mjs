@@ -130,7 +130,7 @@ test.describe('admin aggregate printing in the browser',()=>{
     await page.goto(server.url);
     return calls;
   }
-  async function login(page,id='admin01'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill('Fixture-password-123!');await page.getByRole('button',{name:'로그인',exact:true}).click()}
+  async function login(page,id='admin01'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill('Fixture-password-123!');await page.getByRole('button',{name:'로그인',exact:true}).click();if(id==='admin01')await page.locator('a[href="#admin-aggregate"]').click()}
   const sec=page=>page.locator('#admin-aggregate');
   const printButton=page=>sec(page).getByRole('button',{name:'전체 보고서 인쇄'});
   const openReport=async page=>{await login(page);await sec(page).getByRole('button',{name:'통합 분석보고서 열기'}).click();await expect(sec(page).locator('[data-agg-tabs]')).toBeVisible()};

@@ -19,16 +19,26 @@ export async function handleAdminAggregate(req: Request) {
   if (req.method === 'OPTIONS') return new Response(null, {status:204, headers});
   if (req.method !== 'GET') return respond({error:'METHOD_NOT_ALLOWED'}, 405);
   try {
-    const {profile, admin, params} = await authenticateAdmin(req, ['company']);
+    const {profile, admin, params} = await authenticateAdmin(req, ['company','companyId']);
+    if(params.has('company')&&params.has('companyId'))throw new APIError('INVALID_REQUEST',400);
+    let selectedCompany: {id:string,name:string}|null=null;
+    if(params.has('companyId')){
+      const id=params.get('companyId')!;
+      if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))throw new APIError('INVALID_REQUEST',400);
+      const {data,error}=await admin.from('client_companies').select('id,name').eq('organization_id',profile.organization_id).eq('id',id.toLowerCase()).maybeSingle();
+      if(error)throw new APIError('QUERY_FAILED',503);
+      if(!data)throw new APIError('FORBIDDEN',403);
+      selectedCompany=data;
+    }
     let company: string | null = null;
     if (params.has('company')) {
       company = (params.get('company') || '').trim();
       if (!company || company.length > 200) throw new APIError('INVALID_REQUEST', 400);
     }
     const postEnabled = Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED') === 'true';
-    const {companies, pairs, excludedInvalid, firstChoices, preExcludedInvalid} = await loadPairedPopulation(admin, profile.organization_id, company, postEnabled);
+    const {companies, pairs, excludedInvalid, firstChoices, preExcludedInvalid} = await loadPairedPopulation(admin, profile.organization_id, company, postEnabled, selectedCompany?.id ?? null);
     return respond({
-      scope:'organization', generatedAt:new Date().toISOString(), company, companies,
+      ...(selectedCompany?{scope:'company',companyId:selectedCompany.id,companyName:selectedCompany.name,company:null,companies:[]}:{scope:'organization',company,companies}), generatedAt:new Date().toISOString(),
       post:{available:postEnabled},
       prePopulation:{available:true, n:firstChoices.length, excludedInvalid:preExcludedInvalid},
       population:pairs ? {n:pairs.length, satN:satisfactionPopulation(pairs).length, detailN:detailPopulation(pairs).length, excludedInvalid} : null,

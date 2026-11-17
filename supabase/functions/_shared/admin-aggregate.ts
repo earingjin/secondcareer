@@ -43,8 +43,8 @@ const opinionSummary = (value: unknown) => {
 };
 
 // Pre-only analysis is always available; post-disabled requests read only pre and d36.
-export async function loadPairedPopulation(admin: any, organizationId: string, company: string | null, withAnswers = true) {
-  const participants = await readAll(() => admin.from('participants').select('id,company_name').eq('organization_id', organizationId), 'id');
+export async function loadPairedPopulation(admin: any, organizationId: string, company: string | null, withAnswers = true, companyId: string | null = null) {
+  const participants = await readAll(() => {const query=admin.from('participants').select('id,company_name').eq('organization_id', organizationId);return companyId===null?query:query.eq('company_id',companyId)}, 'id');
   const companies = [...new Set(participants.map(p => companyOf(p.company_name)).filter(Boolean) as string[])].sort(collator.compare);
   if (company !== null && !companies.includes(company)) throw new APIError('INVALID_REQUEST', 400);
   const ids = participants.filter(p => company === null || companyOf(p.company_name) === company).map(p => p.id);

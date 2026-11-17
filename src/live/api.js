@@ -62,7 +62,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
       if((path==='/functions/v1/secondcareer-admin-aggregate'||path.startsWith('/functions/v1/secondcareer-admin-aggregate?'))&&response.status!==401){
         throw Error(response.status===403?'통합 분석보고서를 조회할 권한이 없습니다.':response.status===400?'기업 선택을 확인한 뒤 다시 불러와 주세요.':'통합 분석을 불러오지 못했습니다. 잠시 후 다시 불러와 주세요.');
       }
-      if(path==='/functions/v1/secondcareer-admin-directory'&&response.status!==401){
+      if((path==='/functions/v1/secondcareer-admin-directory'||path.startsWith('/functions/v1/secondcareer-admin-directory?'))&&response.status!==401){
         throw Error(response.status===403?'운영 관리 목록을 조회할 권한이 없습니다.':'운영 관리 목록을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
       }
       if(path.startsWith('/functions/v1/secondcareer-admin-companies')&&response.status!==401){
@@ -72,6 +72,10 @@ export function createAPI(onExpired,env=runtimeEnv()){
         }
         const errors={INVALID_REQUEST:'필수값·날짜·이메일·연락처와 조회 조건을 확인해 주세요.',COMPANY_NAME_UNAVAILABLE:'같은 이름의 고객사가 이미 등록되어 있습니다. 비활성 고객사도 확인해 주세요.',COMPANY_CONFLICT:'다른 변경이 먼저 저장되었습니다. 상세를 다시 조회한 뒤 수정해 주세요.',FORBIDDEN:'이 고객사에 접근할 권한이 없습니다.'};
         throw Error(errors[data?.error]||'고객사 요청을 처리하지 못했습니다. 저장 여부를 조회한 뒤 다시 시도해 주세요.');
+      }
+      if(path==='/functions/v1/secondcareer-admin-unlinked-link'&&response.status!==401){
+        const errors={COMPANY_INACTIVE:'비활성 고객사에는 연결할 수 없습니다.',COUNSELOR_REVIEW_REQUIRED:'기존 담당 상담사의 운영 배정을 확인해야 합니다. 연결을 보류했습니다.',COMPANY_CONFLICT:'다른 연결이 먼저 완료됐습니다. 목록을 다시 조회해 주세요.',REQUEST_CONFLICT:'같은 요청 ID에 다른 대상이 전달됐습니다.',FORBIDDEN:'참여자 또는 고객사가 관리자 조직에 속하지 않습니다.',LINK_OUTCOME_UNKNOWN:'연결 결과를 확인하지 못했습니다. 자동 재시도하지 말고 목록과 이력을 확인해 주세요.'};
+        throw Error(errors[data?.error]||'연결 결과를 확인하지 못했습니다. 자동 재시도하지 말고 관리자에게 확인해 주세요.');
       }
       if(path.startsWith('/functions/v1/secondcareer-company-manager-progress?')&&response.status!==401){
         const errors={PASSWORD_CHANGE_REQUIRED:'먼저 임시 비밀번호를 변경해 주세요.',FORBIDDEN:'이 고객사 현황을 조회할 권한이 없습니다.',MANAGER_NOT_CONFIGURED:'고객사 현황 기능을 사용할 수 없습니다.',INVALID_REQUEST:'고객사 선택을 확인해 주세요.'};
@@ -151,9 +155,11 @@ export function createAPI(onExpired,env=runtimeEnv()){
     updateAssessmentUrl:assessmentUrl=>request('/functions/v1/secondcareer-account',{body:{action:'update-assessment-url',assessmentUrl}}),
     register:body=>request('/functions/v1/secondcareer-register-participant',{body}),
     // REQ-A-004: counts only; the server derives the scope from the signed-in profile.
-    adminProgress:()=>request('/functions/v1/secondcareer-admin-progress'),
+    adminProgress:(companyId=null)=>request('/functions/v1/secondcareer-admin-progress'+(companyId?'?companyId='+encodeURIComponent(companyId):'')),
     // REQ-A-001/002 read only: organization, companies, counselors and participants in the server-checked scope.
-    adminDirectory:()=>request('/functions/v1/secondcareer-admin-directory'),
+    adminDirectory:(companyId=null)=>request('/functions/v1/secondcareer-admin-directory'+(companyId?'?companyId='+encodeURIComponent(companyId):'')),
+    adminUnlinked:({name='',companyName='',page=1}={})=>request('/functions/v1/secondcareer-admin-unlinked?'+new URLSearchParams({name,companyName,page:String(page)})),
+    linkUnlinked:body=>request('/functions/v1/secondcareer-admin-unlinked-link',{body}),
     companies:({search='',status='all',page=1,pageSize=20}={})=>request('/functions/v1/secondcareer-admin-companies?'+new URLSearchParams({search,status,page:String(page),pageSize:String(pageSize)})),
     company:id=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)),
     saveCompany:(id,body)=>request('/functions/v1/secondcareer-admin-companies'+(id?'?id='+encodeURIComponent(id):''),{body,method:id?'PATCH':'POST'}),
@@ -169,8 +175,9 @@ export function createAPI(onExpired,env=runtimeEnv()){
     assignCompanyCounselor:(id,counselorUserId,assigned)=>request('/functions/v1/secondcareer-admin-companies?id='+encodeURIComponent(id)+'&section=counselors',{method:'PATCH',body:{action:assigned?'assign':'unassign',counselorUserId}}),
     // REQ-A-006/007: server-side aggregate; company narrows inside the server-checked organization.
     adminAggregate:(company=null)=>request('/functions/v1/secondcareer-admin-aggregate'+(company?'?company='+encodeURIComponent(company):'')),
+    adminCompanyAggregate:companyId=>request('/functions/v1/secondcareer-admin-aggregate?companyId='+encodeURIComponent(companyId)),
     // REQ-A-005: the server re-checks the participant's organization and final submission.
-    adminReport:(id,kind='c')=>{if(!['c','p'].includes(kind))throw Error('보고서 종류를 확인해 주세요.');return request('/functions/v1/secondcareer-admin-report?id='+encodeURIComponent(id)+'&kind='+kind)},
+    adminReport:(id,kind='c',companyId=null)=>{if(!['c','p'].includes(kind))throw Error('보고서 종류를 확인해 주세요.');return request('/functions/v1/secondcareer-admin-report?id='+encodeURIComponent(id)+'&kind='+kind+(companyId?'&companyId='+encodeURIComponent(companyId):''))},
     postDraft:()=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?phase=post')},
     compare:id=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?compare='+encodeURIComponent(id))},
     write:(action,body)=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment',{body:{action,...body}})},

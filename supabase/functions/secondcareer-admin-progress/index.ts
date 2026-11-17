@@ -1,4 +1,4 @@
-import {failure, headers, respond} from '../_shared/registration-http.ts';
+import {APIError, failure, headers, respond} from '../_shared/registration-http.ts';
 import {authenticateAdmin, readAll, phaseStates, companyOf, byCompany} from '../_shared/admin-access.ts';
 
 // REQ-A-004: read-only progress counts for an administrator.
@@ -13,7 +13,20 @@ export async function handleAdminProgress(req: Request) {
   if (req.method === 'OPTIONS') return new Response(null, {status:204, headers});
   if (req.method !== 'GET') return respond({error:'METHOD_NOT_ALLOWED'}, 405);
   try {
-    const {profile, admin} = await authenticateAdmin(req);
+    const {profile, admin, params} = await authenticateAdmin(req, ['companyId']);
+    if (params.has('companyId')) {
+      const companyId = params.get('companyId')!;
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(companyId)) throw new APIError('INVALID_REQUEST',400);
+      const {data:company,error} = await admin.from('client_companies').select('id,name').eq('organization_id',profile.organization_id).eq('id',companyId.toLowerCase()).maybeSingle();
+      if (error) throw new APIError('QUERY_FAILED',503);
+      if (!company) throw new APIError('FORBIDDEN',403);
+      const participants = await readAll(() => admin.from('participants').select('id').eq('organization_id',profile.organization_id).eq('company_id',company.id),'id');
+      const ids = participants.map(p=>p.id), pre = await phaseStates(admin,ids,'pre');
+      const post = Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED') === 'true' ? await phaseStates(admin,ids,'post') : null;
+      const preCounts=zero(),postCounts=zero();
+      for (const p of participants) { add(preCounts,pre.get(p.id)); if(post)add(postCounts,post.get(p.id)); }
+      return respond({scope:'company',companyId:company.id,companyName:company.name,generatedAt:new Date().toISOString(),total:participants.length,pre:preCounts,post:post?{available:true,...postCounts}:{available:false}});
+    }
     const participants = await readAll(() => admin.from('participants').select('id,company_name').eq('organization_id', profile.organization_id), 'id');
     const ids = participants.map(p => p.id);
     const pre = await phaseStates(admin, ids, 'pre');

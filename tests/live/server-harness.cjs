@@ -10,12 +10,12 @@ function harness(){
   const loginIds={[ids.counselor]:'consult01',[ids.admin]:'admin01',[ids.participant]:'client01',[ids.other]:'other01'};
   const tables={user_profiles:profiles,organizations:[{id:ids.org,name:'테스트 기업'}],server_login_lookup:profiles.map(p=>({user_id:p.user_id,login_id:loginIds[p.user_id],internal_email:users[p.user_id].email})),participant_registration_requests:[],participants:[{id:'existing-participant',auth_user_id:ids.participant,counselor_user_id:ids.counselor,organization_id:ids.org,display_name:'기존참여자',company_name:'테스트기업'}],assessments:[],assessment_history:[]};
   // pageSize caps each read like the Data API row limit; reads/failReadsOf record and fail reads per table.
-  tables.counselor_registration_requests=[];tables.client_companies=[];tables.client_company_counselors=[];tables.company_manager_accounts=[];tables.company_manager_access=[];tables.company_manager_registration_requests=[];
+  tables.counselor_registration_requests=[];tables.client_companies=[];tables.client_company_counselors=[];tables.company_manager_accounts=[];tables.company_manager_access=[];tables.company_manager_registration_requests=[];tables.participant_company_link_events=[];
   const state={tables,users,created:[],updated:[],enabled:true,postEnabled:false,managerEnabled:false,pageSize:Infinity,reads:[],writes:[],failWritesOf:null,failReadsOf:null,failCreate:false,failComplete:false,failProfile:false,failUpdate:false,companyClock:0};
   const db={from(name){
     let filters=[],insert=null,update=null,columns=null,order=null,limit=Infinity,range=null,orders=[],selectOptions={},deleting=false;
     const q={delete(){deleting=true;return q},select(c,o={}){columns=c;selectOptions=o;return q},is(k,v){filters.push([k,v,'is']);return q},eq(k,v){filters.push([k,v,'eq']);return q},in(k,v){filters.push([k,[...v],'in']);return q},gt(k,v){filters.push([k,v,'gt']);return q},ilike(k,v){filters.push([k,v,'ilike']);return q},order(k,o){order=k;orders.push([k,o?.ascending!==false]);return q},limit(n){limit=n;return q},range(a,b){range=[a,b];return q},insert(row){insert=row;return q},update(row){update=row;return q},async single(){const result=await run(true);return result.data?result:{...result,error:result.error||{code:'PGRST116'}}},async maybeSingle(){return run(true)},then(resolve,reject){return run(false).then(resolve,reject)}};
-    const match=(r,[k,v,op])=>op==='is'?(r[k]??null)===v:op==='in'?v.includes(r[k]):op==='gt'?r[k]>v:r[k]===v;
+    const match=(r,[k,v,op])=>op==='is'?(r[k]??null)===v:op==='in'?v.includes(r[k]):op==='gt'?r[k]>v:op==='ilike'?new RegExp('^'+v.replace(/\\([\\%_])|[%_]|[.*+?^${}()|[\]\\]/g,(m,literal)=>literal?literal.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'):m==='%'?'.*':m==='_'?'.':m.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))+'$','iu').test(r[k]||''):r[k]===v;
     async function run(single){
       if(name==='user_profiles'&&state.failProfile)return {error:{code:'QUERY_ERROR'},data:null};
       if(!tables[name])return {error:{code:'MISSING_TABLE'},data:null};
@@ -108,6 +108,8 @@ function harness(){
       if(state.failCreate)return {data:{user:null},error:{message:'private upstream error'}};
       if(Object.values(users).some(u=>u.email===input.email))return {data:{user:null},error:{message:'Email already exists'}};
       const user={id:webcrypto.randomUUID(),email:input.email,app_metadata:{...input.app_metadata}};
+      if(state.createdUserPatch)Object.assign(user,state.createdUserPatch);
+      if(state.createdMetadataPatch)Object.assign(user.app_metadata,state.createdMetadataPatch);
       users[user.id]=user;credentials.set(user.id,input.password);state.created.push({...input,id:user.id});return {data:{user},error:null};
     },
     async deleteUser(id){
@@ -120,12 +122,34 @@ function harness(){
       state.updated.push({id,...input});credentials.set(id,input.password);users[id].app_metadata={...input.app_metadata};return {data:{user:users[id]},error:null};
     }
   }},async rpc(name,args){
+    if(name==='secondcareer_link_unlinked_participant'){
+      const {actor_id,actor_org,target_participant_id,target_company_id,operation_id}=args;
+      const prior=()=>tables.participant_company_link_events.find(e=>e.request_id===operation_id);
+      const completed=()=>{const e=prior();if(!e)return null;return e.organization_id===actor_org&&e.participant_id===target_participant_id&&e.new_company_id===target_company_id&&e.actor_admin_user_id===actor_id?{data:{outcome:'already_completed',participantId:e.participant_id,companyId:e.new_company_id,linkedAt:e.linked_at,requestId:e.request_id},error:null}:{data:null,error:{message:'REQUEST_CONFLICT'}}};
+      if(!tables.user_profiles.some(u=>u.user_id===actor_id&&u.organization_id===actor_org&&u.role==='admin'))return {data:null,error:{message:'FORBIDDEN'}};
+      if(completed())return completed();
+      const p=tables.participants.find(p=>p.id===target_participant_id&&p.organization_id===actor_org);
+      if(!p)return {data:null,error:{message:'FORBIDDEN'}};
+      if(state.beforeUnlinkedCommit)await state.beforeUnlinkedCommit();
+      if(completed())return completed();
+      if(p.company_id!=null)return {data:null,error:{message:'COMPANY_CONFLICT'}};
+      const c=tables.client_companies.find(c=>c.id===target_company_id&&c.organization_id===actor_org);
+      if(!c)return {data:null,error:{message:'FORBIDDEN'}};
+      if(c.status!=='active')return {data:null,error:{message:'COMPANY_INACTIVE'}};
+      if(!p.counselor_user_id||!tables.user_profiles.some(u=>u.user_id===p.counselor_user_id&&u.organization_id===actor_org&&u.role==='counselor')||!tables.client_company_counselors.some(a=>a.organization_id===actor_org&&a.company_id===c.id&&a.counselor_user_id===p.counselor_user_id))return {data:null,error:{message:'COUNSELOR_REVIEW_REQUIRED'}};
+      p.company_id=c.id;
+      if(state.failUnlinkedAudit){p.company_id=null;return {data:null,error:{message:'AUDIT_FAILED'}}} // Model transaction rollback, not a PostgreSQL proof.
+      const e={organization_id:actor_org,participant_id:p.id,old_company_id:null,new_company_id:c.id,actor_admin_user_id:actor_id,request_id:operation_id,linked_at:new Date().toISOString()};tables.participant_company_link_events.push(e);state.writes.push({table:'participants',operation:'update',columns:['company_id']},{table:'participant_company_link_events',operation:'insert'});
+      return {data:{outcome:'linked',participantId:p.id,companyId:c.id,linkedAt:e.linked_at,requestId:operation_id},error:null};
+    }
     if(name==='secondcareer_complete_counselor_registration'){
       if(state.throwCounselorComplete)throw Error('transport failure');
       if(state.failCounselorComplete)return {error:{code:'COMPLETE_FAILED'}};
       const r=tables.counselor_registration_requests.find(r=>r.id===args.request_id),u=users[args.new_user_id];
-      if(!r||!u||u.email!==args.new_internal_email||u.app_metadata.registration_request_id!==r.id||u.app_metadata.must_change_password!==true||!tables.user_profiles.some(p=>p.user_id===r.actor_user_id&&p.role==='admin'&&p.organization_id===r.organization_id))return {error:{code:'FORBIDDEN'}};
-      if(r.status==='complete')return r.auth_user_id===args.new_user_id?{data:{counselorId:r.auth_user_id,loginId:r.login_id},error:null}:{error:{code:'CONFLICT'}};
+      const expectedEmail=r?'sp-'+Buffer.from(await webcrypto.subtle.digest('SHA-256',new TextEncoder().encode(r.login_id))).toString('hex')+'@accounts.example.invalid':null;
+      if(!r||!u||u.email!==args.new_internal_email||u.email!==expectedEmail||u.app_metadata.registration_request_id!==r.id||r.status==='pending'&&u.app_metadata.must_change_password!==true||!tables.user_profiles.some(p=>p.user_id===r.actor_user_id&&p.role==='admin'&&p.organization_id===r.organization_id))return {error:{code:'FORBIDDEN'}};
+      if(r.status==='complete')return r.auth_user_id===args.new_user_id&&tables.user_profiles.some(p=>p.user_id===u.id&&p.organization_id===r.organization_id&&p.role==='counselor'&&p.display_name===r.display_name)&&tables.server_login_lookup.some(l=>l.user_id===u.id&&l.login_id===r.login_id&&l.internal_email===args.new_internal_email)?{data:{counselorId:r.auth_user_id,loginId:r.login_id},error:null}:{error:{code:'CONFLICT'}};
+      if(r.status!=='pending')return {error:{code:'CONFLICT'}};
       if(tables.server_login_lookup.some(l=>l.login_id===r.login_id||l.user_id===u.id||l.internal_email===u.email)||tables.user_profiles.some(p=>p.user_id===u.id))return {error:{code:'23505'}};
       tables.user_profiles.push({user_id:u.id,organization_id:r.organization_id,role:'counselor',display_name:r.display_name});
       tables.server_login_lookup.push({user_id:u.id,login_id:r.login_id,internal_email:u.email});r.status='complete';r.auth_user_id=u.id;
@@ -158,7 +182,7 @@ function harness(){
     const r=tables.participant_registration_requests.find(r=>r.id===args.request_id);
     if(name==='secondcareer_recover_company_registration'){
       if(state.failRecovery)return {error:{code:'RECOVERY_FAILED'}};
-      if(r.status==='complete'&&r.auth_user_id===args.new_user_id)return {data:{outcome:'complete',participantId:r.participant_id,companyId:r.company_id,companyName:r.company_name},error:null};
+      if(r.status==='complete'&&r.auth_user_id===args.new_user_id&&tables.participants.some(p=>p.id===r.participant_id&&p.auth_user_id===args.new_user_id&&p.organization_id===r.organization_id&&p.company_id===r.company_id))return {data:{outcome:'complete',participantId:r.participant_id,companyId:r.company_id,companyName:r.company_name},error:null};
       if(r.status==='complete'||users[args.new_user_id]?.id!==args.new_user_id||users[args.new_user_id]?.email!==args.new_internal_email||users[args.new_user_id]?.app_metadata.registration_request_id!==r.id||tables.user_profiles.some(p=>p.user_id===args.new_user_id))return {error:{code:'UNSAFE_RECOVERY'}};
       r.company_cancelled_auth_user_id=args.new_user_id;return {data:{outcome:'cancelled'},error:null};
     }
@@ -209,6 +233,8 @@ function harness(){
   const access=load(path.join(root,'_shared/participant-access.ts'));
   const progress=load(path.join(root,'secondcareer-admin-progress/index.ts'));
   const directory=load(path.join(root,'secondcareer-admin-directory/index.ts'));
+  const unlinked=load(path.join(root,'secondcareer-admin-unlinked/index.ts'));
+  const unlinkedLink=load(path.join(root,'secondcareer-admin-unlinked-link/index.ts'));
   const adminReport=load(path.join(root,'secondcareer-admin-report/index.ts'));
   const aggregate=load(path.join(root,'secondcareer-admin-aggregate/index.ts'));
   const companies=load(path.join(root,'secondcareer-admin-companies/index.ts'));
@@ -238,6 +264,6 @@ function harness(){
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
-  return {state,ids,login,registration,account,access,progress,directory,adminReport,aggregate,companies,counselors,managers,manager,managerProgress,assessment,call,signIn};
+  return {state,ids,login,registration,account,access,progress,directory,unlinked,unlinkedLink,adminReport,aggregate,companies,counselors,managers,manager,managerProgress,assessment,call,signIn,completeCounselor:args=>db.rpc('secondcareer_complete_counselor_registration',args),recoverCompany:args=>db.rpc('secondcareer_recover_company_registration',args)};
 }
 module.exports={harness,ids};

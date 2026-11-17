@@ -15,7 +15,7 @@ function assignmentView(s,off){
 }
 
 // State lives only for this signed-in session. No participant writes or persistent storage.
-export function createAdminCompanies({api,canUse}){
+export function createAdminCompanies({api,canUse,onOpenDashboard}){
   let state=initial(),container=null,generation=0,initialLoadStarted=false;
   const managers=createAdminCompanyManagers({api,canUse});
   const statusLabel=s=>s==='active'?'활성':'비활성';
@@ -26,7 +26,7 @@ export function createAdminCompanies({api,canUse}){
     container.innerHTML=`<h2>고객사 관리</h2><p class="sub">고객사 마스터의 사업 기간과 PM 정보를 관리합니다. 참여자가 없는 고객사도 등록할 수 있습니다.</p>
       <div data-company-list-view ${s.form?'hidden':''}><p class="hintline" data-company-separation>이 목록은 별도 고객사 마스터입니다. 기존 운영 관리·진단 현황의 소속기업 목록은 참여자의 기업명 입력값 기준입니다. 고객사 ID 연결 등록과 기존 미연결 참여자는 별도로 관리되며 기존 기업명 필터는 유지됩니다.</p>
       <form data-company-search><div class="filters"><label for="company-search">고객사명 검색</label><input class="in" id="company-search" maxlength="200" value="${esc(s.search)}" ${off}><label for="company-status">운영 상태</label><select class="in" id="company-status" ${off}>${[['all','전체'],['active','활성'],['inactive','비활성']].map(([v,l])=>`<option value="${v}" ${v===s.status?'selected':''}>${l}</option>`).join('')}</select><button class="btn ghost" ${off}>고객사 목록 조회</button><button class="btn" type="button" data-company-action="new" ${off}>고객사 등록</button></div></form>
-      ${s.data?`<div class="scroll"><table class="t" data-company-list><thead><tr><th>고객사명</th><th>진행 기간</th><th>담당 PM</th><th>운영 상태</th><th>등록일</th><th>상세 관리</th></tr></thead><tbody>${s.data.companies.map(c=>`<tr data-company-id="${esc(c.id)}"><td><button class="btn ghost sm" type="button" data-company-action="detail" data-id="${esc(c.id)}" ${off}>${esc(c.name)}</button></td><td>${esc(c.start_date)} ~ ${esc(c.end_date)}</td><td>${esc(c.pm_name)}</td><td>${statusLabel(c.status)}</td><td>${esc(c.created_at.slice(0,10))}</td><td><button class="btn ghost sm" type="button" data-company-action="detail" data-id="${esc(c.id)}" ${off}>상세 관리</button></td></tr>`).join('')||'<tr><td colspan="6">조건에 맞는 고객사가 없습니다.</td></tr>'}</tbody></table></div>
+      ${s.data?`<div class="scroll"><table class="t" data-company-list><thead><tr><th>고객사명</th><th>진행 기간</th><th>담당 PM</th><th>운영 상태</th><th>등록일</th><th>상세 관리</th></tr></thead><tbody>${s.data.companies.map(c=>`<tr data-company-id="${esc(c.id)}"><td><button class="btn ghost sm" type="button" data-company-action="dashboard" data-id="${esc(c.id)}" ${off}>${esc(c.name)}</button></td><td>${esc(c.start_date)} ~ ${esc(c.end_date)}</td><td>${esc(c.pm_name)}</td><td>${statusLabel(c.status)}</td><td>${esc(c.created_at.slice(0,10))}</td><td><button class="btn ghost sm" type="button" data-company-action="detail" data-id="${esc(c.id)}" ${off}>상세 관리</button></td></tr>`).join('')||'<tr><td colspan="6">조건에 맞는 고객사가 없습니다.</td></tr>'}</tbody></table></div>
       <div class="pager" role="navigation" aria-label="고객사 목록 페이지"><button type="button" data-company-action="previous" ${s.query.page<=1||s.working?'disabled':''}>이전</button><span data-company-page>${s.query.page} / ${Math.max(1,Math.ceil(s.data.total/s.query.pageSize))}페이지 · 총 ${s.data.total}개 · 페이지당 ${s.query.pageSize}개</span><button type="button" data-company-action="next" ${s.query.page*s.query.pageSize>=s.data.total||s.working?'disabled':''}>다음</button></div>`:'<p class="hintline">목록 조회를 누르면 등록된 고객사를 불러옵니다.</p>'}</div>
       <p role="status" data-company-message>${esc(s.working?'처리 중입니다.':s.message)}</p>${s.form?`<form data-company-form data-id="${esc(s.detail?.id||'')}"><h3>${s.detail?'고객사 상세·수정':'새 고객사 등록'}</h3>${s.detail?`<p data-company-target>대상: ${esc(s.detail.name)} · ID ${esc(s.detail.id)} · ${statusLabel(s.detail.status)}</p>`:''}
       ${s.detail&&s.linkage?`<p data-company-linkage>고객사 ID로 연결된 참여자: ${s.linkage.linkedParticipants}명 · 조직 전체 미연결 참여자: ${s.linkage.unlinkedParticipants}명. 미연결 인원은 기업명 일치 여부와 무관한 조직 전체 수이며 자동 이관하지 않습니다.</p>`:''}
@@ -94,6 +94,7 @@ export function createAdminCompanies({api,canUse}){
         try{await loadAssignments(run,id)}catch{if(current(run))state.message='배정 변경은 완료했지만 목록을 확인하지 못했습니다. 배정 조회로 상태를 확인해 주세요.'}
       });return;
     }
+    if(action==='dashboard'){const company=state.data?.companies.find(c=>c.id===button.dataset.id);if(company)onOpenDashboard({id:company.id,name:company.name,status:company.status});return}
     if(action==='new'){state.assignments=null;state.selectedCounselor='';state.linkage=null;state.detail=null;state.form=blank();state.message='';draw();return}
     if(action==='close'){state.assignments=null;state.selectedCounselor='';state.linkage=null;state.detail=null;state.form=null;draw();return}
     if(action==='previous'||action==='next'){await list({...state.query,page:state.query.page+(action==='next'?1:-1)});return}

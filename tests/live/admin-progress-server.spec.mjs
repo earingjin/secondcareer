@@ -26,6 +26,22 @@ function seed({postEnabled=false}={}){
 const get=(h,token,url)=>h.call(h.progress.handleAdminProgress,token,undefined,'GET',url);
 const sum=(list,f)=>list.reduce((s,c)=>s+f(c),0);
 
+test('company progress uses organization and company IDs, excludes name-only links and returns minimal counts',async()=>{
+  const h=seed({postEnabled:true}),a='30000000-0000-4000-8000-000000000001',b='30000000-0000-4000-8000-000000000002';
+  h.state.tables.client_companies.push({id:a,organization_id:ids.org,name:'가 기업'},{id:b,organization_id:'other-org',name:'나 기업'});
+  h.state.tables.participants.find(p=>p.id==='p02').company_id=a;
+  h.state.tables.participants.find(p=>p.id==='p03').company_id=b;
+  h.state.tables.participants.find(p=>p.id==='x01').company_id=a;
+  const url=id=>'https://fixture.invalid/?companyId='+id;
+  const r=await get(h,ids.admin,url(a));expect(r.status).toBe(200);expect(r.data).toMatchObject({scope:'company',companyId:a,companyName:'가 기업',total:1,pre:{notStarted:0,draft:1,submitted:0},post:{available:true,notStarted:1,draft:0,submitted:0}});
+  expect(Object.keys(r.data).sort()).toEqual(['companyId','companyName','generatedAt','post','pre','scope','total']);
+  for(const token of [ids.counselor,ids.participant,ids.other])expect((await get(h,token,url(a))).status).toBe(403);
+  for(const id of [b,'30000000-0000-4000-8000-000000000099'])expect((await get(h,ids.admin,url(id))).status).toBe(403);
+  for(const id of ['bad',''])expect((await get(h,ids.admin,url(id))).status).toBe(400);
+  h.state.tables.participants.find(p=>p.id==='p02').company_id=null;h.state.postEnabled=false;
+  expect((await get(h,ids.admin,url(a))).data).toMatchObject({total:0,pre:{notStarted:0,draft:0,submitted:0},post:{available:false}});
+});
+
 test('1·6·8 allowed admin gets organization counts by pre state and company, totals add up',async()=>{
   const h=seed(),r=await get(h,ids.admin);
   expect(r.status).toBe(200);expect(r.headers.get('cache-control')).toBe('no-store');

@@ -43,12 +43,17 @@ export async function handleAdminCounselors(req:Request){
     const requestId=b.requestId.toLowerCase();
     const {error:reserveError}=await admin.from('counselor_registration_requests').insert({id:requestId,actor_user_id:user.id,organization_id:profile.organization_id,login_id:loginId,display_name:name});
     if(reserveError)throw new APIError(reserveError.code==='23505'?'COUNSELOR_ALREADY_REQUESTED':'COUNSELOR_NOT_CONFIGURED',reserveError.code==='23505'?409:503);
-    const password=generateTemporaryPassword(),email='sp-'+await secretDigest(loginId)+'@accounts.example.invalid';
+    const password=generateTemporaryPassword(),passwordDigest=await secretDigest(password),email='sp-'+await secretDigest(loginId)+'@accounts.example.invalid';
     // After reservation any transport error is ambiguous. Do not release the
     // reservation, delete Auth, create again, log a password or disclose it.
     try{
-      const created=await admin.auth.admin.createUser({email,password,email_confirm:true,app_metadata:{must_change_password:true,temporary_password_digest:await secretDigest(password),registration_request_id:requestId}});
+      const created=await admin.auth.admin.createUser({email,password,email_confirm:true,app_metadata:{must_change_password:true,temporary_password_digest:passwordDigest,registration_request_id:requestId}});
       if(created.error||!created.data?.user)throw Error();
+      const newUser=created.data.user;
+      // auth_matches validates identity/request/password gate inside the RPC;
+      // its existing contract does not validate the temporary password digest.
+      if(!uuid(newUser.id)||newUser.email!==email||newUser.app_metadata?.registration_request_id!==requestId||
+        newUser.app_metadata?.must_change_password!==true||newUser.app_metadata?.temporary_password_digest!==passwordDigest)throw Error();
       const args={request_id:requestId,new_user_id:created.data.user.id,new_internal_email:email};
       let result;
       try{result=await admin.rpc('secondcareer_complete_counselor_registration',args)}catch{result=null}

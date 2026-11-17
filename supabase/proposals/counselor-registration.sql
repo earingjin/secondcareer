@@ -29,26 +29,18 @@ create function public.secondcareer_complete_counselor_registration(request_id u
 returns jsonb language plpgsql security invoker set search_path='' as $$
 declare
   r public.counselor_registration_requests%rowtype;
-  a auth.users%rowtype;
-  actor auth.users%rowtype;
 begin
   select * into strict r from public.counselor_registration_requests where id=request_id for update;
   -- Serialize changes to the actor profile while linking the account.
   perform 1 from public.user_profiles p where p.user_id=r.actor_user_id
     and p.organization_id=r.organization_id and p.role='admin' for share;
   if not found then raise exception 'FORBIDDEN'; end if;
-  select * into strict actor from auth.users where id=r.actor_user_id for share;
-  if jsonb_typeof(actor.raw_app_meta_data) is distinct from 'object'
-    or not coalesce((actor.raw_app_meta_data->'must_change_password'='false'::jsonb
-      or (not (actor.raw_app_meta_data ? 'must_change_password') and not (actor.raw_app_meta_data ? 'registration_request_id'))),false) then
-    raise exception 'FORBIDDEN';
-  end if;
-  select * into strict a from auth.users where id=new_user_id for share;
-  if a.email is distinct from new_internal_email
-    or a.email is distinct from ('sp-'||encode(sha256(convert_to(r.login_id,'UTF8')),'hex')||'@accounts.example.invalid')
-    or a.raw_app_meta_data->>'registration_request_id' is distinct from request_id::text
-    or a.raw_app_meta_data->'must_change_password' is distinct from 'true'::jsonb
-    or coalesce(a.raw_app_meta_data->>'temporary_password_digest','') !~ '^[a-f0-9]{64}$' then
+  -- service_role has no direct auth.users SELECT. Reuse the installed private
+  -- validator without modifying it or granting additional Auth table access.
+  -- Admin password readiness and the created user's password digest are checked
+  -- by the trusted Edge caller, not by this helper (see review document).
+  if new_internal_email is distinct from ('sp-'||pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(r.login_id,'UTF8')),'hex')||'@accounts.example.invalid')
+    or secondcareer_company_private.auth_matches(new_user_id,new_internal_email,request_id,r.status='pending') is not true then
     raise exception 'AUTH_CONTRACT_MISMATCH';
   end if;
   if r.status='complete' then
@@ -58,6 +50,7 @@ begin
         and p.display_name=r.display_name and l.login_id=r.login_id and l.internal_email=new_internal_email
     ) then raise exception 'COMPLETION_CONFLICT'; end if;
   else
+    if r.status<>'pending' then raise exception 'COMPLETION_CONFLICT'; end if;
     insert into public.user_profiles(user_id,organization_id,role,display_name)
       values(new_user_id,r.organization_id,'counselor',r.display_name);
     insert into public.server_login_lookup(user_id,login_id,internal_email)
