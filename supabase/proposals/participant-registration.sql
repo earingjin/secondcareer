@@ -143,7 +143,7 @@ begin
   if not exists (
     select 1 from public.user_profiles a where a.user_id = r.actor_user_id
       and a.organization_id = r.organization_id
-      and (a.role = 'admin' or (a.role = 'counselor' and a.user_id = r.counselor_user_id))
+      and a.role = 'admin'
   ) or not exists (
     select 1 from public.user_profiles c where c.user_id = r.counselor_user_id
       and c.organization_id = r.organization_id and c.role = 'counselor'
