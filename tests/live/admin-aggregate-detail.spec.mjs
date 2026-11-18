@@ -204,7 +204,7 @@ test.describe('admin aggregate screens 2 and 3',()=>{
     await page.goto(server.url);
     return calls;
   }
-  async function login(page){await page.locator('#lg-id').fill('admin01');await page.locator('#lg-pw').fill('Fixture-password-123!');await page.getByRole('button',{name:'로그인',exact:true}).click()}
+  async function login(page){await page.locator('#lg-id').fill('admin01');await page.locator('#lg-pw').fill('Fixture-password-123!');await page.getByRole('button',{name:'로그인',exact:true}).click();await page.locator('a[href="#admin-aggregate"]').click()}
   const sec=page=>page.locator('#admin-aggregate');
   const open1=async page=>{await login(page);await sec(page).getByRole('button',{name:'통합 분석보고서 열기'}).click();await expect(sec(page).locator('[data-agg-kpi="n"]')).toBeVisible()};
   const tab=(page,k)=>sec(page).locator(`[data-agg-tab="${k}"]`);
@@ -235,9 +235,9 @@ test.describe('admin aggregate screens 2 and 3',()=>{
     await sec(page).locator('#agg-company').selectOption('가 기업');
     await expect(sec(page).locator('[data-agg-base]')).toContainText('[Base: 가 기업 사전·사후 참여자(n=5), 만족도 응답 n=');
     await expect(tab(page,'r3')).toHaveAttribute('aria-selected','true');expect(aggCalls()).toBe(2);
-    await expect(page.getByRole('button',{name:'주소 저장'})).toBeVisible();
     const text=await sec(page).innerText();
     for(const hidden of ['개인-','응답원문','자유의견원문'])expect(text).not.toContain(hidden);
+    await page.locator('a[href="#admin-assessment-url"]').click();await expect(page.getByRole('button',{name:'주소 저장'})).toBeVisible();
     expect(errors).toEqual([]);
   });
 

@@ -156,12 +156,12 @@ test.describe('admin screen',()=>{
     await page.goto(server.url);
     return calls;
   }
-  async function login(page,id='admin01'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill('Fixture-password-123!');await page.getByRole('button',{name:'로그인',exact:true}).click()}
+  async function login(page,id='admin01'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill('Fixture-password-123!');await page.getByRole('button',{name:'로그인',exact:true}).click();if(id==='admin01')await page.locator('a[href="#admin-directory"]').click()}
   const kpi=(page,key)=>page.locator(`#admin-directory [data-dir-kpi="${key}"] b`);
 
   test('admin sees counselors, companies and participants; filters work; progress, URL and registration stay',async({page})=>{
     const h=seed(),errors=[];page.on('pageerror',e=>errors.push(String(e)));await open(page,h);await login(page);
-    await expect(page.getByRole('heading',{name:'관리자 페이지'})).toBeVisible();
+    await expect(page.locator('#admin-directory')).toBeVisible();
     await expect(kpi(page,'participants')).toHaveText('5');await expect(kpi(page,'counselors')).toHaveText('2');
     await expect(kpi(page,'unassigned')).toHaveText('1');await expect(kpi(page,'unknown')).toHaveText('1');
     await expect(page.locator('#admin-progress [data-kpi="total"] b')).toHaveText('5');
@@ -182,19 +182,17 @@ test.describe('admin screen',()=>{
     await expect(page.locator('[data-dir-count]')).toHaveText('조건에 맞는 참여자 1명 / 등록 참여자 5명');
     const text=await page.locator('#admin-directory').innerText();
     for(const hidden of ['비밀 기업','other001','01099998888','응답원문'])expect(text).not.toContain(hidden);
-    // URL setting and registration keep working; refreshing the lists keeps the other inputs.
+    // URL setting and directory refresh remain available through separate menus.
+    await page.locator('a[href="#admin-assessment-url"]').click();
     await page.getByLabel('진단 접속 주소 (HTTPS)').fill('https://example.invalid/assessment');
     await page.getByRole('button',{name:'주소 저장'}).click();await expect(page.getByText('진단 접속 주소를 저장했습니다.')).toBeVisible();
-    await page.locator('#registration-counselor').selectOption(ids.counselor);
-    for(const [label,value] of Object.entries({'이름':'신규등록','연락처':'010-2222-3333','소속기업':'가 기업'}))await page.getByRole('textbox',{name:`1행 ${label}`}).fill(value);
-    await page.getByRole('button',{name:'실제 계정 일괄 등록'}).click();await expect(page.getByRole('cell',{name:'등록 완료',exact:true})).toBeVisible();
     await page.getByLabel('진단 접속 주소 (HTTPS)').fill('https://example.invalid/unsaved');
+    await page.locator('a[href="#admin-directory"]').click();
     await page.getByRole('button',{name:'관리 목록 다시 불러오기'}).click();
-    await expect(kpi(page,'participants')).toHaveText('6');
+    await expect(kpi(page,'participants')).toHaveText('5');
     await expect(page.locator('#dir-counselor')).toHaveValue('unassigned');
-    await page.locator('#dir-counselor').selectOption(ids.counselor);await expect(rows).toHaveCount(3);await expect(rows.filter({hasText:'신규등록'})).toHaveText(/신규등록\s*22223333\s*가 기업\s*상담사\s*미시작/);
-    await expect(page.getByLabel('진단 접속 주소 (HTTPS)')).toHaveValue('https://example.invalid/unsaved');
-    await expect(page.getByLabel('신규등록 임시 비밀번호')).toHaveCount(1);
+    await page.locator('#dir-counselor').selectOption(ids.counselor);await expect(rows).toHaveCount(2);
+    await page.locator('a[href="#admin-assessment-url"]').click();await expect(page.getByLabel('진단 접속 주소 (HTTPS)')).toHaveValue('https://example.invalid/unsaved');
     expect(errors).toEqual([]);
   });
 
@@ -210,7 +208,7 @@ test.describe('admin screen',()=>{
     await expect(page.locator('#admin-directory-status')).toHaveText('운영 관리 목록을 조회할 권한이 없습니다.');
     await expect(page.locator('#admin-directory [data-dir-kpi]')).toHaveCount(0);
     await expect(page.locator('#admin-progress [data-kpi="total"] b')).toHaveText('5');
-    await expect(page.getByRole('button',{name:'주소 저장'})).toBeVisible();
+    await page.locator('a[href="#admin-assessment-url"]').click();await expect(page.getByRole('button',{name:'주소 저장'})).toBeVisible();
   });
 
   test('counselor screen does not call the admin directory',async({page})=>{
