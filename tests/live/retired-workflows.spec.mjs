@@ -32,18 +32,33 @@ test('retired administrator APIs enforce role and stop before Auth creation, rea
   expect(h.state.reads.filter(r=>r.table!=='user_profiles')).toEqual([]);
 });
 
-test('existing participant pre-diagnosis draft and submit stop before the write RPC',async()=>{
-  const h=harness(),t=h.state.tables;
-  t.assessments.push({id:'draft',participant_id:t.participants[0].id,phase:'pre',status:'draft',answers:{pre:[]}});
-  const before=structuredClone(t);
-  h.db.rpc=async()=>{throw Error('Retired action reached RPC')};
+test('STEP 3 compatibility: existing participant pre-draft and submit remain available until STEP 6',async()=>{
+  const h=harness(),t=h.state.tables,called=[];
+  h.state.testAssessmentWrite=async args=>{
+    called.push(args);
+    return {data:{assessmentId:'compat-assessment',status:args.operation==='submit'?'submitted':'draft',updatedAt:'2026-11-23T08:00:00Z'},error:null};
+  };
+  const blank={reg:{},goal:{},expect:{},done:{reg:false,goal:false,expect:false},pre:Array(15).fill(null)};
+  const draft=await h.call(h.assessment,ids.participant,{action:'draft',answers:blank,expectedUpdatedAt:null});
+  expect(draft.status).toBe(200);
+  expect(draft.data.status).toBe('draft');
+  expect(called).toHaveLength(1);
+  expect(called[0]).toMatchObject({actor:ids.participant,target:t.participants[0].id,operation:'draft',calculated:null});
+  expect(called[0].payload.pre).toHaveLength(15);
+  const incomplete=await h.call(h.assessment,ids.participant,{action:'submit',answers:blank,expectedUpdatedAt:null});
+  expect(incomplete.status).toBe(400);
+  expect(incomplete.data.error).toBe('ANSWERS_INCOMPLETE');
+  expect(called).toHaveLength(1);
+  const fixture=JSON.parse(require('node:fs').readFileSync('tests/snapshot/fixture.json','utf8')).db[0];
+  const complete=Object.fromEntries(['reg','goal','expect','done','pre'].map(k=>[k,structuredClone(fixture[k])]));
+  const submitted=await h.call(h.assessment,ids.participant,{action:'submit',answers:complete,expectedUpdatedAt:null});
+  expect(submitted.status).toBe(200);
+  expect(submitted.data.status).toBe('submitted');
+  expect(called).toHaveLength(2);
+  expect(called[1].operation).toBe('submit');
+  expect(called[1].calculated).toBeTruthy();
+  expect(called[1].calculated.evaluationVersion).toBeTruthy();
   for(const action of ['draft','submit']){
-    const body={action,answers:{}};
-    expect((await h.call(h.assessment,ids.participant,body)).data).toEqual({error:'AUTHENTICATED_PRE_RETIRED'});
-    expect((await h.call(h.assessment,ids.participant,body)).status).toBe(410);
-    expect((await h.call(h.assessment,ids.counselor,body)).status).toBe(403);
+    expect((await h.call(h.assessment,ids.counselor,{action,answers:complete})).status).toBe(403);
   }
-  expect(t).toEqual(before);
-  const state=await h.call(h.assessment,ids.participant,null,'GET');
-  expect(state.data.assessments[0].status).toBe('draft');
 });
