@@ -36,6 +36,11 @@ export async function readAll(makeQuery: () => any, key: string) {
 }
 export const chunks = <T>(items: T[], size = 100) => { const out: T[][] = []; for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size)); return out; };
 
+export function readOrganizationCounselors(admin: any, organizationId: string) {
+  return readAll(() => admin.from('user_profiles').select('user_id,display_name')
+    .eq('organization_id', organizationId).eq('role', 'counselor'), 'user_id');
+}
+
 // participant_id -> 'draft' | 'submitted'. A missing row means not started.
 // Unknown states or two rows for one participant and phase mean the stored
 // contract is not what this code expects, so the read fails closed.

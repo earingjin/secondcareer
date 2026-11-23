@@ -1,5 +1,5 @@
 import {APIError,failure,headers,readBody,secretDigest} from '../_shared/registration-http.ts';
-import {authenticateAdmin,chunks,readAll} from '../_shared/admin-access.ts';
+import {authenticateAdmin,chunks,readOrganizationCounselors} from '../_shared/admin-access.ts';
 import {generateTemporaryPassword} from '../_shared/temporary-password.ts';
 
 const reply=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers});
@@ -10,7 +10,7 @@ export async function handleAdminCounselors(req:Request){
   try{
     const {admin,profile,user}=await authenticateAdmin(req);
     if(req.method==='GET'){
-      const profiles=await readAll(()=>admin.from('user_profiles').select('user_id,display_name').eq('organization_id',profile.organization_id).eq('role','counselor'),'user_id');
+      const profiles=await readOrganizationCounselors(admin,profile.organization_id);
       const mappings=new Map<string,string>(),loginIds=new Set<string>();
       for(const ids of chunks(profiles.map(p=>p.user_id),100)){
         const allowed=new Set(ids);let offset=0;

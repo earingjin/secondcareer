@@ -1,9 +1,9 @@
 import {APIError, failure, headers, respond} from '../_shared/registration-http.ts';
-import {authenticateAdmin, readAll, chunks, phaseStates, companyOf, byCompany} from '../_shared/admin-access.ts';
+import {authenticateAdmin, readAll, readOrganizationCounselors, chunks, phaseRows, companyOf, byCompany} from '../_shared/admin-access.ts';
 
 // REQ-A-001/002 (read only): the administrator's organization, its registered
 // companies, counselors and participants. Nothing here creates, changes or deletes
-// an account, assignment or company; those flows have no approved server contract yet.
+// an account, assignment or company. The assignment endpoint handles writes separately.
 // - "Organization" is the operating tenant (organizations, user_profiles.organization_id).
 //   "Company" is the participant's registered 소속기업 text (participants.company_name).
 //   The two are reported separately and never mixed.
@@ -27,7 +27,9 @@ export async function handleAdminDirectory(req: Request) {
   if (req.method === 'OPTIONS') return new Response(null, {status:204, headers});
   if (req.method !== 'GET') return respond({error:'METHOD_NOT_ALLOWED'}, 405);
   try {
-    const {profile, admin, params} = await authenticateAdmin(req,['companyId']);
+    const {profile, admin, params} = await authenticateAdmin(req,['companyId','includeAssignments']);
+    const extended=params.get('includeAssignments')==='true';
+    if(params.has('includeAssignments')&&(!extended||params.has('companyId')))throw new APIError('INVALID_REQUEST',400);
     const org = profile.organization_id;
     let selectedCompany: {id:string,name:string} | null = null;
     if(params.has('companyId')){
@@ -41,12 +43,14 @@ export async function handleAdminDirectory(req: Request) {
     const {data:organization, error:orgError} = await admin.from('organizations').select('name').eq('id', org).maybeSingle();
     if (orgError || !organization) throw new APIError('ORGANIZATION_QUERY_FAILED', 503);
     const participants = await readAll(() => {
-      const query=admin.from('participants').select(selectedCompany?'id,display_name,counselor_user_id,auth_user_id':'id,display_name,company_name,counselor_user_id,auth_user_id').eq('organization_id',org);
+      const query=admin.from('participants').select(selectedCompany?'id,display_name,counselor_user_id,auth_user_id':'id,display_name,company_name,counselor_user_id,auth_user_id'+(extended?',company_id':'')).eq('organization_id',org);
       return selectedCompany?query.eq('company_id',selectedCompany.id):query;
     }, 'id');
     const assignedIds=new Set(participants.map(p=>p.counselor_user_id).filter(Boolean));
-    const counselorRows = (await readAll(() => admin.from('user_profiles').select('user_id,display_name').eq('organization_id', org).eq('role', 'counselor'), 'user_id')).filter(c=>!selectedCompany||assignedIds.has(c.user_id));
-    const pre = await phaseStates(admin, participants.map(p => p.id), 'pre');
+    const counselorRows = (await readOrganizationCounselors(admin,org)).filter(c=>!selectedCompany||assignedIds.has(c.user_id));
+    const pre = await phaseRows(admin, participants.map(p => p.id), 'pre',extended?'submitted_at':'');
+    const masters = extended ? await readAll(() => admin.from('client_companies').select('id,name,status').eq('organization_id',org),'id') : [];
+    const mastersById = new Map(masters.map(c=>[c.id,c.name]));
     const logins = await loginIds(admin, [...new Set([...counselorRows.map(c => c.user_id), ...participants.map(p => p.auth_user_id).filter(Boolean)])]);
 
     const counselors = new Map<string, {id: string, name: string, loginId: string | null, assigned: number}>();
@@ -66,7 +70,9 @@ export async function handleAdminDirectory(req: Request) {
       // `id` lets the admin screen ask for this participant's report. It is a lookup key
       // only: secondcareer-admin-report re-checks the organization on every request.
       return {id:p.id, name:p.display_name || '', loginId:(p.auth_user_id && logins.get(p.auth_user_id)) || null, companyName,
-        counselorId:counselor ? counselor.id : null, assignment, preStatus:pre.get(p.id) || 'notStarted'};
+        counselorId:counselor ? counselor.id : null, assignment, preStatus:pre.get(p.id)?.status || 'notStarted',
+        ...(extended?{companyId:p.company_id??null,officialCompanyName:mastersById.get(p.company_id)??null,
+          submittedAt:pre.get(p.id)?.submitted_at??null,reportAvailable:pre.get(p.id)?.status==='submitted'}:{})};
     });
     list.sort((a, b) => byCompany({name:a.companyName}, {name:b.companyName}) || collator.compare(a.name, b.name) || collator.compare(a.loginId || '', b.loginId || ''));
     return respond({
@@ -74,6 +80,7 @@ export async function handleAdminDirectory(req: Request) {
       totals:{participants:list.length, counselors:counselors.size, unassigned, unknownCounselor},
       counselors:[...counselors.values()].sort((a, b) => collator.compare(a.name, b.name) || collator.compare(a.loginId || '', b.loginId || '')),
       ...(!selectedCompany?{companies:[...companies.values()].sort(byCompany).map(c => ({name:c.name, total:c.total, counselors:c.counselors.size}))}:{}),
+      ...(extended?{assignmentCompanies:masters.filter(c=>c.status==='active').map(c=>({id:c.id,name:c.name}))}:{}),
       participants:list
     });
   } catch (error) { return failure(error); }

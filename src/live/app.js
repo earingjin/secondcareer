@@ -300,11 +300,46 @@ async function loadDirectory(){
     if(!validDirectory(data))throw Error('운영 관리 목록 응답을 확인하지 못했습니다. 새로 조회해 주세요.');
     // Keep a filter only while it still points at something in the new lists.
     const f=directory.filter,keep={company:f.company==='all'||data.companies[Number(f.company)]?.name===directory.data?.companies[Number(f.company)]?.name?f.company:'all',
-      counselor:f.counselor==='all'||['unassigned','unknown'].includes(f.counselor)||data.counselors.some(c=>c.id===f.counselor)?f.counselor:'all',status:f.status};
-    directory={data,loading:false,message:'',filter:keep};
+      counselor:f.counselor==='all'||['unassigned','unknown'].includes(f.counselor)||data.counselors.some(c=>c.id===f.counselor)?f.counselor:'all',status:f.status,classification:f.classification};
+    directory={...directory,data,loading:false,message:'',filter:keep};
   }catch(error){if(run===directoryRun)directory={data:null,loading:false,message:error.message,filter:directory.filter}}
   finally{if(run===directoryRun){directory.loading=false;paintDirectory()}}
 }
+let assignmentRetry=null;
+$('#app').addEventListener('submit',async event=>{
+  const form=event.target.closest('[data-participant-assignment]');
+  if(!form)return;
+  event.preventDefault();
+  if(profile?.role!=='admin'||mustChangePassword||busy||directory.loading||directory.assignmentBusy)return;
+  const {participantId,participantAssignment:kind}=form.dataset;
+  const participant=directory.data?.participants.find(row=>row.id===participantId);
+  if(!participant||!['company','counselor'].includes(kind))return;
+  const expectedId=kind==='company'?participant.companyId:participant.counselorId;
+  const targetId=form.elements.target.value||null;
+  const payload={participantId,kind,targetId,expectedId};
+  const key=JSON.stringify(payload),run=epoch;
+  if(targetId===expectedId&&assignmentRetry?.key!==key)return;
+  const requestId=assignmentRetry?.epoch===run&&assignmentRetry.key===key?assignmentRetry.requestId:crypto.randomUUID();
+  assignmentRetry={epoch:run,key,requestId};
+  directory.assignmentBusy=true;
+  directory.assignmentMessage='변경을 저장하고 있습니다.';
+  paintDirectory();
+  try{
+    const receipt=await api.assignParticipant({...payload,requestId});
+    if(run!==epoch)return;
+    if(receipt?.requestId!==requestId)throw Error('저장 결과를 확인하지 못했습니다. 같은 항목을 다시 저장해 확인해 주세요.');
+    assignmentRetry=null;
+    directory.assignmentMessage='변경을 저장했습니다.';
+    await Promise.all([loadDirectory(),loadProgress()]);
+    if(run===epoch&&selectedAdminCompany)await Promise.all([loadCompanyDirectory(),loadCompanyProgress()]);
+  }catch(error){
+    if(run!==epoch)return;
+    if(['CONFLICT','FORBIDDEN','TARGET_UNAVAILABLE','INVALID_REQUEST'].includes(error.code))assignmentRetry=null;
+    directory.assignmentMessage=error.message;
+  }finally{
+    if(run===epoch){directory.assignmentBusy=false;paintDirectory()}
+  }
+});
 function unlinkedView(){
   const s=unlinked,d=s.data,candidate=d?.participants.find(p=>p.id===s.candidateId),companies=s.companies;
   return `<h2>미연결 참여자 관리</h2><p class="hintline">고객사 ID가 없는 참여자만 표시합니다. 기존 입력 기업명으로 자동 연결하지 않습니다.</p>
@@ -766,7 +801,7 @@ $('#app').addEventListener('change',event=>{
 $('#app').addEventListener('change',event=>{
   const key=event.target.closest('[data-directory-filter]')?.dataset.directoryFilter;
   if(adminScope==='company'&&selectedAdminCompany){if(profile?.role==='admin'&&!busy&&companyDirectory.data&&['counselor','status'].includes(key)){companyDirectory.filter={...companyDirectory.filter,[key]:event.target.value};render();}return}
-  if(!key||!['company','counselor','status'].includes(key)||busy||!directory.data||profile?.role!=='admin')return;
+  if(!key||!['company','counselor','status','classification'].includes(key)||busy||!directory.data||profile?.role!=='admin')return;
   directory.filter={...directory.filter,[key]:event.target.value};paintDirectory();
   $(`#admin-directory [data-directory-filter="${key}"]`)?.focus();
 });

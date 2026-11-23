@@ -94,6 +94,10 @@ export function createAPI(onExpired,env=runtimeEnv()){
         const approveMessages={PRE_REQUIRED:'사전진단을 최종 제출한 내담자만 사후진단을 허용할 수 있습니다.',LOCKED:'이미 사후진단을 제출한 내담자입니다.',FORBIDDEN:'담당 내담자만 사후진단을 허용할 수 있습니다.',POST_NOT_CONFIGURED:'사후진단 기능을 사용할 수 없습니다. 관리자에게 문의해 주세요.'};
         throw Error(approveMessages[data?.error]||'사후진단 허용 여부를 확인하지 못했습니다. 새로 조회해 상태를 확인해 주세요.');
       }
+      if(path==='/functions/v1/secondcareer-admin-participant-assignment'&&response.status!==401){
+        const messages={CONFLICT:'다른 변경이 먼저 저장되었습니다. 목록을 다시 조회해 주세요.',FORBIDDEN:'이 참여자를 변경할 권한이 없습니다.',TARGET_UNAVAILABLE:'선택한 고객사 또는 상담사를 지정할 수 없습니다.',INVALID_REQUEST:'변경 요청을 확인해 주세요.'};
+        throw Object.assign(Error(messages[data?.error]||'저장 결과를 확인하지 못했습니다. 같은 항목을 다시 저장해 확인해 주세요.'),{code:data?.error});
+      }
       if(data?.error==='POST_NOT_APPROVED')throw Error('담당 상담사가 사후진단을 허용한 뒤 참여할 수 있습니다.');
       if(body?.action==='post-draft'&&![401,403,409].includes(response.status))throw Error('사후 응답을 임시저장하지 못했습니다. 연결과 응답을 확인한 뒤 다시 시도해 주세요.');
       if(body?.action==='post-submit'){
@@ -157,7 +161,8 @@ export function createAPI(onExpired,env=runtimeEnv()){
     // REQ-A-004: counts only; the server derives the scope from the signed-in profile.
     adminProgress:(companyId=null)=>request('/functions/v1/secondcareer-admin-progress'+(companyId?'?companyId='+encodeURIComponent(companyId):'')),
     // REQ-A-001/002 read only: organization, companies, counselors and participants in the server-checked scope.
-    adminDirectory:(companyId=null)=>request('/functions/v1/secondcareer-admin-directory'+(companyId?'?companyId='+encodeURIComponent(companyId):'')),
+    adminDirectory:(companyId=null)=>request('/functions/v1/secondcareer-admin-directory'+(companyId?'?companyId='+encodeURIComponent(companyId):'?includeAssignments=true')),
+    assignParticipant:body=>request('/functions/v1/secondcareer-admin-participant-assignment',{method:'POST',body}),
     adminUnlinked:({name='',companyName='',page=1}={})=>request('/functions/v1/secondcareer-admin-unlinked?'+new URLSearchParams({name,companyName,page:String(page)})),
     linkUnlinked:body=>request('/functions/v1/secondcareer-admin-unlinked-link',{body}),
     companies:({search='',status='all',page=1,pageSize=20}={})=>request('/functions/v1/secondcareer-admin-companies?'+new URLSearchParams({search,status,page:String(page),pageSize:String(pageSize)})),
