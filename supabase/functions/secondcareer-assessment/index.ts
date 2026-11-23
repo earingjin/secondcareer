@@ -318,6 +318,7 @@ Deno.serve(async(req)=>{
    if(!postEnabled)return out({error:'POST_NOT_CONFIGURED'},503);
    if(Object.keys(body).length!==2||typeof body.participantId!=='string')return out({error:'INVALID_INPUT'},400);
    const part=parts.find(p=>p.id===body.participantId);if(!part)return out({error:'FORBIDDEN'},403);
+   if(!part.auth_user_id)return out({error:'POST_NOT_AVAILABLE'},403);
    const pre=assessments.find(a=>a.participant_id===part.id);if(!pre||pre.status!=='submitted')return out({error:'PRE_REQUIRED'},403);
    const {data:existing,error:approvalReadError}=await readApproval(db,part.id);if(approvalReadError)return out({error:'QUERY_FAILED'},500);
    if(existing)return out({participantId:part.id,approvedAt:existing.approved_at,source:existing.source==='backfill'?'backfill':'counselor'});

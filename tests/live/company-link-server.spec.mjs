@@ -26,7 +26,13 @@ test('anonymous submitted participant follows admin assignment and reassignment 
   expect((await list(ids.counselor)).data.participants.find(x=>x.id===id)).toMatchObject({login_id:null,anonymous_intake:true,company_name:'입력 기업'});
   expect((await report(ids.counselor)).status).toBe(200);
   h.state.postEnabled=true;
-  expect((await h.call(h.assessment,ids.counselor,{action:'post-approve',participantId:id})).data.error).toBe('POST_NOT_AVAILABLE');
+  const readsBefore=h.state.reads.length,assignmentRpc=h.db.rpc;
+  h.db.rpc=async()=>{throw Error('Unexpected approval RPC')};
+  const approval=await h.call(h.assessment,ids.counselor,{action:'post-approve',participantId:id});
+  expect(approval.status).toBe(403);
+  expect(approval.data.error).toBe('POST_NOT_AVAILABLE');
+  expect(h.state.reads.slice(readsBefore).filter(read=>read.table==='post_approvals'||(read.table==='assessments'&&read.filters?.some(filter=>filter[0]==='phase'&&filter[2]==='post')))).toEqual([]);
+  h.db.rpc=assignmentRpc;
   h.state.postEnabled=false;
   expect((await change(other,ids.counselor)).status).toBe(200);
   expect((await list(ids.counselor)).data.participants.some(x=>x.id===id)).toBe(false);
