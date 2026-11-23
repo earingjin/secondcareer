@@ -10,6 +10,36 @@ const body=c=>({displayName:'합성참여자',phone:'01012345678',counselorUserI
 const call=(h,b,actor=ids.admin)=>h.call(h.registration.handleRegistration,actor,b);
 const detail=(h,id)=>h.call(h.companies.handleAdminCompanies,ids.admin,null,'GET','https://fixture.invalid/?id='+id);
 
+test('anonymous submitted participant follows admin assignment and reassignment on every counselor report request',async()=>{
+  const h=harness(),id=randomUUID(),other=randomUUID(),time='2026-11-23T00:00:00.000Z';
+  h.state.tables.user_profiles.push({user_id:other,organization_id:ids.org,role:'counselor',display_name:'상담사 B'});
+  h.state.users[other]={id:other,app_metadata:{}};
+  const fixture=JSON.parse(fs.readFileSync(new URL('../snapshot/fixture.json',import.meta.url),'utf8')).db[0];
+  const answers=Object.fromEntries(['reg','goal','pre','expect','done','preDate'].map(k=>[k,structuredClone(fixture[k])]));
+  const p={id,organization_id:ids.org,auth_user_id:null,counselor_user_id:null,company_id:null,company_name:'입력 기업',display_name:'합성 내담자'};
+  h.state.tables.participants.push(p);
+  h.state.tables.assessments.push({id:randomUUID(),participant_id:id,phase:'pre',status:'submitted',answers,result:{...fixture.result,snapshot:{counselor:null}},updated_at:time,submitted_at:time});
+  h.db.rpc=async(_,args)=>{expect(args.p_org).toBe(ids.org);expect(p.counselor_user_id).toBe(args.p_expected);p.counselor_user_id=args.p_target;return {data:{requestId:args.p_request}}};
+  const change=async(target,expected)=>h.call(h.assignment.handleParticipantAssignment,ids.admin,{participantId:id,kind:'counselor',targetId:target,expectedId:expected,requestId:randomUUID()});
+  const list=actor=>h.call(h.assessment,actor,null,'GET');
+  const report=actor=>h.call(h.assessment,actor,null,'GET','https://fixture.invalid/?id='+id+'&kind=c');
+  expect((await list(ids.counselor)).data.participants.some(x=>x.id===id)).toBe(false);
+  expect((await change(ids.counselor,null)).status).toBe(200);
+  expect((await list(ids.counselor)).data.participants.find(x=>x.id===id)).toMatchObject({login_id:null,anonymous_intake:true,company_name:'입력 기업'});
+  expect((await report(ids.counselor)).status).toBe(200);
+  h.state.postEnabled=true;
+  expect((await h.call(h.assessment,ids.counselor,{action:'post-approve',participantId:id})).data.error).toBe('POST_NOT_AVAILABLE');
+  h.state.postEnabled=false;
+  expect((await change(other,ids.counselor)).status).toBe(200);
+  expect((await list(ids.counselor)).data.participants.some(x=>x.id===id)).toBe(false);
+  expect((await report(ids.counselor)).status).toBe(403);
+  expect((await list(other)).data.participants.some(x=>x.id===id)).toBe(true);
+  expect((await report(other)).status).toBe(200);
+  expect((await report(ids.other)).status).toBe(403);
+  expect((await change(null,other)).status).toBe(200);
+  expect((await report(other)).status).toBe(403);
+});
+
 test('registered participant submits calculated diagnosis and only assigned counselor can open report',async()=>{
   const h=harness(),c=master();addCompany(h,c);
   const other=randomUUID();h.state.tables.user_profiles.push({user_id:other,organization_id:ids.org,role:'counselor',display_name:'Other'});h.state.users[other]={id:other,email:'other@example.invalid',app_metadata:{}};

@@ -179,7 +179,7 @@ Deno.serve(async(req)=>{
    let lookup=[];
     for(const group of chunks(userIds)){const {data,error}=await readAll(()=>db.from('server_login_lookup').select('user_id,login_id').in('user_id',group),'user_id');if(error)return out({error:'QUERY_FAILED'},500);lookup.push(...data)}
    const loginIds=new Map(lookup.map(row=>[row.user_id,row.login_id]));
-   participantList=(parts||[]).map(({auth_user_id,...part})=>({...part,login_id:loginIds.get(auth_user_id)||null}));
+   participantList=(parts||[]).map(({auth_user_id,...part})=>({...part,login_id:loginIds.get(auth_user_id)||null,anonymous_intake:auth_user_id===null}));
   }
   // Counselors see only post status and submission date here; answers come from ?compare= after submission.
   let postStatus,postApprovals,postApproved;
@@ -215,6 +215,7 @@ Deno.serve(async(req)=>{
    if(!postEnabled)return out({error:'POST_NOT_CONFIGURED'},503);
    if(Object.keys(body).length!==2||typeof body.participantId!=='string')return out({error:'INVALID_INPUT'},400);
    const part=parts.find(p=>p.id===body.participantId);if(!part)return out({error:'FORBIDDEN'},403);
+   if(!part.auth_user_id)return out({error:'POST_NOT_AVAILABLE'},403);
    const pre=assessments.find(a=>a.participant_id===part.id);if(!pre||pre.status!=='submitted')return out({error:'PRE_REQUIRED'},403);
    const {data:existing,error:approvalReadError}=await readApproval(db,part.id);if(approvalReadError)return out({error:'QUERY_FAILED'},500);
    if(existing)return out({participantId:part.id,approvedAt:existing.approved_at,source:existing.source==='backfill'?'backfill':'counselor'});
