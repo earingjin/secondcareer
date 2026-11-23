@@ -5,7 +5,7 @@ import {ITEM_COUNT,ITEMS_PER_AREA,SCALE,SCALE_MIN,SCALE_MAX} from '../js/02-eval
 import {QUESTION_STEPS,qdText,qdOptions,qdRequired,qdStepCodes} from '../js/00-question-defs-module.js';
 import {esc,getPath} from './fields.js';
 import {SAT_QUESTIONS,SAT_COMMENT_LABEL} from './sat-defs.js';
-export function createSurveyView({missing,pname}){
+export function createSurveyView({missing,pname,anonymous=false}){
 const QT=qdText();
 // [문항] 시트 보기 문구 (설문 화면 표시용). 없는 항목은 OPT 문구를 그대로 표시
 const QLABEL={
@@ -31,6 +31,7 @@ const WSTEPS=[
  {t:QUESTION_STEPS[4],codes:qdStepCodes(4)},
  {t:QUESTION_STEPS[5],codes:qdStepCodes(5)}
 ];
+if(anonymous) WSTEPS[0]={...WSTEPS[0],codes:WSTEPS[0].codes.filter(code=>code!=='A2')};
 const stepOf=code=>WSTEPS.findIndex(s=>s.codes.includes(code));
 
 /* 입력 형식 */
@@ -43,7 +44,7 @@ const PHONE_RE=/^01[016789]-\d{3,4}-\d{4}$/,EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]{2
 const agreed=p=>!!p.reg&&(p.reg.a1==='동의'||(p.reg.a1==null&&p.reg.consent===true));
 const isSubmitted=p=>p.status==='submitted'||(p.status==null&&preDone(p));
 
-const TOTAL_Q=Object.keys(QT).length;
+const TOTAL_Q=Object.keys(QT).length-(anonymous?1:0);
 function chips(path){
   const sel=getPath(S.user,path)||[];const max=LIM[path]||1;
   return '<div class="chips">'+OPT[path].map((o,i)=>{const k=sel.indexOf(o);return `<button type="button" class="chip ${k>=0?'on':''}" aria-pressed="${k>=0}" onclick="toggleChip('${path}',${i})">${max>1&&k>=0?'<b>'+(k+1)+'</b>':''}${esc(qLabel(path,i,o))}</button>`}).join('')+'</div>';
@@ -100,7 +101,7 @@ function wConsent(){
   return wHead(0,'참여 동의','세컨플래닝은 첫 상담 전에 응답하는 사전 설문입니다. 응답 결과는 상담 시간에 담당 상담사가 직접 설명해 드립니다.')
   +qb('A1',`<div class="cons" style="margin-bottom:12px"><b>개인정보수집 이용 및 정보제공 동의</b><br>01. 수집 및 이용 목적 : 본인식별정보를 통한 컨설팅 서비스 제공을 위함<br>02. 수집 항목 : 본 서비스 이용을 위한 성명, 주소, 연락처 및 개인이력서 등 개인식별정보<br>03. 보유기간 및 개인정보의 파기 : 신청서 접수일부터 서비스 종료 후 1년 또는 고객사의 즉각적인 파기 요청시 정보를 파기<br>04. 제3자 정보제공 : 취업(또는 창업) 등 다른 기관에 개인정보를 의뢰할 목적일 때, 서비스의 위탁기관에서 수행 결과를 요청<br><span class="hintline">※ 원본 고객등록신청서 문구. 웹 서비스용 법정 고지문은 검토 후 확정 예정</span></div>`
     +`<div class="chips" role="radiogroup">${['동의','미동의'].map(o=>`<button type="button" role="radio" class="chip ${r.a1===o||(o==='동의'&&r.a1==null&&r.consent)?'on':''}" onclick="setConsent('${o}')">${o}</button>`).join('')}</div>`)
-  +qb('A2',a2)
+  +(anonymous?'':qb('A2',a2))
   +`<div class="notice-s">응답을 임시저장한 후 다시 이어서 작성할 수 있습니다. 저장 상태를 확인해 주세요.</div>`
   +wNav(0,'다음 · 기본정보');
 }

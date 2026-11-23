@@ -2,12 +2,12 @@ import {S} from '../shared/state.js';
 
 // UI position only. Questions, validation, answers and persistence stay in the
 // existing survey. Nothing in this controller is included in a save payload.
-export function createMobileSurvey({getProfile,steps,missing,goStep,goQ,nextFrom,render,toast}){
+export function createMobileSurvey({getProfile,steps,missing,goStep,goQ,nextFrom,render,toast,anonymous=false}){
   const media=window.matchMedia('(max-width: 620px)');
   const items=steps.flatMap((step,n)=>step.codes.map(code=>({code,step:n})));
   const reviewStep=steps.length-1;
   let code=null,resumePending=true,focusNext=false,snapshot=null;
-  const eligible=()=>getProfile()?.role==='participant'&&S.view==='wizard'&&S.mode2==='pre'&&!S.cedit;
+  const eligible=()=>(anonymous||getProfile()?.role==='participant')&&S.view==='wizard'&&S.mode2==='pre'&&!S.cedit;
   const active=()=>eligible()&&media.matches;
   const current=()=>items.find(item=>item.code===code);
   function reset(){code=null;resumePending=true;focusNext=false;snapshot=null}

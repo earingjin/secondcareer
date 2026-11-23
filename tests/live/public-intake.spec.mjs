@@ -43,6 +43,15 @@ test('draft/read/status projection and storage errors fail closed',async()=>{
  }
  expect((await call(makeHandler({rpc:async()=>({error:{message:'private'}})},()=>true),request())).data).toEqual({error:'STORAGE_UNAVAILABLE'});
 });
+test('draft rejects missing or refused consent before invoking storage',async()=>{
+ let calls=0;const h=makeHandler({rpc:async()=>{calls++;return {data:{status:'draft',version:1}}}},()=>true);
+ for(const consent of ['미동의','']){
+  const a=answers();a.reg.a1=consent;a.reg.consent=false;
+  const r=await call(h,{...request(),action:'draft',version:0,answers:a});
+  expect(r.status).toBe(400);expect(r.data.error).toBe('CONSENT_REQUIRED');
+ }
+ expect(calls).toBe(0);
+});
 test('unrecognized authority/report operations, malformed tokens, input overflow and disabled service are rejected',async()=>{
  let calls=0;const h=makeHandler({rpc:async()=>{calls++;throw Error('unexpected')}},()=>true);
  for(const b of [{...request(),action:'report'},{...request(),organization_id:randomUUID()},{...request(),accessToken:'forged'},{...request(),junk:'x'.repeat(65536)}])expect((await call(h,b)).status).toBe(400);

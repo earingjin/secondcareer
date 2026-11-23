@@ -26,6 +26,8 @@ export function makeHandler(db:any,enabled:()=>boolean){return async(req:Request
    // sanitize discards client score/result/identity fields and checks option codes/types.
    answers=sanitize(b.answers);
    const p=person({id:b.intakeId,display_name:answers.reg.name||'',counselor_user_id:null},{answers});
+   if(b.action==='draft' && !(answers.reg.a1==='동의'||(answers.reg.a1==null&&answers.reg.consent===true)))
+    return reply({error:'CONSENT_REQUIRED'},400);
    if(b.action==='submit'){
     const codes=missing(p).filter(m=>m.code!=='A2').map(m=>m.code);
     if(codes.length)return reply({error:'ANSWERS_INCOMPLETE',codes},400);
