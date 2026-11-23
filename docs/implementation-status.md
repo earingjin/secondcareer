@@ -1,5 +1,9 @@
 # 요구사항별 구현 현황 점검
 
+**2026-11-23 STEP 1 서버 변경 검증:** 기준 HEAD `25bec60fe23bde310ca4d9650e8f9aa77e0c99cc` 위 작업본. REQ-P-001·005·006 및 REQ-N-002의 신규 익명 서버 경로는 **부분 구현**, 검증은 **로컬 테스트 확인(프로토콜 모의)**이다. `secondcareer-public-assessment/service.ts`와 신규 마이그레이션에 접수·이어쓰기·제출, 토큰 해시·만료, quota, 원자 저장과 멱등 처리를 작성했다. 기존 missing/sanitize/readBody는 shared/pre-validation.ts로 이동했고 기존 인증 경로의 A2 정책은 유지한다. REQ-A-004는 조직 범위 조회를 지원하는 데이터 구조만 추가했으며 신규 저장 데이터의 실제 관리자 화면 조회는 미검증이다. 기존 구현 판정과 아래 과거 집계를 신규 요구사항 전체 완료율로 사용하지 않는다. 새 서버 범위는 4개 ID 모두 부분 구현(완료 0), 전체 44건 재판정은 수행하지 않았다.
+
+신규·영향 서버 모의 43/43, 기본 legacy 골든 10/10, build 모두 종료 0. 최초 신규 테스트 명령은 샌드박스 esbuild 접근 제한으로 종료 1 후 권한 재실행 통과. 실제 PostgreSQL 트랜잭션·경합·RLS·운영 schema, Deno 런타임, 서버 배포·화면 연동은 미검증이다. 격리 localhost DB 실행기의 구문 검사는 통과했으나 실행은 격리 환경변수 부재로 요청 전 종료 1, 실제 DB 검증은 미실행이다. 따라서 실제 서비스 동작 완료가 아니다. 적용 전 확인·API 계약·위험은 `docs/public-assessment-intake.md` 참조. 이전 조사 기준과 개별 변경 이력은 보존한다.
+
 **2026-11-23 STEP 0 기준 변경:** 기준 HEAD `f5e9ec3c06cf523e08edb620fd7bd3e9e403f3f0`. 아래 기존 ID 행과 집계는 이전 요구사항에 대한 역사적 판정이며 새 수용 기준의 완료율이 아니다. REQ-P-001·005·006, REQ-C-001·006, REQ-A-002·004, REQ-N-001은 새 요구사항으로 재판정이 필요하다. 신규 무로그인 접수·미배정 저장·독립 고객사 분류/상담사 배정·고객정보 분리와 삭제 대상 서버 차단은 이 단계에서 구현 또는 검증하지 않았다. 기존 집계를 새 기준에 적용하지 않으며 전체 44건 재조사는 수행하지 않았다.
 
 정적 근거: `secondcareer-assessment/index.ts`는 A2 필수 검증, `auth.getUser`와 참여자 Auth/상담사 연결을 사용한다. `secondcareer-register-participant/index.ts`는 고객사별 상담사 관계를 확인한다. `src/live/counselor-view.js`에는 사전 안내 복사와 기존 5쪽/3쪽 버튼이 있다. 관리자 진행·집계에는 `company_name`과 `company_id`별 경로가 존재한다. `src/live/app.js` 사후 접근은 participant 로그인 역할에 의존한다. 실제 DB 제약·RLS·Auth·배포 상태는 확인하지 않았다. 상세 충돌·미결은 요구사항의 2026-11-23 절을 따른다.
