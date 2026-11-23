@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {createRequire} from 'node:module';
+import {readFileSync} from 'node:fs';
 const {harness,ids}=createRequire(import.meta.url)('./server-harness.cjs');
 
 test('retired administrator APIs enforce role and stop before Auth creation, reads or writes to business data',async()=>{
@@ -49,7 +50,7 @@ test('STEP 3 compatibility: existing participant pre-draft and submit remain ava
   expect(incomplete.status).toBe(400);
   expect(incomplete.data.error).toBe('ANSWERS_INCOMPLETE');
   expect(called).toHaveLength(1);
-  const fixture=JSON.parse(require('node:fs').readFileSync('tests/snapshot/fixture.json','utf8')).db[0];
+  const fixture=JSON.parse(readFileSync('tests/snapshot/fixture.json','utf8')).db[0];
   const complete=Object.fromEntries(['reg','goal','expect','done','pre'].map(k=>[k,structuredClone(fixture[k])]));
   const submitted=await h.call(h.assessment,ids.participant,{action:'submit',answers:complete,expectedUpdatedAt:null});
   expect(submitted.status).toBe(200);
