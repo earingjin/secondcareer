@@ -54,7 +54,7 @@ export async function handleAccount(req: Request) {
     if (profile.role === 'counselor') query = query.eq('user_id', user.id);
     const {data:counselors, error} = await query;
     if (error) throw new APIError('COUNSELOR_QUERY_FAILED', 503);
-    return respond({profile, mustChangePassword, registrationAvailable:profile.role==='admin'&&Deno.env.get('SECONDCAREER_REGISTRATION_ENABLED')==='true', organizationName:org.name, assessmentUrl:org.assessment_url || null, counselors:(counselors || []).map(c => ({id:c.user_id, name:c.display_name || c.user_id}))});
+    return respond({profile, mustChangePassword, registrationAvailable:false, organizationName:org.name, assessmentUrl:org.assessment_url || null, counselors:(counselors || []).map(c => ({id:c.user_id, name:c.display_name || c.user_id}))});
   } catch (error) { return failure(error); }
 }
 Deno.serve(handleAccount);

@@ -49,8 +49,10 @@ test('issue, first password gate, change and existing many-company assignment pr
   expect(h.signIn('new_counselor',pw)?.id).toBe(id);
   expect((await h.call(h.account.handleAccount,id)).data.mustChangePassword).toBe(true);
   expect((await h.call(h.assessment,id)).status).toBe(403);
-  // Only administrators can register participants, regardless of password state.
-  expect((await h.call(h.registration.handleRegistration,id,{displayName:'합성 내담자',phone:'01012345678',requestId:randomUUID()})).data.error).toBe('FORBIDDEN');
+  // The existing first-password gate runs before the administrator role check.
+  const retiredRegistration = await h.call(h.registration.handleRegistration,id,{displayName:'합성 내담자',phone:'01012345678',requestId:randomUUID()});
+  expect(retiredRegistration.status).toBe(403);
+  expect(retiredRegistration.data.error).toBe('PASSWORD_CHANGE_REQUIRED');
   expect((await h.call(h.account.handleAccount,id,{action:'change-password',password:pw})).status).toBe(400);
   h.state.failUpdate=true;expect((await h.call(h.account.handleAccount,id,{action:'change-password',password:'Changed-password-123!'})).status).toBe(503);
   expect((await h.call(h.account.handleAccount,id)).data.mustChangePassword).toBe(true);h.state.failUpdate=false;
@@ -62,10 +64,10 @@ test('issue, first password gate, change and existing many-company assignment pr
   for(let n=0;n<2;n++){
     const companyId=randomUUID();h.state.tables.client_companies.push({id:companyId,organization_id:ids.org,name:'합성 고객사',status:'active'});
     const url=`https://fixture.invalid/?id=${companyId}&section=counselors`,handler=h.companies.handleAdminCompanies;
-    const list=await h.call(handler,ids.admin,null,'GET',url);expect(list.data.counselors).toContainEqual({id,name:'합성 상담사'});
-    const body={action:'assign',counselorUserId:id};expect((await h.call(handler,ids.admin,body,'PATCH',url)).status).toBe(201);
-    expect((await h.call(handler,ids.admin,body,'PATCH',url)).status).toBe(409);
-    expect((await h.call(handler,ids.admin,{...body,action:'unassign'},'PATCH',url)).status).toBe(200);
+    const list=await h.call(handler,ids.admin,null,'GET',url);expect(list.status).toBe(410);
+    const body={action:'assign',counselorUserId:id};expect((await h.call(handler,ids.admin,body,'PATCH',url)).status).toBe(410);
+    expect((await h.call(handler,ids.admin,body,'PATCH',url)).status).toBe(410);
+    expect((await h.call(handler,ids.admin,{...body,action:'unassign'},'PATCH',url)).status).toBe(410);
   }
   expect(JSON.stringify([h.state.tables.participants,h.state.tables.assessments,h.state.tables.assessment_history])).toBe(before);
   const list=await h.call(h.counselors.handleAdminCounselors,ids.admin);expect(list.data.counselors).toContainEqual({id,name:'합성 상담사',loginId:'new_counselor'});

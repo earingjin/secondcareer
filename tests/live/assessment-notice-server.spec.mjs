@@ -104,7 +104,7 @@ test('anonymous assigned participant appears without login notices and opens the
   });
   await page.goto(server.url);await page.locator('#lg-id').fill('consult01');await page.locator('#lg-pw').fill('fixture-password');await page.getByRole('button',{name:'로그인',exact:true}).click();
   const row=page.locator('[data-participant="fixture-0000"]');await expect(row).toContainText('무로그인 설문 참여자');
-  await expect(row).not.toContainText('로그인 ID가 없습니다');await expect(row.locator('[data-copy-notice]')).toBeDisabled();
+  await expect(row).not.toContainText('로그인 ID가 없습니다');await expect(row.locator('[data-copy-notice]')).toHaveCount(0);
   await row.locator('button[onclick^="openRes"]').first().click();await expect(page.locator('.sheet')).toHaveCount(5);
  }finally{await server.close()}
 });

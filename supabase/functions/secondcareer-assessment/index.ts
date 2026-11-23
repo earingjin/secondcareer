@@ -4,7 +4,7 @@ import {QUESTION_DEFS,qdRequired,qdStepCodes} from "./js/00-question-defs-module
 import {OPT,LIM} from "./js/03-options.js";
 import {ITEM_COUNT,SCALE_MIN,SCALE_MAX,EVAL_VERSION} from "./js/02-eval-config.js";
 import {today,areaScores} from "./js/04-util.js";
-import {computeResult,recomputeResultCore,full} from "./js/05-engine.js";
+import {recomputeResultCore,full} from "./js/05-engine.js";
 import {agreed,ansText,person,reportCounselors,submittedReport} from "./shared/report.ts";
 import {participantAccessError} from "./shared/participant-access.ts";
 const h={"Content-Type":"application/json","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, apikey, content-type","Access-Control-Allow-Methods":"GET, POST, OPTIONS","Cache-Control":"no-store"};
@@ -126,6 +126,9 @@ Deno.serve(async(req)=>{
  const {data:me,error:meError}=await db.from('user_profiles').select('user_id,organization_id,role,display_name').eq('user_id',user.id).maybeSingle();
  if(meError)return out({error:'QUERY_FAILED'},500);
  if(!me||!['participant','counselor'].includes(me.role))return out({error:'FORBIDDEN'},403);
+ const body=req.method==='POST'?await readBody(req):null;
+ const action=body?.action;
+ if(action==='draft'||action==='submit')return me.role==='participant'?out({error:'AUTHENTICATED_PRE_RETIRED'},410):out({error:'FORBIDDEN'},403);
  const reportId=req.method==='GET'?new URL(req.url).searchParams.get('id'):null;
  if(reportId&&me.role!=='counselor')return out({error:'FORBIDDEN'},403);
  const compareId=req.method==='GET'&&!reportId?new URL(req.url).searchParams.get('compare'):null;
@@ -197,7 +200,6 @@ Deno.serve(async(req)=>{
     answers:{reg:a.answers.reg||{careers:[{},{},{}]},goal:a.answers.goal||{},expect:a.answers.expect||{},done:a.answers.done||{},pre:a.answers.pre||Array(ITEM_COUNT).fill(null)},
     dateOfAssessment:a.answers.preDate||null,updated_at:a.updated_at,submitted_at:a.submitted_at}))});
  }
- const body=await readBody(req),action=body.action;
   if(action==='post-draft'){
    if(me.role!=='participant'||parts.length!==1)return out({error:'FORBIDDEN'},403);
    if(Deno.env.get('SECONDCAREER_POST_DRAFT_ENABLED')!=='true')return out({error:'POST_NOT_CONFIGURED'},503);
@@ -226,22 +228,16 @@ Deno.serve(async(req)=>{
    if(!data||!validTime(data.approved_at)||!['counselor','backfill'].includes(data.source))return out({error:'APPROVE_UNCONFIRMED'},500);
    return out({participantId:part.id,approvedAt:data.approved_at,source:data.source});
   }
- if(!['draft','submit','edit'].includes(action))return out({error:'ACTION_INVALID'},400);
- if((action==='edit'&&me.role!=='counselor')||(action!=='edit'&&me.role!=='participant'))return out({error:'FORBIDDEN'},403);
- const part=me.role==='participant'?parts[0]:parts.find(p=>p.id===body.participantId);
+ if(action!=='edit')return out({error:'ACTION_INVALID'},400);
+ if(me.role!=='counselor')return out({error:'FORBIDDEN'},403);
+ const part=parts.find(p=>p.id===body.participantId);
  if(!part)return out({error:'FORBIDDEN'},403);
  const old=assessments.find(a=>a.participant_id===part.id);
- if(action==='submit'&&old?.status==='submitted')return out({assessmentId:old.id,status:old.status,updatedAt:old.updated_at});
- if(action==='draft'&&old?.status==='submitted')return out({error:'LOCKED'},409);
- if(action==='edit'&&old?.status!=='submitted')return out({error:'LOCKED'},409);
+ if(old?.status!=='submitted')return out({error:'LOCKED'},409);
  const input=sanitize(body.answers),p=person(part,{answers:input});
- if(action!=='draft'){
-  const misses=missing(p);if(misses.length)return out({error:'ANSWERS_INCOMPLETE',codes:misses.map(m=>m.code)},400);
- }
- input.preDate=old?.answers?.preDate||(action==='draft'?null:today());
- if(action!=='draft')input.done={reg:true,goal:true,expect:true};
- let result=null;
- if(action==='edit'){
+ const misses=missing(p);if(misses.length)return out({error:'ANSWERS_INCOMPLETE',codes:misses.map(m=>m.code)},400);
+ input.preDate=old.answers?.preDate||today();
+ input.done={reg:true,goal:true,expect:true};
   const before=person(part,old);
   if(!QUESTION_DEFS.filter(q=>q.step<5).some(q=>ansText(before,q.code)!==ansText(p,q.code))){
    if(body.expectedUpdatedAt!==old.updated_at)return out({error:'CONFLICT'},409);
@@ -250,11 +246,7 @@ Deno.serve(async(req)=>{
   // The original recomputation keeps selected comments/keywords when their
   // classification is unchanged. Never accept a client-supplied result.
   p.preDate=input.preDate;
-  result=recomputeResultCore(p,old.result,()=>({counselor:counselors[p.counselor]?Object.assign({code:p.counselor},counselors[p.counselor]):null,generatedAt:new Date().toISOString()}));
- }else if(action==='submit'){
-  p.preDate=input.preDate;result=computeResult(p);result.evaluationVersion=EVAL_VERSION;
-  result.snapshot={counselor:counselors[p.counselor]?Object.assign({code:p.counselor},counselors[p.counselor]):null,generatedAt:new Date().toISOString()};
- }
+  const result=recomputeResultCore(p,old.result,()=>({counselor:counselors[p.counselor]?Object.assign({code:p.counselor},counselors[p.counselor]):null,generatedAt:new Date().toISOString()}));
  const {data,error}=await db.rpc('secondcareer_write_v1',{actor:user.id,target:part.id,operation:action,payload:input,calculated:result,expected_updated_at:body.expectedUpdatedAt||null});
  if(error)return out({error:error.code==='40001'?'CONFLICT':'WRITE_FAILED'},error.code==='40001'?409:500);
  return out(data);

@@ -45,7 +45,7 @@ async function setup(page,{gate=true,status='submitted',role='participant',pendi
  else if(pending)await expect(page.getByRole('heading',{name:'최초 비밀번호 변경'})).toBeVisible();
  else if(role==='counselor')await expect(page.getByRole('heading',{name:'상담사 페이지'})).toBeVisible();
  else if(status==='submitted')await expect(page.getByRole('heading',{name:/제출이 완료되었습니다/})).toBeVisible();
- else await expect(page.locator('#live-save')).toBeVisible();
+ else await expect(page.getByRole('heading',{name:'사전진단 접수 안내'})).toBeVisible();
  return {writes,requests,state};
 }
 
@@ -271,9 +271,9 @@ test('post link opens the post assessment after login and after reload; leaving 
  await page.getByRole('button',{name:'나중에 하기'}).click();await expect(page.getByRole('heading',{name:/제출이 완료되었습니다/})).toBeVisible();expect(new URL(page.url()).search).toBe('');
  await page.reload();await expect(page.getByRole('heading',{name:/제출이 완료되었습니다/})).toBeVisible();await expect(page.getByRole('heading',POST_HEADING)).toHaveCount(0);
 });
-test('post link with an unsubmitted pre assessment explains and stays on the pre survey',async({page})=>{
+test('post link with an unsubmitted pre assessment explains and shows the current intake guidance',async({page})=>{
  await setup(page,{entry:true,status:'draft'});
- await expect(page.getByRole('alert')).toContainText('사전진단을 먼저 완료');await expect(page.locator('#live-save')).toBeVisible();
+ await expect(page.getByRole('alert')).toContainText('사전진단을 먼저 완료');await expect(page.getByRole('heading',{name:'사전진단 접수 안내'})).toBeVisible();
  await expect(page.getByRole('heading',POST_HEADING)).toHaveCount(0);expect(new URL(page.url()).search).toBe('');
 });
 test('server refusal of post entry is shown and the marker is cleared',async({page})=>{
@@ -295,7 +295,7 @@ async function mockClipboard(page,fail=false){await page.evaluate(fail=>{window.
 const NOTICE_OPTIONS={role:'counselor',assessmentUrl:'https://example.invalid/diagnosis',loginId:'client01'};
 test('counselor copies the post notice with link, login ID and no password',async({page})=>{
  await setup(page,{...NOTICE_OPTIONS,postAssessments:[{participant_id:'fixture',status:'draft',submitted_at:null}]});await mockClipboard(page);
- const row=page.locator('tr[data-participant="fixture"]');await expect(row.getByRole('button',{name:'사전진단 안내 복사'})).toBeEnabled();
+ const row=page.locator('tr[data-participant="fixture"]');await expect(row.getByRole('button',{name:'사전진단 안내 복사'})).toHaveCount(0);
  await expect(page.getByRole('columnheader',{name:'로그인 아이디'})).toBeVisible();await expect(row.locator('td').nth(1)).toHaveText('client01');
  await row.getByRole('button',{name:'사후진단 안내 복사'}).click();await expect(page.locator('#copy-notice-status')).toHaveText('사후진단 안내문을 복사했습니다.');
  const text=await page.evaluate(()=>window.__copied);
@@ -323,7 +323,7 @@ test('post notice copy is disabled before pre submission, after post submission 
 });
 test('post notice copy is hidden when the browser gate is off',async({page})=>{
  await setup(page,{...NOTICE_OPTIONS,gate:false,postAssessments:[]});
- await expect(page.getByRole('button',{name:'사전진단 안내 복사'})).toBeVisible();await expect(page.getByRole('button',{name:'사후진단 안내 복사'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'사전진단 안내 복사'})).toHaveCount(0);await expect(page.getByRole('button',{name:'사후진단 안내 복사'})).toHaveCount(0);
 });
 // ---- DEV-014: counselor approval before the post assessment (fixtures only) --------------------
 test('unapproved participant sees a disabled post button and enters after approval and reload',async({page})=>{
