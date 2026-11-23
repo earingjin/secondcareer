@@ -182,11 +182,11 @@ export function createAPI(onExpired,env=runtimeEnv()){
     adminAggregate:(company=null)=>request('/functions/v1/secondcareer-admin-aggregate'+(company?'?company='+encodeURIComponent(company):'')),
     adminCompanyAggregate:companyId=>request('/functions/v1/secondcareer-admin-aggregate?companyId='+encodeURIComponent(companyId)),
     // REQ-A-005: the server re-checks the participant's organization and final submission.
-    adminReport:(id,kind='c',companyId=null)=>{if(!['c','p'].includes(kind))throw Error('보고서 종류를 확인해 주세요.');return request('/functions/v1/secondcareer-admin-report?id='+encodeURIComponent(id)+'&kind='+kind+(companyId?'&companyId='+encodeURIComponent(companyId):''))},
+    adminReport:(id,kind='c',companyId=null)=>{if(!['c','p','i'].includes(kind))throw Error('보고서 종류를 확인해 주세요.');return request('/functions/v1/secondcareer-admin-report?id='+encodeURIComponent(id)+'&kind='+kind+(companyId?'&companyId='+encodeURIComponent(companyId):''))},
     postDraft:()=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?phase=post')},
     compare:id=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment?compare='+encodeURIComponent(id))},
     write:(action,body)=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');return request('/functions/v1/secondcareer-assessment',{body:{action,...body}})},
-    report:(id,kind='c')=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');if(!['c','p'].includes(kind))throw Error('보고서 종류를 확인해 주세요.');return request('/functions/v1/secondcareer-assessment?id='+encodeURIComponent(id)+'&kind='+kind)},
+    report:(id,kind='c')=>{if(passwordChangeRequired)throw Error('먼저 임시 비밀번호를 변경해 주세요.');if(!['c','p','i'].includes(kind))throw Error('보고서 종류를 확인해 주세요.');return request('/functions/v1/secondcareer-assessment?id='+encodeURIComponent(id)+'&kind='+kind)},
     async logout(){try{if(session)await request('/auth/v1/logout',{method:'POST'})}finally{clear()}},
     clear
   };

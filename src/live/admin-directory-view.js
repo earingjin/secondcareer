@@ -45,7 +45,7 @@ const option=(value,labelText,selected)=>`<option value="${esc(value)}" ${select
 const companyLabel=name=>name===null?'소속기업 미지정':name;
 // REQ-A-005: only a final pre submission has a report. The server re-checks scope and state.
 const reportCell=p=>p.preStatus==='submitted'
-  ?`<div class="acts"><button class="btn sm" data-admin-report="${esc(p.id)}" data-kind="c">상담사용 5쪽</button><button class="btn ghost sm" data-admin-report="${esc(p.id)}" data-kind="p">내담자용 3쪽</button></div>`
+  ?`<div class="acts"><button class="btn ghost sm" data-admin-report="${esc(p.id)}" data-kind="i">고객정보 보기</button><button class="btn sm" data-admin-report="${esc(p.id)}" data-kind="c">상담사용 5쪽</button><button class="btn ghost sm" data-admin-report="${esc(p.id)}" data-kind="p">내담자용 3쪽</button></div>`
   :`<span class="hintline">${p.preStatus==='draft'?'임시저장 상태':'미시작'} · 최종 제출 후 조회 가능</span>`;
 const assignmentLabel=(p,byId)=>p.assignment==='assigned'?byId.get(p.counselorId)?.name||'-':p.assignment==='unassigned'?'미배정':'담당 확인 필요';
 

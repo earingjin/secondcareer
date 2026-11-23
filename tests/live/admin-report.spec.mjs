@@ -35,6 +35,22 @@ const admin=(h,token,id,kind,extra)=>h.call(h.adminReport.handleAdminReport,toke
 const counselor=(h,token,id,kind)=>h.call(h.assessment,token,undefined,'GET',url(id,kind));
 const sheets=html=>html.slice(html.indexOf('<section class="sheet'));
 const printable=html=>(html.match(/<section class="sheet(?![^"]*noprintpage)/g)||[]).length;
+test('customer information and counselor report are separated and scoped',async()=>{
+ const h=seed();h.state.tables.participants.find(p=>p.id===P.submitted).auth_user_id=null;
+ for(const fetchReport of [()=>admin(h,ids.admin,P.submitted,'i'),()=>counselor(h,ids.counselor,P.submitted,'i')]){
+  const r=await fetchReport();expect(r.status).toBe(200);expect(printable(r.data.html)).toBe(1);
+  for(const text of ['응답자 기본 정보','휴대폰','이메일','소속회사','담당 상담사'])expect(r.data.html).toContain(text);
+  expect(r.data.html).not.toContain(ids.counselor);expect(r.data.html).not.toContain('경력목표별 응답');
+ }
+ const c=await counselor(h,ids.counselor,P.submitted,'c');expect(printable(c.data.html)).toBe(5);
+ expect(c.data.html).not.toContain('01. 응답자 기본 정보');
+ for(const text of ['경력목표별 응답','커리어 컨설팅 서비스 기대','응답자 종합결과','평가기준표'])expect(c.data.html).toContain(text);
+ expect((await counselor(h,C2,P.submitted,'i')).status).toBe(403);
+ expect((await admin(h,ids.admin,P.otherOrg,'i')).status).toBe(403);
+ h.state.tables.participants.find(p=>p.id===P.submitted).counselor_user_id=C2;
+ expect((await counselor(h,ids.counselor,P.submitted,'i')).status).toBe(403);
+ expect((await counselor(h,C2,P.submitted,'i')).status).toBe(200);
+});
 const COMPANY_A='40000000-0000-4000-8000-000000000001',COMPANY_B='40000000-0000-4000-8000-000000000002';
 function seedCompanies(h){
   for(const [id,name] of [[COMPANY_A,'가 기업'],[COMPANY_B,'나 기업']])h.state.tables.client_companies.push({id,organization_id:ids.org,name,start_date:'2026-11-01',end_date:'2027-01-31',pm_name:'담당 PM',pm_email:'pm@example.invalid',pm_phone:'01000000000',status:'active',created_at:'2026-11-01T00:00:00Z',updated_at:'2026-11-01T00:00:00Z'});
@@ -166,6 +182,29 @@ test.describe('admin report screen',()=>{
     return counts.length?Math.max(...counts):null;
   }
 
+  test('customer, counselor and client reports produce independent PDF pages',async({page})=>{
+    const h=seed();await open(page,h);await login(page);
+    await page.locator('a[href="#admin-directory"]').click();
+    await row(page,'보고서대상').getByRole('button',{name:'고객정보 보기'}).click();
+    await expect(page.locator('.sheet')).toHaveCount(1);expect(await pdfPages(page)).toBe(1);
+    await page.locator('#admin-report-kind').getByRole('button',{name:'상담사용 5쪽'}).click();
+    await expect(page.locator('.sheet')).toHaveCount(5);expect(await pdfPages(page)).toBe(5);
+    await page.locator('#admin-report-kind').getByRole('button',{name:'내담자용 3쪽'}).click();
+    await expect(page.locator('.sheet')).toHaveCount(3);expect(await pdfPages(page)).toBe(3);
+  });
+  test('customer information print keeps the table inside the page and hides controls',async({page})=>{
+    const h=seed();
+    const a=h.state.tables.assessments.find(x=>x.participant_id===P.submitted);
+    a.answers.reg.careers[0].task='경력 상담 업무 '.repeat(12);
+    await open(page,h);await login(page);await page.locator('a[href="#admin-directory"]').click();
+    await row(page,'보고서대상').getByRole('button',{name:'고객정보 보기'}).click();
+    await page.emulateMedia({media:'print'});await page.evaluate(()=>window.dispatchEvent(new Event('beforeprint')));
+    const metrics=await page.locator('.sheet').evaluate(el=>({width:el.clientWidth,scroll:el.scrollWidth,zoom:Number(el.style.zoom||1),toolbar:getComputedStyle(document.querySelector('.toolbar')).display}));
+    expect(metrics.scroll).toBeLessThanOrEqual(metrics.width+1);expect(metrics.zoom).toBeGreaterThan(0.8);expect(metrics.toolbar).toBe('none');
+    expect((await page.pdf({preferCSSPageSize:true,printBackground:true})).length).toBeGreaterThan(1000);
+    await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));await page.emulateMedia({media:null});
+  });
+
   test('10 admin opens both report kinds from the list, prints and returns with filters kept',async({page})=>{
     const errors=[];page.on('pageerror',e=>errors.push(String(e)));
     const h=seed();const calls=await open(page,h);await login(page);
@@ -222,7 +261,7 @@ test.describe('admin report screen',()=>{
 
   test('9 browser print page counts match the assigned counselor view',async({page})=>{
     const h=seed();await open(page,h);await login(page,'consult01');
-    await page.locator(`[data-participant="${P.submitted}"] button[onclick^="openRes"]`).first().click();
+    await page.locator(`[data-participant="${P.submitted}"]`).getByRole('button',{name:'결과 리포트 · 상담사용 5쪽'}).click();
     await expect(page.locator('section.sheet:not(.noprintpage)')).toHaveCount(5);const counselorPages=await pdfPages(page);
     const counselorSheets=await page.locator('section.sheet').evaluateAll(s=>s.map(e=>e.outerHTML).join(''));
     await page.evaluate(()=>logout());await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();await login(page);await page.locator('a[href="#admin-directory"]').click();
