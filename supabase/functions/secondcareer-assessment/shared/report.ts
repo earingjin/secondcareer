@@ -37,6 +37,11 @@ export function person(part,a){
 const historyPanel=(p,histories)=>'<div class="editpanel noprint"><h4>상담사 확인용 (인쇄되지 않음)</h4><div>실제 제출 완료 · 평가 버전 '+esc(EVAL_VERSION)+'</div><b>변경 이력 '+histories.length+'건</b><ul>'+histories.map(h=>{const before=person({id:p.id,display_name:p.nick,counselor_user_id:p.counselor},{answers:h.before_data?.answers}),after=person({id:p.id,display_name:p.nick,counselor_user_id:p.counselor},{answers:h.after_data?.answers});const changes=QUESTION_DEFS.filter(q=>q.step<5).map(q=>({code:q.code,before:ansText(before,q.code),after:ansText(after,q.code)})).filter(q=>q.before!==q.after);return '<li>'+esc(h.created_at)+' · '+changes.map(c=>esc(qdText()[c.code])+': '+esc(c.before)+' → '+esc(c.after)).join(' / ')+'</li>'}).join('')+'</ul></div>';
 const COUNSELOR_TOOLBAR={backV:()=> 'cns',backLbl:()=> '담당 내담자 목록',editPanel:historyPanel};
 export function report(p,counselors,histories=[],kind='c',toolbar=COUNSELOR_TOOLBAR){
+ if(kind==='i'){
+  const r=p.reg||{},career=(r.careers||[])[0]||{},c=counselors[p.counselor];
+  const row=(a,b,d,e)=>`<tr><th>${a}</th><td>${esc(b||'-')}</td><th>${d}</th><td>${esc(e||'-')}</td></tr>`;
+  return `<div class="narrow"><div class="toolbar"><button class="btn ghost sm" onclick="nav('${toolbar.backV()}')">← ${toolbar.backLbl()}</button><button class="btn sm" onclick="window.print()">PDF로 저장(인쇄)</button></div><section class="sheet">${sheetHead('고객정보')}<h3 class="st">01. 응답자 기본 정보</h3><div class="scroll"><table class="t">${row('응답자 이름',r.name||p.nick,'담당 상담사',c?.n)}${row('성별',r.gender,'생년월일',r.birthDate||r.birth)}${row('휴대폰',r.phone,'이메일',r.email)}${row('소속회사',career.co,'최근 직급/직책',career.title)}${row('업무/부서',career.task,'해당업종',r.industry==='기타'&&r.industryEtc?r.industryEtc:r.industry)}${row('기대소득수준',r.income==='기타'&&r.incomeEtc?r.incomeEtc:r.income,'개인정보 동의',agreed(p)?'동의':'-')}</table></div>${sheetFoot(1,1)}</section></div>`;
+ }
  S.res={id:p.id,role:kind};S.from=kind==='p'?'admin':'cns';S.prevEnt=null;setCounselors(counselors);
  const renderer=createProfile({byId:()=>p,pname:p=>p.reg.name||p.nick,getEntities:()=>[],entOf:()=>null,pmOf:()=>COUNSELORS[p.counselor]||null,
  resultOf:p=>p.result,backV:toolbar.backV,backLbl:toolbar.backLbl,editPanel:p=>toolbar.editPanel(p,histories),jmLogo,hdcLogo,leafSVG,sheetHead,sheetFoot,
@@ -62,6 +67,6 @@ export async function submittedReport(db,part,a,counselors,kindParam,{toolbar=CO
   if(error)return [500,{error:'QUERY_FAILED'}];histories=data||[];
  }
  const kind=kindParam||'c';
- if(!['p','c'].includes(kind))return [400,{error:'INVALID_REPORT_KIND'}];
+ if(!['p','c','i'].includes(kind))return [400,{error:'INVALID_REPORT_KIND'}];
  return [200,{html:report(person(part,a),counselors,histories,kind,toolbar)}];
 }

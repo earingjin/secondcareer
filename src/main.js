@@ -3,5 +3,6 @@
 if (import.meta.env.MODE === 'demo') {
   import('./prototype.js');
 } else {
-  import('./live/app.js');
+  if (new URLSearchParams(location.search).get('entry') === 'pre') import('./live/public-survey.js');
+  else import('./live/app.js');
 }

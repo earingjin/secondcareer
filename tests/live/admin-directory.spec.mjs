@@ -24,6 +24,33 @@ function seed(){
   return h;
 }
 const get=(h,token,url)=>h.call(h.directory.handleAdminDirectory,token,undefined,'GET',url);
+const companyId='30000000-0000-4000-8000-000000000001';
+
+test('extended directory includes anonymous submissions by organization and keeps input company separate',async()=>{
+  const h=seed(),t=h.state.tables;
+  const participant=t.participants.find(p=>p.id==='d3');
+  participant.counselor_user_id=null;
+  t.assessments.push({id:'a-d3',participant_id:'d3',phase:'pre',status:'submitted',submitted_at:'2026-11-23T00:00:00Z'});
+  t.client_companies.push({id:companyId,name:'나 기업',status:'active',organization_id:ids.org});
+  const r=await get(h,ids.admin,'https://fixture.invalid/?includeAssignments=true');
+  expect(r.status).toBe(200);
+  expect(r.data.participants.find(p=>p.id==='d3')).toMatchObject({loginId:null,companyName:'나 기업',companyId:null,officialCompanyName:null,assignment:'unassigned',submittedAt:'2026-11-23T00:00:00Z',reportAvailable:true});
+  expect(r.data.assignmentCompanies).toEqual([{id:companyId,name:'나 기업'}]);
+});
+
+test('assignment endpoint authenticates, derives organization, and maps RPC errors',async()=>{
+  const h=seed(),calls=[];
+  const body={participantId:'40000000-0000-4000-8000-000000000001',kind:'company',targetId:companyId,expectedId:null,requestId:companyId};
+  let error=null;
+  h.db.rpc=async(name,args)=>{calls.push({name,args});return {error,data:{requestId:args.p_request}}};
+  const issue=(token,b=body)=>h.call(h.assignment.handleParticipantAssignment,token,b);
+  for(const token of [null,ids.participant,ids.counselor,ids.other])expect((await issue(token)).status).toBe(token?403:401);
+  expect((await issue(ids.admin,{...body,organizationId:'other-org'})).status).toBe(400);
+  expect(calls).toHaveLength(0);
+  expect((await issue(ids.admin)).data).toEqual({requestId:body.requestId});
+  expect(calls[0].args).toMatchObject({p_org:ids.org,p_actor:ids.admin,p_target:companyId,p_expected:null});
+  for(const [code,status] of [['40001',409],['42501',403],['22023',400]]){error={code};expect((await issue(ids.admin)).status).toBe(status)}
+});
 
 test('company directory isolates IDs, official names and actual counselors with no name-only links',async()=>{
   const h=seed(),a='30000000-0000-4000-8000-000000000001',b='30000000-0000-4000-8000-000000000002',empty='30000000-0000-4000-8000-000000000003';
@@ -147,7 +174,8 @@ test.describe('admin screen',()=>{
       else if(url.pathname.endsWith('/secondcareer-register-participant'))result=await h.call(h.registration.handleRegistration,token,body,request.method());
       else if(url.pathname.endsWith('/secondcareer-admin-progress'))result=await h.call(h.progress.handleAdminProgress,token,body,request.method());
       else if(url.pathname.endsWith('/secondcareer-admin-companies'))result=await h.call(h.companies.handleAdminCompanies,token,body,request.method(),'https://fixture.invalid/'+url.search);
-      else if(url.pathname.endsWith('/secondcareer-admin-directory'))result=directoryStatus?{status:directoryStatus,data:{error:'FIXTURE'}}:await h.call(h.directory.handleAdminDirectory,token,body,request.method());
+      else if(url.pathname.endsWith('/secondcareer-admin-directory'))result=directoryStatus?{status:directoryStatus,data:{error:'FIXTURE'}}:await h.call(h.directory.handleAdminDirectory,token,body,request.method(),'https://fixture.invalid/'+url.search);
+      else if(url.pathname.endsWith('/secondcareer-admin-participant-assignment'))result=await h.call(h.assignment.handleParticipantAssignment,token,body);
       else if(url.pathname.endsWith('/secondcareer-assessment'))result={status:200,data:{profile:{role:'counselor',display_name:'상담사'},participants:[],assessments:[],counselors:{}}};
       else if(url.pathname==='/auth/v1/logout')return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*'}});
       else throw Error('Unexpected API path: '+url.pathname);
@@ -158,6 +186,37 @@ test.describe('admin screen',()=>{
   }
   async function login(page,id='admin01'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill('Fixture-password-123!');await page.getByRole('button',{name:'로그인',exact:true}).click();if(id==='admin01')await page.locator('a[href="#admin-directory"]').click()}
   const kpi=(page,key)=>page.locator(`#admin-directory [data-dir-kpi="${key}"] b`);
+
+  test('administrator saves and clears each field independently and sees reloaded rows',async({page})=>{
+    const h=seed(),t=h.state.tables;
+    const secondCompany='30000000-0000-4000-8000-000000000002';
+    const p=t.participants.find(p=>p.id==='d3');
+    p.id='40000000-0000-4000-8000-000000000003';p.counselor_user_id=null;p.company_id=null;
+    t.client_companies.push({id:companyId,name:'공식 고객사',organization_id:ids.org,status:'active'});
+    t.client_companies.push({id:secondCompany,name:'공식 고객사',organization_id:ids.org,status:'active'});
+    t.assessments.push({id:'a-d3',participant_id:p.id,phase:'pre',status:'submitted',submitted_at:'2026-11-23T00:00:00Z',answers:{},result:{}});
+    const original=structuredClone(t.assessments);
+    let lostRequest=null;
+    h.db.rpc=async(_,a)=>{
+      if(lostRequest===a.p_request)return {data:{requestId:a.p_request}};
+      const key=a.p_kind==='company'?'company_id':'counselor_user_id';
+      expect(a.p_expected).toBe(p[key]);p[key]=a.p_target;
+      if(lostRequest===null){lostRequest=a.p_request;return {error:{code:'FIXTURE_TIMEOUT'}}}
+      return {data:{requestId:a.p_request}};
+    };
+    await open(page,h);await login(page);
+    const row=page.locator('[data-dir-participant]').filter({hasText:'참여-d3'});
+    await expect(row).toContainText('제출 완료');await expect(row).toContainText('미분류');
+    for(const [kind,id,button] of [['counselor',ids.counselor,'상담사 저장'],['counselor',ids.counselor,'상담사 저장'],['company',companyId,'고객사 저장'],['company',secondCompany,'고객사 저장'],['counselor',C2,'상담사 저장'],['counselor','','상담사 저장'],['company','','고객사 저장']]){
+      const form=row.locator('[data-participant-assignment="'+kind+'"]');
+      const retry=!lostRequest;
+      await form.locator('select').selectOption(id);await form.getByRole('button',{name:button}).click();
+      await expect(form.locator('select')).toBeEnabled();
+      await expect(form.locator('select')).toHaveValue(retry?'':id);
+    }
+    expect(p).toMatchObject({company_name:'나 기업',company_id:null,counselor_user_id:null});
+    expect(t.assessments).toEqual(original);
+  });
 
   test('admin sees counselors, companies and participants; filters work; progress, URL and registration stay',async({page})=>{
     const h=seed(),errors=[];page.on('pageerror',e=>errors.push(String(e)));await open(page,h);await login(page);

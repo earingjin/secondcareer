@@ -87,6 +87,28 @@ test('an assigned submission beyond the first page remains editable and recalcul
  expect((await h.request('c2',null,{action:'edit',participantId:'fixture-0249',answers,expectedUpdatedAt:old.updated_at})).status).toBe(403);
 });
 
+test('anonymous assigned participant appears without login notices and opens the report',async({page})=>{
+ const fixture=population(1);fixture.extraParts[0].auth_user_id=null;
+ fixture.extraAssessments[0].status='submitted';fixture.extraAssessments[0].submitted_at='2026-01-01';
+ const h=setup({...fixture,cap:37}),server=await serve('src');
+ try{
+  await page.route('**/main.js',route=>route.fulfill({contentType:'text/javascript',body:"import './live/app.js';"}));
+  await page.route('https://tafrbtqjlrokdnhudswb.supabase.co/**',async route=>{
+   const req=route.request(),url=new URL(req.url());let result;
+   if(req.method()==='OPTIONS')return route.fulfill({status:204});
+   if(url.pathname.endsWith('secondcareer-login'))result={status:200,data:{access_token:'fixture-token',refresh_token:'fixture-refresh',expires_in:3600}};
+   else if(url.pathname.endsWith('secondcareer-account'))result={status:200,data:{profile:{role:'counselor',display_name:'상담사'},mustChangePassword:false,registrationAvailable:false}};
+   else if(url.pathname.endsWith('secondcareer-assessment'))result=await h.request('c1',url.searchParams.get('id'));
+   else throw Error('unexpected request');
+   return route.fulfill({status:result.status,contentType:'application/json',body:JSON.stringify(result.data)});
+  });
+  await page.goto(server.url);await page.locator('#lg-id').fill('consult01');await page.locator('#lg-pw').fill('fixture-password');await page.getByRole('button',{name:'로그인',exact:true}).click();
+  const row=page.locator('[data-participant="fixture-0000"]');await expect(row).toContainText('무로그인 설문 참여자');
+  await expect(row).not.toContainText('로그인 ID가 없습니다');await expect(row.locator('[data-copy-notice]')).toHaveCount(0);
+  await row.locator('button[onclick^="openRes"]').first().click();await expect(page.locator('.sheet')).toHaveCount(5);
+ }finally{await server.close()}
+});
+
 test('250-person live list searches duplicate names, filters status and opens the last report',async({page})=>{
  const h=setup({...population(250),cap:37}),server=await serve('src');
  try{

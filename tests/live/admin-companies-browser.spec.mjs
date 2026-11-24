@@ -72,12 +72,12 @@ test('admin starts with the company list, opens a customer by name and returns w
   await expect(page.locator('#admin-progress')).toBeHidden();
   await sec(page).getByRole('button',{name:a.name,exact:true}).click();
   await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(a.id);
-  for(const [id,label] of [['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서'],['registration','참여자 일괄 등록']]){
+  for(const [id,label] of [['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서']]){
     const button=page.locator(`[data-company-dashboard-tab="${id}"]`);await expect(button).toHaveText(label);await button.click();await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('section[aria-live="polite"] > h3').first()).toHaveText(label);
   }
   await page.locator('[data-company-dashboard-back]').click();await expect(list).toBeVisible();
   await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:'상세 관리'}).click();await expect(sec(page).locator('[data-company-target]')).toContainText(a.id);
-  await expect(sec(page).locator('[data-company-manager-host]')).toBeVisible();await expect(sec(page).locator('[data-company-assignments]')).toBeVisible();
+  await expect(sec(page).locator('[data-company-manager-host]')).toBeVisible();await expect(sec(page).locator('[data-company-assignments]')).toHaveCount(0);
   await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();await expect(list).toBeVisible();await expect(sec(page).locator('[data-company-form]')).toHaveCount(0);
   for(const id of ['admin-directory','admin-progress','admin-aggregate','admin-assessment-url','admin-counselors']){
     await page.locator(`a[href="#${id}"]`).click();await expect(page.locator(`#${id}`)).toBeVisible();
@@ -94,9 +94,9 @@ test('removed organization entry points are absent and do not request or mutate 
   for(const selector of ['a[href="#admin-unlinked"]','a[href="#live-registration"]','#admin-unlinked','#live-registration'])await expect(page.locator(selector)).toHaveCount(0);
   await page.locator('a[href="#admin-directory"]').click();await expect(page.locator('#admin-directory')).toBeVisible();
   await page.locator('a[href="#admin-companies"]').click();await sec(page).getByRole('button',{name:company.name,exact:true}).click();
-  await page.locator('[data-company-dashboard-tab="registration"]').click();await expect(page.locator('#company-registration')).toBeVisible();
+  await expect(page.locator('[data-company-dashboard-tab="registration"], #company-registration')).toHaveCount(0);
   expect(h.state.tables.participants.find(p=>p.id===id).company_id).toBeNull();
-  expect(calls.filter(c=>c.path.endsWith('admin-unlinked')||c.path.endsWith('admin-unlinked-link'))).toHaveLength(0);
+  expect(calls.filter(c=>/admin-unlinked|register-participant|section=counselors/.test(c.path))).toHaveLength(0);
 });
 
 test('company selection restores after reload, rejects revoked access and clears on back and logout',async({page})=>{
@@ -117,17 +117,16 @@ test('company selection restores after reload, rejects revoked access and clears
 
 test('company dashboard keeps the selected ID across tabs and switches without mixing companies',async({page})=>{
   const h=harness(),[a,b]=await seedAssignmentCompanies(h),calls=await open(page,h);expect(a.id).not.toBe(b.id);await login(page);
-  const tabs=[['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서'],['registration','참여자 일괄 등록']];
+  const tabs=[['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서']];
   const select=async company=>{await sec(page).locator(`[data-company-id="${company.id}"]`).getByRole('button',{name:company.name,exact:true}).click()};
   const verify=async(company,other)=>{
     for(const [id,label] of tabs){
       const button=page.locator(`[data-company-dashboard-tab="${id}"]`);await button.click();
-      await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('section[aria-live="polite"] > h3')).toHaveText(label);
+      await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('section[aria-live="polite"] > h3').first()).toHaveText(label);
       await expect(page.getByRole('heading',{name:company.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(company.id);
       await expect(page.locator('#app')).not.toContainText(other.name);await expect(page.locator('#app')).not.toContainText(other.id);
       if(id==='progress')await expect(page.locator('section[aria-live="polite"] [data-kpi="total"] b')).toHaveText('0');
       else if(id==='operations')await expect(page.locator('section[aria-live="polite"] [data-dir-kpi="participants"] b')).toHaveText('0');
-      else if(id==='registration'){await expect(page.locator('[data-registration-fixed]')).toContainText(company.id);await expect(page.locator('#registration-company-mode, #registration-company')).toHaveCount(0)}
       else {await expect(page.locator('[data-agg-tab="r8"]')).toBeVisible();await expect(page.locator('[data-aggregate-company]')).toHaveCount(0);await page.locator('[data-agg-tab="r8"]').click();await expect(page.locator('[data-agg-base]')).toContainText(company.name)}
       for(const selector of ['#admin-progress','#admin-directory','#admin-aggregate','#live-registration'])await expect(page.locator(selector)).toHaveCount(0);
     }
@@ -136,69 +135,6 @@ test('company dashboard keeps the selected ID across tabs and switches without m
   await select(b);await verify(b,a);await page.locator('[data-company-dashboard-back]').click();await select(a);
   await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(a.id);await expect(page.locator('#app')).not.toContainText(b.id);
   expect(calls.slice(before).filter(c=>c.method==='POST'&&/register/i.test(c.path))).toHaveLength(0);
-});
-
-test('fixed company registration rejects mixed names, limits counselors and clears input on company change',async({page})=>{
-  const h=harness(),[a,b]=await seedAssignmentCompanies(h);h.state.enabled=true;
-  h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:a.id,counselor_user_id:ids.counselor,created_at:'2026-11-01T00:00:00Z'});
-  const calls=await open(page,h);await login(page);
-  const select=async company=>{await sec(page).locator(`[data-company-id="${company.id}"]`).getByRole('button',{name:company.name,exact:true}).click();await page.locator('[data-company-dashboard-tab="registration"]').click()};
-  await select(a);await expect(page.locator('[data-registration-fixed]')).toContainText(a.id);
-  await expect(page.locator('#registration-company-mode, #registration-company')).toHaveCount(0);
-  await expect(page.locator('#registration-counselor')).toContainText(ids.counselor);
-  await page.getByRole('textbox',{name:'1행 이름'}).fill('테스트');await page.getByRole('textbox',{name:'1행 연락처'}).fill('01012345678');
-  await page.locator('#registration-counselor').selectOption(ids.counselor);
-  await page.getByRole('textbox',{name:'1행 소속기업'}).fill(b.name);
-  await page.locator('#company-registration [data-action="register"]').click();
-  await expect(page.locator('#company-registration [data-preview]')).toContainText('소속기업');
-  expect(calls.filter(c=>c.path.endsWith('register-participant'))).toHaveLength(0);
-  await page.getByRole('textbox',{name:'1행 소속기업'}).fill('');
-  await page.locator('#company-registration [data-action="register"]').click();
-  await expect(page.locator('#company-registration .notice-s')).toBeVisible();
-  const writes=calls.filter(c=>c.path.endsWith('register-participant'));
-  expect(writes).toHaveLength(1);expect(writes[0].body.companyId).toBe(a.id);expect(writes[0].body.companyName).toBe(a.name);
-  await page.locator('[data-company-dashboard-back]').click();await select(b);
-  await expect(page.locator('[data-registration-fixed]')).toContainText(b.id);
-  await expect(page.locator('#company-registration .notice-s')).toHaveCount(0);
-  await expect(page.locator('#company-registration [data-action="register"]')).toBeDisabled();
-});
-
-test('fixed registration confirms unsaved navigation and blocks movement while submitting',async({page})=>{
-  const h=harness(),[a,b]=await seedAssignmentCompanies(h);h.state.enabled=true;
-  h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:a.id,counselor_user_id:ids.counselor,created_at:'2026-11-01T00:00:00Z'});
-  let release,started;const pending=new Promise(r=>{release=r}),entered=new Promise(r=>{started=r});
-  const options={registrationResponse:async r=>{started();await pending;return r}},calls=await open(page,h,options);await login(page);
-  await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:a.name,exact:true}).click();
-  await page.locator('[data-company-dashboard-tab="registration"]').click();
-  await expect(page.locator('[data-registration-assignments]')).toContainText('배정된 상담사만');
-  await page.getByRole('textbox',{name:'1행 이름'}).fill('대기자');
-  page.once('dialog',dialog=>dialog.dismiss());await page.locator('[data-company-dashboard-back]').click();
-  await expect(page.getByRole('textbox',{name:'1행 이름'})).toHaveValue('대기자');
-  page.once('dialog',dialog=>dialog.accept());await page.locator('[data-company-dashboard-tab="progress"]').click();
-  await page.locator('[data-company-dashboard-tab="registration"]').click();await expect(page.getByRole('textbox',{name:'1행 이름'})).toHaveValue('');
-  await expect(page.locator('[data-registration-assignments]')).toContainText('배정된 상담사만');
-  await page.getByRole('textbox',{name:'1행 이름'}).fill('진행자');await page.getByRole('textbox',{name:'1행 연락처'}).fill('01022223333');await page.locator('#registration-counselor').selectOption(ids.counselor);
-  await page.locator('#company-registration [data-action="register"]').click();await entered;
-  await page.locator('[data-company-dashboard-back]').click();await page.locator('[data-company-dashboard-tab="operations"]').click();
-  await expect(page.locator('#company-registration')).toBeVisible();
-  await expect(page.getByRole('textbox',{name:'1행 이름'})).toHaveValue('진행자');
-  expect(calls.filter(c=>c.path.endsWith('register-participant'))).toHaveLength(1);
-  release();await expect(page.locator('#company-registration .notice-s')).toBeVisible();
-  await page.locator('[data-company-dashboard-back]').click();await sec(page).locator(`[data-company-id="${b.id}"]`).getByRole('button',{name:b.name,exact:true}).click();
-  await page.locator('[data-company-dashboard-tab="registration"]').click();await expect(page.locator('#company-registration .notice-s')).toHaveCount(0);
-});
-
-test('inactive fixed company and failed assignment lookup cannot submit',async({page})=>{
-  const h=harness(),[a,b]=await seedAssignmentCompanies(h);h.state.enabled=true;
-  h.state.tables.client_companies.find(c=>c.id===b.id).status='inactive';
-  h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:a.id,counselor_user_id:ids.counselor,created_at:'2026-11-01T00:00:00Z'});
-  h.state.failReadsOf='client_company_counselors';const calls=await open(page,h);await login(page);
-  await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:a.name,exact:true}).click();await page.locator('[data-company-dashboard-tab="registration"]').click();
-  await expect(page.locator('[data-registration-assignments]')).toContainText('배정을 확인하기 전에는 등록할 수 없습니다');
-  await expect(page.locator('#company-registration [data-action="register"]')).toBeDisabled();
-  await page.locator('[data-company-dashboard-back]').click();await sec(page).locator(`[data-company-id="${b.id}"]`).getByRole('button',{name:b.name,exact:true}).click();await page.locator('[data-company-dashboard-tab="registration"]').click();
-  await expect(page.locator('section[aria-live="polite"]')).toContainText('비활성 고객사에는 신규 참여자를 등록할 수 없습니다');
-  await expect(page.locator('#company-registration')).toHaveCount(0);expect(calls.filter(c=>c.path.endsWith('register-participant'))).toHaveLength(0);
 });
 
 test('company aggregate rejects stale and mismatched responses and prints the selected company',async({page})=>{
@@ -258,45 +194,6 @@ test('company operations isolates participants and ignores delayed, mismatched a
   await page.getByRole('button',{name:'로그아웃',exact:true}).click();await expect(page.locator('#app')).not.toContainText('B 전용 참여자');await expect(page.locator('#app')).not.toContainText('A 전용 참여자');await login(page);await expect(page.locator('[data-dir-participant]')).toHaveCount(3);await expect(page.locator('[data-company-directory-refresh]')).toHaveCount(0);
 });
 
-test('company detail assigns multiple counselors to multiple masters, escapes names and keeps participant assignments unchanged',async({page})=>{
-  const h=harness(),[a,b]=await seedAssignmentCompanies(h),second=crypto.randomUUID();
-  h.state.tables.user_profiles.push({user_id:second,organization_id:ids.org,role:'counselor',display_name:'<img src=x onerror=alert(1)>'});
-  const before=structuredClone(h.state.tables.participants),calls=await open(page,h);await login(page);
-  await sec(page).getByRole('button',{name:'고객사 목록 조회',exact:true}).click();await openAssignments(page,a.id);
-  const area=sec(page).locator('[data-company-assignments]');await expect(area).toContainText('배정된 상담사가 없습니다');await expect(area).toContainText('고객사 ID 연결 신규 등록은 배정된 상담사로 제한');
-  for(const id of [ids.counselor,second]){
-    await area.getByLabel('같은 조직 상담사 선택').selectOption(id);await area.getByRole('button',{name:'상담사 배정',exact:true}).click();await expect(current(page)).toHaveText('상담사를 배정했습니다.');
-  }
-  await expect(area.locator('tbody tr')).toHaveCount(2);await expect(area.locator('img')).toHaveCount(0);await expect(area).toContainText('<img src=x onerror=alert(1)>');await expect(area).toContainText('추가 배정할 상담사가 없습니다');
-  await openAssignments(page,b.id);await expect(area).toContainText('배정된 상담사가 없습니다');await area.getByLabel('같은 조직 상담사 선택').selectOption(ids.counselor);await area.getByRole('button',{name:'상담사 배정',exact:true}).click();await expect(current(page)).toHaveText('상담사를 배정했습니다.');
-  await openAssignments(page,a.id);await sec(page).getByRole('button',{name:'고객사 비활성화',exact:true}).click();await expect(sec(page).getByRole('button',{name:'고객사 재활성화'})).toBeVisible();
-  await expect(area.locator('tbody tr')).toHaveCount(2);await area.locator(`[data-counselor="${ids.counselor}"]`).click();await expect(current(page)).toHaveText('상담사 배정을 해제했습니다.');await expect(area.locator('tbody tr')).toHaveCount(1);
-  expect(h.state.tables.client_company_counselors.filter(r=>r.company_id===b.id)).toHaveLength(1);expect(h.state.tables.participants).toEqual(before);
-  expect(calls.filter(c=>c.body?.action==='unassign')[0].body).toEqual({action:'unassign',counselorUserId:ids.counselor});
-  expect(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).not.toContain(second);
-});
-
-test('assignment duplicates, DB failures and failed refresh never claim an unconfirmed success or edit another company',async({page})=>{
-  const h=harness(),[a,b]=await seedAssignmentCompanies(h);await open(page,h);await login(page);await sec(page).getByRole('button',{name:'고객사 목록 조회',exact:true}).click();await openAssignments(page,a.id);
-  const area=sec(page).locator('[data-company-assignments]');await expect(area.getByLabel('같은 조직 상담사 선택')).toBeVisible();
-  h.state.tables.client_company_counselors.push({organization_id:ids.org,company_id:a.id,counselor_user_id:ids.counselor,created_at:'2026-11-06T00:00:00Z'});
-  await area.getByLabel('같은 조직 상담사 선택').selectOption(ids.counselor);await area.getByRole('button',{name:'상담사 배정',exact:true}).click();await expect(current(page)).toContainText('이미 배정된 상담사');await expect(area.getByRole('button',{name:'배정 해제'})).toHaveCount(0);
-  await area.getByRole('button',{name:'상담사 배정 조회'}).click();await expect(area.getByRole('button',{name:'배정 해제'})).toBeVisible();
-  h.state.failWritesOf='client_company_counselors';await area.getByRole('button',{name:'배정 해제'}).click();await expect(current(page)).toContainText('배정 결과를 확인하지 못했습니다');expect(h.state.tables.client_company_counselors).toHaveLength(1);
-  h.state.failWritesOf=null;await area.getByRole('button',{name:'상담사 배정 조회'}).click();await expect(area.getByRole('button',{name:'배정 해제'})).toBeVisible();
-  h.state.failReadsOf='client_company_counselors';await area.getByRole('button',{name:'배정 해제'}).click();await expect(current(page)).toContainText('배정 변경은 완료했지만 목록을 확인하지 못했습니다');expect(h.state.tables.client_company_counselors).toHaveLength(0);
-  await expect(sec(page).getByRole('button',{name:'고객사 정보 저장'})).toBeVisible();h.state.failReadsOf=null;
-  await openAssignments(page,b.id);await expect(area).toContainText('배정된 상담사가 없습니다');await expect(area.getByLabel('같은 조직 상담사 선택')).toHaveValue('');
-});
-
-test('loading assignment operations are guarded and logout discards delayed results and selected counselor',async({page})=>{
-  const h=harness(),[a]=await seedAssignmentCompanies(h),options={};await open(page,h,options);await login(page);await sec(page).getByRole('button',{name:'고객사 목록 조회',exact:true}).click();await openAssignments(page,a.id);
-  await expect(sec(page).getByLabel('같은 조직 상담사 선택')).toBeVisible();
-  let release;options.hold=new Promise(resolve=>{release=resolve});await sec(page).getByRole('button',{name:'상담사 배정 조회'}).click();await expect(sec(page).getByRole('button',{name:'고객사 정보 저장'})).toBeDisabled();
-  await page.getByRole('button',{name:'로그아웃',exact:true}).click();release();await expect(page.locator('#lg-id')).toBeVisible();options.hold=null;
-  await login(page);await expect(sec(page).locator('[data-company-assignments]')).toHaveCount(0);expect(h.state.tables.client_company_counselors).toHaveLength(0);
-});
-
 test('admin registers first and subsequent masters with zero participants, edits the exact ID and toggles without changing existing screens',async({page})=>{
   const h=harness();h.state.tables.participants.length=0;const errors=[];page.on('pageerror',e=>errors.push(String(e)));
   const calls=await open(page,h);await login(page);
@@ -348,25 +245,6 @@ test('loading is guarded, failed writes never claim success and expired sessions
   options.companyStatus=null;await login(page,'consult01');await expect(page.locator('#admin-companies')).toHaveCount(0);
 });
 
-test('sidebar keeps company context across organization navigation and protects unsaved registration',async({page})=>{
-  const h=harness(),[a,b]=await seedAssignmentCompanies(h),calls=await open(page,h);await login(page);
-  await sec(page).getByRole('button',{name:a.name,exact:true}).click();
-  await page.locator('[data-company-dashboard-tab="registration"]').click();
-  const input=page.locator('#company-registration [data-row="0"][data-key="displayName"]');await input.fill('미저장 입력');
-  await page.locator('[data-company-dashboard-tab="registration"]').click();await expect(input).toHaveValue('미저장 입력');
-  page.once('dialog',dialog=>dialog.dismiss());await page.locator('a[href="#admin-directory"]').click();await expect(input).toHaveValue('미저장 입력');
-  page.once('dialog',dialog=>dialog.accept());await page.locator('a[href="#admin-directory"]').click();
-  await expect(page.locator('#admin-directory')).toBeVisible();await expect(page.locator('.admin-content')).toContainText(a.name);
-  await expect(page.locator('a[href="#admin-directory"]')).toHaveAttribute('aria-current','page');
-  await page.locator('#admin-directory [data-admin-directory="refresh"]').click();
-  await expect.poll(()=>calls.filter(c=>c.path.endsWith('admin-directory')).at(-1)?.query).not.toContain('companyId');
-  await page.locator('[data-company-dashboard-tab="operations"]').click();
-  await expect(page.locator('section[aria-live="polite"] > h3')).toHaveText('운영 관리');
-  await expect.poll(()=>calls.filter(c=>c.path.endsWith('admin-directory')).at(-1)?.query).toContain(a.id);
-  await page.locator('a[href="#admin-companies"]').click();await sec(page).getByRole('button',{name:b.name,exact:true}).click();
-  await expect(page.locator('.admin-sidebar')).toContainText(b.name);await expect(page.locator('.admin-content')).not.toContainText(a.name);
-});
-
 test('mobile sidebar opens and closes after navigation',async({page})=>{
   await page.setViewportSize({width:375,height:800});
   const h=harness(),[a]=await seedAssignmentCompanies(h);await open(page,h);
@@ -376,5 +254,5 @@ test('mobile sidebar opens and closes after navigation',async({page})=>{
   await page.locator('a[href="#admin-progress"]').click();await expect(toggle).toHaveAttribute('aria-expanded','false');await expect(page.locator('#admin-progress')).toBeVisible();
   await toggle.click();await page.locator('a[href="#admin-companies"]').click();await sec(page).getByRole('button',{name:a.name,exact:true}).click();
   await expect(page.locator('.admin-content')).toContainText(a.name);await toggle.click();await page.locator('[data-company-dashboard-tab="operations"]').click();
-  await expect(toggle).toHaveAttribute('aria-expanded','false');await expect(page.locator('section[aria-live="polite"] > h3')).toHaveText('운영 관리');
+  await expect(toggle).toHaveAttribute('aria-expanded','false');await expect(page.locator('section[aria-live="polite"] > h3').first()).toHaveText('운영 관리');
 });

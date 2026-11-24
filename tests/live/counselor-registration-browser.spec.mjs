@@ -35,7 +35,7 @@ async function issueForm(page,id='new_counselor'){
   await page.getByRole('button',{name:'상담사 계정 등록',exact:true}).click();
 }
 
-test('live admin issues counselor, existing company candidate refresh connects, first login changes password',async({page})=>{
+test('live admin issues counselor, company-wide assignment controls are absent, first login changes password',async({page})=>{
   const {h,c}=await setup(page);await login(page);await issueForm(page);
   const issued=page.locator('[data-counselor-issued]');await expect(issued).toBeVisible();const pw=await issued.locator('code').innerText();
   const id=h.state.tables.user_profiles.find(p=>p.display_name==='합성 상담사').user_id;
@@ -44,9 +44,7 @@ test('live admin issues counselor, existing company candidate refresh connects, 
   await issued.getByRole('button',{name:'비밀번호 숨기기'}).click();await expect(issued).toHaveCount(0);
   await page.locator('a[href="#admin-companies"]').click();await page.getByRole('button',{name:'고객사 목록 조회',exact:true}).click();
   await page.locator(`[data-company-id="${c.id}"]`).getByRole('button',{name:'상세 관리'}).click();
-  await page.getByRole('button',{name:'상담사 배정 조회',exact:true}).click();
-  await page.locator('#company-counselor').selectOption(id);await page.getByRole('button',{name:'상담사 배정',exact:true}).click();
-  await expect(page.locator('[data-company-assignments] tbody')).toContainText('합성 상담사');
+  await expect(page.locator('[data-company-assignments], #company-counselor')).toHaveCount(0);
   await page.getByRole('button',{name:'로그아웃',exact:true}).first().click();await login(page,'new_counselor',pw);
   await expect(page.locator('#new-password')).toBeVisible();await expect(page.locator('#admin-counselors')).toHaveCount(0);
   await page.locator('#new-password').fill('Changed-password-123!');await page.locator('#confirm-password').fill('Changed-password-123!');

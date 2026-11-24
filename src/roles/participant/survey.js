@@ -2,7 +2,7 @@ import {S} from '../../shared/state.js';
 import {COUNSELORS} from '../../js/03-options.js';
 
 // 기존 프로토타입 연결을 주입한다. 계산 엔진과 저장 구현은 진입점에 둔다.
-function createSurvey({save,render,nav,toast,getPath,setPath,OPT,LIM,ITEM_COUNT,REQUIRED,stepOf,agreed,parseBirth,PHONE_RE,EMAIL_RE,C_CODES,full,today,computeResult,EVAL_VERSION,ageMsg,submitAssessment}){
+function createSurvey({save,render,nav,toast,getPath,setPath,OPT,LIM,ITEM_COUNT,REQUIRED,stepOf,agreed,parseBirth,PHONE_RE,EMAIL_RE,C_CODES,full,today,computeResult,EVAL_VERSION,ageMsg,submitAssessment,anonymous=false}){
 function setF(path,val){const p=S.user;if(!p)return;setPath(p,path,val);save()}
 function setCareer(i,k,v){const p=S.user;p.reg.careers[i]=p.reg.careers[i]||{};p.reg.careers[i][k]=v;save()}
 function toggleChip(path,i,root){
@@ -16,7 +16,7 @@ function missing(p){
  const add=(code,msg)=>{if(REQUIRED[code]!==false)out.push({code,step:stepOf(code),msg})};
  const blank=v=>!String(v==null?'':v).trim();
  if(r.a1!=='동의'&&!agreed(p))add('A1',r.a1==='미동의'?'개인정보 제공 및 활용에 동의해야 설문에 참여할 수 있습니다.':'동의 여부를 선택해 주세요.');
- if(blank(p.counselor))add('A2','상담코드를 입력해 주세요.');
+ if(!anonymous&&blank(p.counselor))add('A2','상담코드를 입력해 주세요.');
  if(blank(r.name))add('A3','성함을 입력해 주세요.');
  if(!r.gender)add('A4','성별을 선택해 주세요.');
  if(blank(r.birthDate))add('A5','생년월일을 입력해 주세요.');else if(!parseBirth(r.birthDate))add('A5','생년월일을 YYYY-MM-DD 형식의 실제 날짜로 입력해 주세요.');
