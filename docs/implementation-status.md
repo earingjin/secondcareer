@@ -1,5 +1,19 @@
 # 요구사항별 구현 현황 점검
 
+## 2026-11-24 관리자 UX 1차
+
+검증 기준은 `feat/admin-ux-improvement`의 `621ae2d7367f81f20d5d1ca2e46a1d4ca07aaeaa` 위 로컬 작업본이다. 요청된 화면과 이동 경로를 구현했으며 기존 구현 판정 및 역할별·전체 집계는 유지한다.
+
+| 요구사항 ID | 코드 근거 | 로컬 검증 | 미검증·후속 |
+|---|---|---|---|
+| REQ-A-001 | `src/live/app.js`의 관리자 메뉴, 고객사 선택 복원 및 해제 | `admin-companies-browser`에서 기본 진입, 고객사 전환, 권한 해제 시 복원 거부 및 로그아웃 | 실제 조직·고객사 접근 확인 (P0) |
+| REQ-A-002 | `src/live/admin-directory-view.js`의 목록, 입력 소속기업·공식 고객사 구분 및 개별 저장 | `admin-directory`에서 조회 범위, 독립 저장, 저장 결과 유실 후 재시도 및 최신 목록 반영 | 실제 DB 동시성·변경 이력 (P0), 이름 검색 및 업무 필터 고도화 |
+| REQ-A-004 | `src/live/admin-dashboard-view.js`와 `src/css/admin-layout.css`의 대시보드, 업무 목록 및 반응형 레이아웃 | `admin-directory`에서 지표, 중복 제거, 제출일 정렬, 조회 중·빈 목록·실패, 1280·1440·1920·375px 확인. `admin-progress-browser`로 기존 진행 현황 확인 | 공용 사전진단 URL·유효기간 연계, 실데이터 확인 (P1) |
+| REQ-A-005 | `src/live/admin-directory-view.js` 및 `src/live/app.js`의 결과물 버튼과 전환 도구 모음 | `admin-report`에서 고객사 범위, 역할 제한, 조회·목록 복귀 및 PDF 1·3·5쪽 확인 | 실제 프린터와 Chromium 외 브라우저 (P1) |
+| REQ-A-006·016 | 기존 통합 분석 조회·인쇄 진입과 고객사 범위 | `admin-aggregate` 계열에서 모의 API, 조직·고객사 범위 및 Chromium PDF 확인 | 실제 서버 및 출력 장치 (P1) |
+
+`npm.cmd run build` 종료 0. 전체 `npm.cmd test -- --workers=4 --global-timeout=240000 --reporter=dot`은 412건 통과, 기존 조건부 건너뜀 5건, 종료 0이다. 중간 실행에서 기존 관리자 첫 화면을 기대하던 모바일 테스트의 단언을 갱신했다. 레거시 SHA256 일치와 `git diff --check`를 확인했다. 실제 서버·DB·RLS와 프린터는 검증하지 않았다.
+
 **사후진단 승인 오류 수정 검증:** 기준 `0990690` 작업본에서 담당 상담사의 무로그인 참여자 승인 요청을 계정 여부 확인 후 403 `POST_NOT_AVAILABLE`로 차단한다. 로컬 모의 서버·브라우저 `tests/live` 289/289, 관련 서버 테스트 30/30, 골든 10/10과 빌드가 통과했다. 실제 PostgreSQL·Edge Function 검증은 수행하지 않았다. 기존 요구사항별 구현 판정과 집계는 유지한다.
 
 **2026-11-23 STEP 6 구형 경로 종료:** 기준 `bf8f2c6bd24b57625bd95cb69f74bea1c878513e` 위 작업본. REQ-P-001·005·006, REQ-A-002와 REQ-C-001 관련 구형 UI와 요청을 정리했다. 기존 등록·고객사 상담사 사전 배정·미연결 업무는 관리자 세션 확인 후 410을 반환한다. 기존 참여자 사전진단 draft·submit은 410이며 권한 없는 역할은 401/403으로 거부한다. 기존 사전 상태 조회와 사후 경로, 개별 배정, 상담사 edit는 유지한다. 기존 조사 집계는 역사적 기준으로 보존한다.

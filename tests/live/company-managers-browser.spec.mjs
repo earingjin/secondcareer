@@ -35,7 +35,7 @@ async function issue(page,email='synthetic@example.invalid'){
 
 test('admin issues managers once, manages status/access and erases issued secrets on customer/page/logout changes',async({page})=>{
   const browserLogs=[];page.on('console',message=>browserLogs.push(message.text()));page.on('pageerror',error=>browserLogs.push(error.message));
-  const {h,c,b}=await setup(page);await login(page);await page.getByRole('button',{name:'고객사 목록 조회',exact:true}).click();await detail(page,c.id);
+  const {h,c,b}=await setup(page);await login(page);await page.getByRole('link',{name:'고객사 관리',exact:true}).click();await page.getByRole('button',{name:'고객사 목록 조회',exact:true}).click();await detail(page,c.id);
   const secret=await issue(page),issued=h.state.tables.company_manager_accounts[0];
   await expect(page.locator('[data-manager-issued]')).toContainText('최초 안내문');await expect(page.locator('[data-manager-issued]')).toContainText('entry=company-manager');
   expect(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).not.toContain(secret);
@@ -72,7 +72,7 @@ test('company manager uses existing login/session contract, changes temporary pa
 });
 
 test('issuance DB failures and duplicate requests never show success or repeat a secret',async({page})=>{
-  const {h,c}=await setup(page);await login(page);await page.getByRole('button',{name:'고객사 목록 조회',exact:true}).click();await detail(page,c.id);
+  const {h,c}=await setup(page);await login(page);await page.getByRole('link',{name:'고객사 관리',exact:true}).click();await page.getByRole('button',{name:'고객사 목록 조회',exact:true}).click();await detail(page,c.id);
   h.state.failManagerComplete=true;
   for(const [label,value] of [['담당자 이름','합성 담당자'],['담당자 이메일','failure@example.invalid'],['담당자 연락처','01000000000']])await page.getByLabel(label,{exact:true}).fill(value);
   await page.getByRole('button',{name:'담당자 계정 발급',exact:true}).click();await expect(page.getByLabel('발급 임시 비밀번호')).toHaveCount(0);await expect(page.locator('[data-company-manager-host] [role="status"]')).not.toHaveText('처리 중입니다.');

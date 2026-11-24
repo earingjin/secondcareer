@@ -42,7 +42,7 @@ async function setup(page,{answers={},role='participant',disableMobile=false}={}
   await page.locator('#lg-id').fill('client01');await page.locator('#lg-pw').fill('Fixture-password-123!');
   await page.getByRole('button',{name:'로그인',exact:true}).click();
   if(role==='participant')await expect(page.getByRole('heading',{name:'사전진단 접수 안내'})).toBeVisible();
-  else await expect(page.getByRole('heading',{name:role==='admin'?'고객사 관리':'상담사 페이지'})).toBeVisible();
+  else await expect(page.getByRole('heading',{name:role==='admin'?'운영 대시보드':'상담사 페이지'})).toBeVisible();
   return {state,errors};
 }
 const question=page=>page.locator('.single-question .q:visible');

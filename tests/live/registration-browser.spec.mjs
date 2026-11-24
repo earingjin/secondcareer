@@ -58,7 +58,7 @@ async function setup(page,{pending=false,enabled=true}={}){
   return {h,assessments,reads:()=>assessmentReads,drafts:()=>drafts,submissions:()=>submissions};
 }
 async function login(page,id,password='Fixture-password-123!'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill(password);await page.getByRole('button',{name:'로그인',exact:true}).click()}
-for(const [id,heading] of [['admin01','고객사 관리'],['consult01','상담사 페이지']]){
+for(const [id,heading] of [['admin01','운영 대시보드'],['consult01','상담사 페이지']]){
   test(`${id} restores its role after refresh and logout clears the session`,async({page})=>{
     await setup(page);await login(page,id);
     await expect(page.getByRole('heading',{name:heading})).toBeVisible();

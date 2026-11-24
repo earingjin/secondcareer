@@ -12,7 +12,8 @@ import {compareView} from './compare-view.js';
 import {postAssessmentNotice,postEntryUrl,POST_ENTRY_PARAM,POST_ENTRY_VALUE} from './assessment-notice.js';
 import {postTestGate} from './post-test-gate.js';
 import {adminProgressView,validProgress,adminCompanyProgressView,validCompanyProgress} from './admin-progress-view.js';
-import {adminDirectoryView,validDirectory,adminCompanyDirectoryView,validCompanyDirectory} from './admin-directory-view.js';
+import {adminDirectoryView,validDirectory,adminCompanyDirectoryView,validCompanyDirectory,ADMIN_REPORT_LABELS} from './admin-directory-view.js';
+import {adminDashboardView} from './admin-dashboard-view.js';
 import {createAdminCounselors} from './admin-counselors.js';
 import {createAdminCompanies} from './admin-companies.js';
 import {adminAggregateView,adminAggregatePrintView,validAggregate,validCompanyAggregate} from './admin-aggregate-view.js';
@@ -31,7 +32,7 @@ let mustChangePassword=false,managerCompanies=[];
 let assessmentUrl='',assessmentUrlMessage='',assessmentUrlInput='';
 // REQ-A-004: update counts without re-rendering the URL input.
 let progress={data:null,loading:false,message:''},progressRun=0;
-const NO_FILTER={company:'all',counselor:'all',status:'all'};
+const NO_FILTER={company:'all',counselor:'all',status:'all',classification:'all'};
 let directory={data:null,loading:false,message:'',filter:{...NO_FILTER}},directoryRun=0;
 // REQ-A-006/007: loaded only when the administrator opens it.
 let aggregate={data:null,loading:false,message:'',tab:'r1'},aggregateRun=0;
@@ -60,7 +61,16 @@ const api=createAPI(()=>{clearStoredCompany();reset();S.err='세션이 만료되
 const counselorAccounts=createAdminCounselors({api,canUse:()=>profile?.role==='admin'&&!mustChangePassword});
 window.addEventListener('pagehide',()=>counselorAccounts.reset());
 let selectedAdminCompany=null,adminCompanyTab='progress';
-let adminScope='organization',adminMenu='admin-companies';
+let adminScope='organization',adminMenu='admin-dashboard';
+const adminMenuGroups=[
+  ['운영 업무',[
+    ['admin-dashboard','운영 대시보드'],['admin-directory','내담자 관리'],['admin-companies','고객사 관리'],
+    ['admin-counselors','상담사 관리'],['admin-assessment-url','진단 링크 관리']
+  ]],
+  ['통계 및 분석',[
+    ['admin-progress','진단 진행 현황'],['admin-aggregate','통합 분석보고서']
+  ]]
+];
 const companyStorageKey='sp-admin-selected-company';
 function clearStoredCompany(){try{sessionStorage.removeItem(companyStorageKey)}catch{}}
 function storeCompany(id){try{sessionStorage.setItem(companyStorageKey,id)}catch{}}
@@ -252,9 +262,14 @@ function paintDirectory(){
   el.innerHTML=adminDirectoryView(directory);
   if(busy)el.querySelectorAll('button,select').forEach(e=>e.disabled=true);
 }
+function paintDashboard(){
+  const el=$('#admin-dashboard');if(!el)return;
+  el.innerHTML=adminDashboardView(directory);
+  if(busy)el.querySelectorAll('button').forEach(button=>button.disabled=true);
+}
 async function loadDirectory(){
   if(profile?.role!=='admin'||mustChangePassword)return;
-  const run=++directoryRun;directory.loading=true;paintDirectory();
+  const run=++directoryRun;directory.loading=true;paintDirectory();paintDashboard();
   try{
     const data=await api.adminDirectory();if(run!==directoryRun)return;
     if(!validDirectory(data))throw Error('운영 관리 목록 응답을 확인하지 못했습니다. 새로 조회해 주세요.');
@@ -262,15 +277,15 @@ async function loadDirectory(){
     const f=directory.filter,keep={company:f.company==='all'||data.companies[Number(f.company)]?.name===directory.data?.companies[Number(f.company)]?.name?f.company:'all',
       counselor:f.counselor==='all'||['unassigned','unknown'].includes(f.counselor)||data.counselors.some(c=>c.id===f.counselor)?f.counselor:'all',status:f.status,classification:f.classification};
     directory={...directory,data,loading:false,message:'',filter:keep};
-  }catch(error){if(run===directoryRun)directory={data:null,loading:false,message:error.message,filter:directory.filter}}
-  finally{if(run===directoryRun){directory.loading=false;paintDirectory()}}
+  }catch(error){if(run===directoryRun)directory={...directory,data:null,loading:false,message:error.message}}
+  finally{if(run===directoryRun){directory.loading=false;paintDirectory();paintDashboard()}}
 }
 let assignmentRetry=null;
 $('#app').addEventListener('submit',async event=>{
   const form=event.target.closest('[data-participant-assignment]');
   if(!form)return;
   event.preventDefault();
-  if(profile?.role!=='admin'||mustChangePassword||busy||directory.loading||directory.assignmentBusy)return;
+  if(profile?.role!=='admin'||mustChangePassword||adminScope!=='organization'||busy||directory.loading||directory.assignmentBusy)return;
   const {participantId,participantAssignment:kind}=form.dataset;
   const participant=directory.data?.participants.find(row=>row.id===participantId);
   if(!participant||!['company','counselor'].includes(kind))return;
@@ -510,31 +525,43 @@ function postConfirmView(){
 function leavePost(){if(!postAllowed()||S.view!=='post')return;clearPostEntry();S.mode2='pre';S.view='home';S.err='';render();window.scrollTo(0,0)}
 // Organize the existing views without changing their data scope.
 function setupAdminNavigation(){
-  const root=$('#app > .wrap');if(!root)return;
-  const sections=['admin-companies','admin-counselors','admin-assessment-url','admin-progress','admin-directory','admin-aggregate'];
-  const labels=['고객사 관리','상담사 계정 관리','진단 접속 주소 설정','조직 전체 진단 진행 현황','조직 전체 운영 관리','조직 전체 통합 분석'];
-  const layout=document.createElement('div'),side=document.createElement('aside'),content=document.createElement('main');
+  const root=$('#app > .admin-workspace');if(!root)return;
+  const layout=document.createElement('div'),side=document.createElement('aside'),content=document.createElement('div');
   layout.className='admin-layout';side.className='admin-sidebar noprint';content.className='admin-content';
   const toggle=document.createElement('button');toggle.type='button';toggle.className='admin-menu-toggle';toggle.textContent='관리 메뉴';toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-controls','admin-navigation');
   const navigation=document.createElement('div');navigation.id='admin-navigation';navigation.className='admin-navigation';
   toggle.addEventListener('click',()=>{const open=toggle.getAttribute('aria-expanded')!=='true';toggle.setAttribute('aria-expanded',String(open));navigation.classList.toggle('is-open',open)});
   const closeMenu=()=>{toggle.setAttribute('aria-expanded','false');navigation.classList.remove('is-open')};
-  const heading=document.createElement('h2');heading.textContent='조직 전체 관리';navigation.append(heading);
-  const nav=document.createElement('nav');nav.setAttribute('aria-label','조직 전체 관리');
-  sections.forEach((id,i)=>{
-    const link=document.createElement('a');link.href='#'+id;link.textContent=labels[i];nav.append(link);
-    const section=root.querySelector('#'+id);if(section)content.append(section);
-    link.addEventListener('click',event=>{
-      event.preventDefault();
-      if(busy)return;
-      if(adminScope==='organization'&&adminMenu===id){closeMenu();return}
-
-      if(adminScope==='company'){
-        adminScope='organization';adminMenu=id;render();
-      }else{adminMenu=id;showAdminMenu();closeMenu()}
-    });
+  const openMenu=(id,participantId)=>{
+    if(busy)return;
+    const scopeChanged=adminScope==='company';
+    adminScope='organization';adminMenu=id;
+    if(scopeChanged)render();else{showAdminMenu();closeMenu()}
+    const section=document.getElementById(id);
+    window.scrollTo({top:0,behavior:'instant'});
+    section?.focus({preventScroll:true});
+    if(!section||!participantId||id!=='admin-directory')return;
+    const findRow=()=>Array.from(section.querySelectorAll('[data-dir-participant]')).find(row=>row.dataset.dirParticipant===participantId);
+    let row=findRow();
+    if(!row){directory.filter={...NO_FILTER};paintDirectory();row=findRow()}
+    row?.focus({preventScroll:true});
+    row?.scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
+  };
+  for(const [title,entries] of adminMenuGroups){
+    const heading=document.createElement('h2');heading.textContent=title;navigation.append(heading);
+    const nav=document.createElement('nav');nav.setAttribute('aria-label',title);
+    for(const [id,label] of entries){
+      const link=document.createElement('a');link.href='#'+id;link.textContent=label;nav.append(link);
+      const section=root.querySelector('#'+id);
+      if(section){section.tabIndex=-1;content.append(section)}
+      link.addEventListener('click',event=>{event.preventDefault();openMenu(id)});
+    }
+    navigation.append(nav);
+  }
+  content.addEventListener('click',event=>{
+    const button=event.target.closest('button[data-admin-menu]');
+    if(button&&!button.disabled)openMenu(button.dataset.adminMenu,button.dataset.adminWorkParticipant);
   });
-  navigation.append(nav);
   if(selectedAdminCompany){
     const title=document.createElement('h2');title.textContent='선택한 고객사: '+selectedAdminCompany.name;navigation.append(title);
     const companyNav=document.createElement('nav');companyNav.setAttribute('aria-label','선택한 고객사 관리');
@@ -553,7 +580,8 @@ function setupAdminNavigation(){
     const section=root.querySelector('section.card');if(section)content.append(section);
     const back=root.querySelector('[data-company-dashboard-back]');if(back)navigation.append(back);
   }
-  const logoutButton=root.querySelector('button[onclick="logout()"]');if(logoutButton)navigation.append(logoutButton);
+  const logoutButton=root.querySelector('button[onclick="logout()"]');
+  if(logoutButton){logoutButton.classList.add('admin-logout');navigation.append(logoutButton)}
   side.append(toggle,navigation);layout.append(side,content);root.replaceChildren(layout);showAdminMenu();
 }
 function showAdminMenu(){
@@ -564,10 +592,18 @@ function showAdminMenu(){
 function participantPreClosed(){
   return `<div class="narrow"><div class="card"><h2>사전진단 접수 안내</h2><p>사전진단은 전달받은 무로그인 설문 링크에서 진행해 주세요.</p><button class="btn ghost" onclick="logout()">로그아웃</button></div></div>`;
 }
+function adminReportToolbar(){
+  const buttons=Object.entries(ADMIN_REPORT_LABELS).map(([kind,label])=>
+    `<button class="btn ghost" aria-pressed="${S.res?.role===kind}" onclick="openAdminReport('${esc(S.res?.id)}','${kind}')">${label}</button>`).join('');
+  return `<div class="wrap admin-report-tools noprint"><div class="toolbar" id="admin-report-kind" role="group" aria-label="보고서 종류">
+    <div class="acts">${buttons}</div>
+    <button class="btn ghost" onclick="nav('admin')">${adminScope==='company'?'고객사 운영 관리':'내담자 관리'}</button>
+  </div></div>`;
+}
 function render(){
   mobileSurvey.capture();mobileSurvey.prepare();
   companyManager.unmount();counselorAccounts.unmount();
-  if(!profile){mustChangePassword=false;adminScope='organization';adminMenu='admin-companies'}
+  if(!profile){mustChangePassword=false;adminScope='organization';adminMenu='admin-dashboard'}
   $('.seg')?.remove();
   $('.proto-note').textContent=profile?'세컨플래닝 · '+({counselor:'상담사',admin:'관리자',participant:'내담자',company_manager:'고객사 담당자'}[profile.role]):'계정으로 로그인해 주세요.';
   let html;
@@ -575,12 +611,28 @@ function render(){
   else if(!profile)html=(postEntry&&postTestGate?'<div class="narrow noprint"><p id="post-entry-hint" role="status">사후진단 안내 링크로 접속했습니다. 기존 아이디와 비밀번호로 로그인하면 사후진단으로 이동합니다.</p></div>':'')+loginView();
   else if(mustChangePassword)html=passwordChangeView(profile?.role==='company_manager');
   else if(profile.role==='company_manager')html=`<div class="wrap" style="padding-top:26px"><section class="card sec" id="company-manager-dashboard" aria-label="고객사 진단 현황">${managerDashboardView({companies:managerCompanies,...managerProgress})}</section></div>`;
-  else if(profile.role==='admin'&&S.view==='admin-report'&&reportHTML)html=`<div class="narrow noprint"><div class="toolbar" id="admin-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='i'?'고객정보':S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='i'}" onclick="openAdminReport('${esc(S.res?.id)}','i')">고객정보 보기</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openAdminReport('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openAdminReport('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('admin')">${adminScope==='company'?'고객사 운영 관리':'관리자 참여자 목록'}</button></div></div></div>`+reportHTML;
+  else if(profile.role==='admin'&&S.view==='admin-report'&&reportHTML)html=adminReportToolbar()+reportHTML;
   else if(profile.role==='admin'&&adminScope==='company'&&selectedAdminCompany){
     const tabs=[['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서']];
-    html=`<div class="wrap" style="padding-top:26px"><div class="acts"><button class="btn ghost" type="button" data-company-dashboard-back>고객사 목록으로 돌아가기</button><button class="btn ghost" onclick="logout()">로그아웃</button></div><section class="card sec"><h2>${esc(selectedAdminCompany.name)}</h2><p>고객사 ID: ${esc(selectedAdminCompany.id)} · 운영 상태: ${selectedAdminCompany.status==='active'?'활성':'비활성'}</p><div class="acts" role="group" aria-label="고객사별 운영 메뉴">${tabs.map(([id,label])=>`<button class="btn ghost" type="button" data-company-dashboard-tab="${id}" aria-pressed="${adminCompanyTab===id}">${label}</button>`).join('')}</div><section aria-live="polite"><h3>${tabs.find(([id])=>id===adminCompanyTab)[1]}</h3>${adminCompanyTab==='progress'?adminCompanyProgressView(companyProgress):adminCompanyTab==='operations'?adminCompanyDirectoryView(companyDirectory):adminCompanyTab==='aggregate'?adminAggregateView(companyAggregate):`<p class="hintline">고객사별 데이터 연결은 다음 개발 단계에서 진행됩니다.</p>` }</section></section></div>`;
+    html=`<div class="wrap admin-workspace"><button class="btn ghost" type="button" data-company-dashboard-back>고객사 목록으로 돌아가기</button><button class="btn ghost" onclick="logout()">로그아웃</button>
+      <section class="card sec"><h2>${esc(selectedAdminCompany.name)}</h2><p class="hintline">고객사 ID: ${esc(selectedAdminCompany.id)} · 운영 상태: ${selectedAdminCompany.status==='active'?'활성':'비활성'}</p>
+      <section class="admin-company-view" aria-live="polite"><h3>${tabs.find(([id])=>id===adminCompanyTab)[1]}</h3>
+        ${adminCompanyTab==='progress'?adminCompanyProgressView(companyProgress):adminCompanyTab==='operations'?adminCompanyDirectoryView(companyDirectory):adminAggregateView(companyAggregate)}
+      </section></section></div>`;
   }
-  else if(profile.role==='admin')html=`<div class="wrap" style="padding-top:26px"><h2>관리자 페이지</h2><div class="acts"><button class="btn ghost" onclick="logout()">로그아웃</button><a href="#admin-companies">고객사 관리</a><a href="#admin-directory">운영 관리</a><a href="#admin-progress">진단 진행 현황</a><a href="#admin-aggregate">통합 분석</a><a href="#admin-assessment-url">진단 접속 주소</a><a href="#admin-counselors">상담사 계정</a></div><section class="card sec noprint" id="admin-companies"></section><section class="card sec" id="admin-progress" aria-label="진단 진행 현황">${adminProgressView(progress)}</section><section class="card sec" id="admin-directory" aria-label="운영 관리">${adminDirectoryView(directory)}</section><section class="card sec noprint" id="admin-counselors"></section><section class="card sec" id="admin-aggregate" aria-label="통합 분석보고서">${adminAggregateView(aggregate)}</section><section class="card sec" id="admin-assessment-url"><h2>내담자 진단 접속 주소</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p><div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div><button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p></section></div>`;
+  else if(profile.role==='admin')html=`<div class="wrap admin-workspace">
+    <button class="btn ghost" onclick="logout()">로그아웃</button>
+    <section id="admin-dashboard" aria-label="운영 대시보드">${adminDashboardView(directory)}</section>
+    <section class="card sec" id="admin-directory" aria-label="내담자 관리">${adminDirectoryView(directory)}</section>
+    <section class="card sec noprint" id="admin-companies"></section>
+    <section class="card sec noprint" id="admin-counselors"></section>
+    <section class="card sec" id="admin-progress" aria-label="진단 진행 현황">${adminProgressView(progress)}</section>
+    <section class="card sec" id="admin-aggregate" aria-label="통합 분석보고서">${adminAggregateView(aggregate)}</section>
+    <section class="card sec" id="admin-assessment-url">
+      <h2>진단 링크 관리</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p>
+      <div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div>
+      <button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p>
+    </section></div>`;
   else if(S.view==='post'&&postAllowed())html=postLocked?postConfirmView():S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):postConfirmView();
   else if(S.view==='wizard'&&S.cedit)html=view.vWizard();
   else if(profile.role==='counselor'&&S.view==='result')html=`<div class="narrow noprint"><div class="toolbar" id="live-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='i'?'고객정보':S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='i'}" onclick="openRes('${esc(S.res?.id)}','i')">고객정보 보기</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openRes('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openRes('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('cns')">담당 내담자 목록</button></div></div></div>`+reportHTML;
