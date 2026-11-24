@@ -7,13 +7,13 @@ const format=value=>esc(seoul.format(new Date(value)));
 const statusLabels={active:'접수 가능',disabled:'비활성',expired:'만료',stopped:'접수 중지',invalid:'기준 주소 오류'};
 
 function validBaseUrl(value){
+  // A non-null base URL has passed the authenticated API's server-side origin allowlist.
   if(typeof value!=='string'||!value.startsWith('https://')||value.length>2049)return false;
   try{
     const url=new URL(value),host=url.hostname;
     return url.href===value&&url.protocol==='https:'&&/^(?:[a-z0-9-]+\.)+[a-z][a-z0-9-]*$/.test(host)&&
       !url.username&&!url.password&&!url.search&&!url.hash&&
-      !/(^|[.-])(localhost|local|preview|staging|dev|test)([.-]|$)/.test(host)&&
-      !/(^|\.)(vercel\.app|netlify\.app|pages\.dev|web\.app|firebaseapp\.com)$/.test(host);
+      !/(^|[.-])(localhost|local)([.-]|$)/.test(host);
   }catch{return false}
 }
 

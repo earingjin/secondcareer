@@ -6,16 +6,17 @@ const linkIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[
 const validDate = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value));
 
 function publicBaseUrl(value: unknown) {
-  // Match the existing account address policy, then restrict distribution to a
-  // configured production domain. Hosting suffixes alone cannot establish a release.
+  // The stored address supplies the path. Only server configuration can approve its origin.
   const allowed = /^https:\/\/([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]([a-z0-9-]{0,61}[a-z0-9])?(:[0-9]{1,5})?(\/([a-z0-9._~!$&'()*+,;=:@/-]|%[a-f0-9]{2})*)?$/i;
   if (typeof value !== 'string' || value.length > 2048 || !allowed.test(value)) return null;
   try {
     const url = new URL(value);
-    const host = url.hostname;
-    if (/(^|[.-])(localhost|local|preview|staging|dev|test)([.-]|$)/.test(host) ||
-        /(^|\.)(vercel\.app|netlify\.app|pages\.dev|web\.app|firebaseapp\.com)$/.test(host)) return null;
-    return url.href;
+    if (/(^|[.-])(localhost|local)([.-]|$)/.test(url.hostname)) return null;
+    const origins = Deno.env.get('SECONDCAREER_PUBLIC_INTAKE_ALLOWED_ORIGINS')?.split(',') ?? [];
+    return origins.some(entry => {
+      const origin = entry.trim();
+      return origin === url.origin || origin === url.origin + '/';
+    }) ? url.href : null;
   } catch {
     return null;
   }

@@ -1,5 +1,11 @@
 # 요구사항별 구현 현황 점검
 
+## 관리자 UX 3차 운영 origin 검증 보완
+
+`848a48b9b7357e10319592369a6e17390d8f26e8` 위 작업본에서 REQ-A-001·004 및 REQ-N-002 관련 공용 링크 기준 주소를 서버의 `SECONDCAREER_PUBLIC_INTAKE_ALLOWED_ORIGINS`로 검증한다. 합성 Vercel 운영 주소와 미등록 주소, Preview, localhost, 설정 누락에 대한 검증을 추가했다. 기존 구현 판정과 집계는 유지한다. 실제 운영 환경 설정과 배포 확인은 별도 범위다.
+
+관련 Playwright 8건 통과, 운영 모드 빌드 종료 0, `git diff --check` 통과. 전체 회귀는 통합 검증에서 실행한다.
+
 ## 2026-11-24 관리자 UX 3차
 
 `feat/admin-ux-improvement`의 `0159ee32701dd56baa981bf6b05964dc7f56433f` 위 로컬 작업본이다. 운영 검증을 포함한 기존 구현 판정과 집계는 유지한다.

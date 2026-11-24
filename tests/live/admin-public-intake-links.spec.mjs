@@ -6,7 +6,9 @@ import {publicIntakeStatus,validPublicIntakeLinks} from '../../src/live/admin-pu
 
 const {harness,ids}=createRequire(import.meta.url)('./server-harness.cjs');
 const apiPath='/functions/v1/secondcareer-admin-public-intake-links';
-const baseUrl='https://survey.example.invalid/intake';
+const baseUrl='https://secondcareer-fixture.vercel.app/intake';
+const otherUrl='https://other.example.invalid/intake';
+const updatedUrl='https://updated.example.invalid/assessment';
 const fixtureLink=(overrides={})=>({
   id:randomUUID(),organization_id:ids.org,enabled:true,
   expires_at:new Date(Date.now()+3600_000).toISOString(),
@@ -17,6 +19,7 @@ function fixture(...links){
   h.state.tables.organizations[0].assessment_url=baseUrl;
   h.state.tables.public_intake_links.push(...links);
   h.state.publicIntakeEnabled=true;
+  h.state.publicIntakeAllowedOrigins=[baseUrl,otherUrl,updatedUrl].map(url=>new URL(url).origin).join(', ');
   return h;
 }
 const read=(h,token=ids.admin,query='',method='GET')=>h.call(
@@ -69,6 +72,36 @@ test('protects access, query and method boundaries with safe no-store responses'
   expect(h.state.reads.every(read=>read.table==='user_profiles')).toBe(true);
 });
 
+test('accepts an explicitly listed Vercel origin and rejects other deployments and malformed configuration',async()=>{
+  const h=fixture(fixtureLink());
+  const organization=h.state.tables.organizations[0];
+  const origin=new URL(baseUrl).origin;
+  h.state.publicIntakeAllowedOrigins=` ${origin}/ `;
+  const valid=await read(h);
+  expect(valid.data.baseUrl).toBe(baseUrl);
+  expect(validPublicIntakeLinks(valid.data)).toBe(true);
+  for(const address of [
+    'https://unauthorized-fixture.vercel.app/',
+    'https://secondcareer-fixture-git-branch-team.vercel.app/',
+    'https://secondcareer-fixture.vercel.app.example.invalid/',
+    origin+':444/intake',
+    'https://unapproved.example.invalid/'
+  ]){
+    organization.assessment_url=address;
+    const {data}=await read(h);
+    expect(data.baseUrl).toBeNull();
+    expect(publicIntakeStatus(data,data.links[0],Date.parse(data.serverTime))).toBe('invalid');
+  }
+  organization.assessment_url=baseUrl;
+  for(const setting of [undefined,'','https://*.vercel.app',origin+'/intake']){
+    h.state.publicIntakeAllowedOrigins=setting;
+    expect((await read(h)).data.baseUrl).toBeNull();
+  }
+  organization.assessment_url='https://demo.localhost/';
+  h.state.publicIntakeAllowedOrigins='https://demo.localhost';
+  expect((await read(h)).data.baseUrl).toBeNull();
+});
+
 test('distinguishes link data states and fails closed for database and malformed rows',async()=>{
   const expired=fixtureLink({expires_at:'2000-01-01T00:00:00Z'});
   const h=fixture(fixtureLink(),fixtureLink({enabled:false}),expired);
@@ -80,7 +113,7 @@ test('distinguishes link data states and fails closed for database and malformed
   h.state.publicIntakeEnabled=false;
   expect(await statuses()).toEqual(['disabled','expired','stopped']);
   h.state.publicIntakeEnabled=true;
-  for(const value of [null,'http://survey.example.invalid','https://localhost','https://preview.example.invalid','https://branch-git-test-team.vercel.app','https://survey.example.invalid/?secret=fixture']){
+  for(const value of [null,baseUrl.replace('https:','http:'),'https://localhost',baseUrl+'?secret=fixture',baseUrl+'#fragment']){
     h.state.tables.organizations[0].assessment_url=value;
     const {data}=await read(h);
     expect(data.baseUrl).toBeNull();
@@ -210,7 +243,7 @@ test.describe('admin link screens',()=>{
     options.override=result=>({...result,data:{
       ...result.data,serverTime:new Date(Date.parse(result.data.serverTime)+40_000).toISOString()
     }});
-    const next='https://updated.example.invalid/assessment';
+    const next=updatedUrl;
     await page.locator('#assessment-url').fill(next);
     await page.getByRole('button',{name:'주소 저장'}).click();
     await expect(settings(page).getByLabel('공용 설문 URL')).toHaveValue(`${next}?entry=pre&linkId=${stable.id}`);
@@ -242,15 +275,17 @@ test.describe('admin link screens',()=>{
     options.override=null;h.state.publicIntakeEnabled=false;await retry.click();
     await expect(settings(page)).toContainText('접수가 중지되어 있습니다.');
     await expect(settings(page).locator('[data-intake-copy],[data-intake-open]')).toHaveCount(0);
-    h.state.publicIntakeEnabled=true;h.state.tables.organizations[0].assessment_url=null;await retry.click();
+    h.state.publicIntakeEnabled=true;
+    h.state.tables.organizations[0].assessment_url='https://secondcareer-fixture-git-branch-team.vercel.app/';
+    await retry.click();
     await expect(settings(page).locator('[data-intake-link]')).toContainText('기준 주소 오류');
+    await expect(settings(page).locator('[data-intake-copy],[data-intake-open]')).toHaveCount(0);
     h.state.tables.public_intake_links=[];await retry.click();
     await expect(settings(page)).toContainText('등록된 공용 링크가 없습니다.');
   });
 
   test('a delayed old-organization response cannot replace a new session and other roles never request links',async({page})=>{
     const row=fixtureLink(),other=fixtureLink({organization_id:'other-org'}),h=fixture(row,other);
-    const otherUrl='https://other.example.invalid/intake';
     h.state.tables.organizations.push({id:'other-org',name:'다른 합성 조직',assessment_url:otherUrl});
     h.state.tables.user_profiles.find(profile=>profile.user_id===ids.other).role='admin';
     let release,enter;

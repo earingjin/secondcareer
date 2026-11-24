@@ -219,7 +219,7 @@ function harness(){
     return u?{data:{user:u,session:{access_token:u.id,refresh_token:'refresh-'+u.id,expires_at:Math.floor(Date.now()/1000)+3600}},error:null}:{data:{},error:{code:'INVALID'}};
   };
   const cache=new Map(),root=path.resolve('supabase/functions');
-  const context=vm.createContext({Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,btoa,crypto:webcrypto,Deno:{env:{get:key=>key==='SECONDCAREER_PUBLIC_INTAKE_ENABLED'?(state.publicIntakeEnabled?'true':'false'):key==='SECONDCAREER_COUNSELOR_REGISTRATION_ENABLED'?(state.counselorEnabled?'true':'false'):key==='SECONDCAREER_COMPANY_MANAGER_ENABLED'?(state.managerEnabled?'true':'false'):key==='SECONDCAREER_REGISTRATION_ENABLED'?(state.enabled?'true':'false'):key==='SECONDCAREER_POST_DRAFT_ENABLED'?(state.postEnabled?'true':'false'):'fixture'},serve:f=>{served=f}}});
+  const context=vm.createContext({Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,btoa,crypto:webcrypto,Deno:{env:{get:key=>key==='SECONDCAREER_PUBLIC_INTAKE_ALLOWED_ORIGINS'?state.publicIntakeAllowedOrigins:key==='SECONDCAREER_PUBLIC_INTAKE_ENABLED'?(state.publicIntakeEnabled?'true':'false'):key==='SECONDCAREER_COUNSELOR_REGISTRATION_ENABLED'?(state.counselorEnabled?'true':'false'):key==='SECONDCAREER_COMPANY_MANAGER_ENABLED'?(state.managerEnabled?'true':'false'):key==='SECONDCAREER_REGISTRATION_ENABLED'?(state.enabled?'true':'false'):key==='SECONDCAREER_POST_DRAFT_ENABLED'?(state.postEnabled?'true':'false'):'fixture'},serve:f=>{served=f}}});
   let served=null;
   function load(filename){
     filename=path.resolve(filename);if(cache.has(filename))return cache.get(filename).exports;
