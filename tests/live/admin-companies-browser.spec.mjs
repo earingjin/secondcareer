@@ -60,7 +60,7 @@ async function seedAssignmentCompanies(h){
 }
 async function openAssignments(page,id){
   if(await sec(page).getByRole('button',{name:'고객사 목록으로'}).isVisible())await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();
-  await sec(page).locator(`[data-company-id="${id}"]`).getByRole('button',{name:'상세 관리'}).click();
+  await sec(page).locator(`[data-company-id="${id}"]`).getByRole('button',{name:'고객사 설정'}).click();
   await sec(page).getByRole('button',{name:'상담사 배정 조회',exact:true}).click();
 }
 
@@ -72,13 +72,14 @@ test('admin starts with the dashboard, opens a customer by name and returns with
   expect(sidebar.x+sidebar.width).toBeLessThanOrEqual(content.x);
   await expect(page.locator('.admin-content > :visible')).toHaveCount(1);
   await expect(page.locator('#admin-progress')).toBeHidden();
-  await sec(page).getByRole('button',{name:a.name,exact:true}).click();
-  await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(a.id);
-  for(const [id,label] of [['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서']]){
-    const button=page.locator(`[data-company-dashboard-tab="${id}"]`);await expect(button).toHaveText(label);await button.click();await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('section[aria-live="polite"] > h3').first()).toHaveText(label);
+  await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:'운영 현황 보기',exact:true}).click();
+  await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();await expect(page.locator('#app')).not.toContainText(a.id);
+  for(const [id,label] of [['progress','진단 진행 현황'],['operations','내담자 관리'],['aggregate','통합 분석보고서']]){
+    const button=page.locator(`[data-company-dashboard-tab="${id}"]`);await expect(button).toHaveText(label);await button.click();await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('.admin-company-view').getByRole('heading',{name:label,exact:true})).toHaveCount(1);
   }
+  await expect(page.locator('.admin-sidebar [data-company-dashboard-tab]')).toHaveCount(0);
   await page.locator('[data-company-dashboard-back]').click();await expect(list).toBeVisible();
-  await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:'상세 관리'}).click();await expect(sec(page).locator('[data-company-target]')).toContainText(a.id);
+  await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:'고객사 설정'}).click();await expect(sec(page).locator('[data-company-target]')).toHaveText(a.name);await expect(sec(page).locator('[data-company-form]')).toHaveAttribute('data-id',a.id);
   await expect(sec(page).locator('[data-company-manager-host]')).toBeVisible();await expect(sec(page).locator('[data-company-assignments]')).toHaveCount(0);
   await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();await expect(list).toBeVisible();await expect(sec(page).locator('[data-company-form]')).toHaveCount(0);
   for(const id of ['admin-directory','admin-progress','admin-aggregate','admin-assessment-url','admin-counselors']){
@@ -119,13 +120,13 @@ test('company selection restores after reload, rejects revoked access and clears
 
 test('company dashboard keeps the selected ID across tabs and switches without mixing companies',async({page})=>{
   const h=harness(),[a,b]=await seedAssignmentCompanies(h),calls=await open(page,h);expect(a.id).not.toBe(b.id);await login(page);await openCompanies(page);
-  const tabs=[['progress','진단 진행 현황'],['operations','운영 관리'],['aggregate','통합 분석보고서']];
+  const tabs=[['progress','진단 진행 현황'],['operations','내담자 관리'],['aggregate','통합 분석보고서']];
   const select=async company=>{await sec(page).locator(`[data-company-id="${company.id}"]`).getByRole('button',{name:company.name,exact:true}).click()};
   const verify=async(company,other)=>{
     for(const [id,label] of tabs){
       const button=page.locator(`[data-company-dashboard-tab="${id}"]`);await button.click();
-      await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('section[aria-live="polite"] > h3').first()).toHaveText(label);
-      await expect(page.getByRole('heading',{name:company.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(company.id);
+      await expect(button).toHaveAttribute('aria-pressed','true');await expect(page.locator('.admin-company-view').getByRole('heading',{name:label,exact:true})).toHaveCount(1);
+      await expect(page.getByRole('heading',{name:company.name,exact:true})).toBeVisible();await expect(page.locator('#app')).not.toContainText(company.id);
       await expect(page.locator('#app')).not.toContainText(other.name);await expect(page.locator('#app')).not.toContainText(other.id);
       if(id==='progress')await expect(page.locator('section[aria-live="polite"] [data-kpi="total"] b')).toHaveText('0');
       else if(id==='operations')await expect(page.locator('section[aria-live="polite"] [data-dir-kpi="participants"] b')).toHaveText('0');
@@ -135,7 +136,7 @@ test('company dashboard keeps the selected ID across tabs and switches without m
   };
   const before=calls.length;await select(a);await verify(a,b);await page.locator('[data-company-dashboard-back]').click();
   await select(b);await verify(b,a);await page.locator('[data-company-dashboard-back]').click();await select(a);
-  await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();await expect(page.locator('#app')).toContainText(a.id);await expect(page.locator('#app')).not.toContainText(b.id);
+  await expect(page.getByRole('heading',{name:a.name,exact:true})).toBeVisible();await expect(page.locator('#app')).not.toContainText(a.id);await expect(page.locator('#app')).not.toContainText(b.id);
   expect(calls.slice(before).filter(c=>c.method==='POST'&&/register/i.test(c.path))).toHaveLength(0);
 });
 
@@ -189,6 +190,9 @@ test('company operations isolates participants and ignores delayed, mismatched a
   await expect(area).toContainText('B 전용 참여자');await expect(area).not.toContainText('A 전용 참여자');
   await expect(area.locator('[data-directory-filter="company"]')).toHaveCount(0);await expect(area.locator('[data-admin-report]')).toHaveCount(0);
   await expect(area.locator('[data-participant-assignment]')).toHaveCount(0);
+  await area.locator('#dir-name').fill('A 전용');await expect(area.locator('[data-dir-participant]')).toHaveCount(0);
+  await area.locator('#dir-name').fill('B 전용');await expect(area.locator('[data-dir-participant]')).toHaveCount(1);
+  await expect(area.getByRole('columnheader',{name:/최종 제출일/})).toHaveCount(0);
   await area.locator('[data-directory-filter="counselor"]').selectOption('unassigned');await expect(area.locator('[data-dir-participant]')).toHaveCount(1);
   options.directoryResponse=async(u,r)=>u.searchParams.has('companyId')?{...r,data:{...r.data,companyId:a.id}}:r;
   await area.locator('[data-company-directory-refresh]').click();await expect(area.locator('[data-dir-participant]')).toHaveCount(0);await expect(page.locator('#company-directory-status')).toContainText('응답');
@@ -197,6 +201,7 @@ test('company operations isolates participants and ignores delayed, mismatched a
   options.directoryResponse=null;await area.locator('[data-company-directory-refresh]').click();await expect(area).toContainText('B 전용 참여자');
   expect(calls.filter(c=>c.path.endsWith('admin-directory')&&c.query.includes('companyId='+b.id)).length).toBeGreaterThan(1);
   await page.locator('[data-company-dashboard-back]').click();await select(a);await expect(area).toContainText('A 전용 참여자');await expect(area).not.toContainText('B 전용 참여자');await expect(area.locator('[data-dir-kpi="counselors"] b')).toHaveText('1');
+  await expect(area.locator('#dir-name')).toHaveValue('');
   await page.getByRole('button',{name:'로그아웃',exact:true}).click();await expect(page.locator('#app')).not.toContainText('B 전용 참여자');await expect(page.locator('#app')).not.toContainText('A 전용 참여자');await login(page);await expect(page.locator('[data-dir-participant]')).toHaveCount(3);await expect(page.locator('[data-company-directory-refresh]')).toHaveCount(0);
 });
 
@@ -204,18 +209,19 @@ test('admin registers first and subsequent masters with zero participants, edits
   const h=harness();h.state.tables.participants.length=0;const errors=[];page.on('pageerror',e=>errors.push(String(e)));
   const calls=await open(page,h);await login(page);await openCompanies(page);
   await expect(sec(page).getByRole('heading',{name:'고객사 관리',exact:true})).toBeVisible();await expect(sec(page).locator('[data-company-list]')).toBeVisible();expect(companyCalls(calls).length).toBeGreaterThan(0);
-  await expect(sec(page).locator('[data-company-separation]')).toContainText('고객사 ID 연결 등록과 기존 미연결 참여자는 별도로 관리');
+  await expect(sec(page).locator('[data-company-separation]')).toContainText('공식 고객사로 자동 분류되지 않습니다.');
   await sec(page).getByRole('button',{name:'고객사 목록 조회'}).click();await expect(sec(page).locator('[data-company-list]')).toContainText('조건에 맞는 고객사가 없습니다');
   for(const name of ['합성 고객사 A','합성 고객사 B']){
     await sec(page).getByRole('button',{name:'고객사 등록',exact:true}).click();await fill(page,name);await sec(page).getByRole('button',{name:'고객사 저장',exact:true}).click();
     await expect(current(page)).toHaveText('고객사 정보를 저장했습니다.');await expect(sec(page).locator('[data-company-target]')).toContainText(name);await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();await expect(sec(page).locator('[data-company-list]')).toContainText(name);
   }
   const a=h.state.tables.client_companies.find(c=>c.name==='합성 고객사 A'),b=h.state.tables.client_companies.find(c=>c.name==='합성 고객사 B');
-  await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:'상세 관리'}).click();
-  await expect(sec(page).locator('[data-company-linkage]')).toContainText('고객사 ID로 연결된 참여자: 0명');
-  await expect(sec(page).locator('[data-company-target]')).toContainText(a.id);await field(page,'pm_name').fill('수정 PM');
+  await sec(page).locator(`[data-company-id="${a.id}"]`).getByRole('button',{name:'고객사 설정'}).click();
+  await expect(sec(page).locator('[data-company-linkage]')).toContainText('이 고객사에 분류된 내담자 0명');
+  await expect(sec(page).locator('[data-company-target]')).toHaveText(a.name);await expect(sec(page).locator('[data-company-form]')).toHaveAttribute('data-id',a.id);await field(page,'pm_name').fill('수정 PM');
   await sec(page).getByRole('button',{name:'고객사 정보 저장'}).click();await expect(current(page)).toHaveText('고객사 정보를 저장했습니다.');expect(a.pm_name).toBe('수정 PM');expect(b.pm_name).toBe('가상 PM');
-  await sec(page).getByRole('button',{name:'고객사 비활성화'}).click();await expect(sec(page).getByRole('button',{name:'고객사 재활성화'})).toBeVisible();expect(a.status).toBe('inactive');
+  page.once('dialog',dialog=>dialog.dismiss());await sec(page).getByRole('button',{name:'고객사 비활성화'}).click();expect(a.status).toBe('active');
+  page.once('dialog',dialog=>dialog.accept());await sec(page).getByRole('button',{name:'고객사 비활성화'}).click();await expect(sec(page).getByRole('button',{name:'고객사 재활성화'})).toBeVisible();expect(a.status).toBe('inactive');
   await sec(page).getByRole('button',{name:'고객사 재활성화'}).click();await expect(sec(page).getByRole('button',{name:'고객사 비활성화'})).toBeVisible();expect(a.status).toBe('active');
   await expect(sec(page).getByRole('button',{name:/삭제/})).toHaveCount(0);
   await expect(page.locator('#admin-progress [data-kpi="total"] b')).toHaveText('0');await expect(page.locator('#admin-directory')).not.toContainText('합성 고객사 A');
@@ -229,9 +235,9 @@ test('server duplicate/validation/conflict messages keep entered fields and a fa
   await expect(sec(page).locator('[data-company-list]')).toBeVisible();const before=companyCalls(calls).length;await sec(page).getByRole('button',{name:'고객사 등록',exact:true}).click();await fill(page,'중복 합성');await field(page,'end_date').fill('2026-01-01');await sec(page).getByRole('button',{name:'고객사 저장',exact:true}).click();await expect(current(page)).toContainText('종료일');expect(companyCalls(calls)).toHaveLength(before);
   await field(page,'end_date').fill('2027-01-31');await sec(page).getByRole('button',{name:'고객사 저장',exact:true}).click();await expect(current(page)).toHaveText('고객사 정보를 저장했습니다.');
   await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();await sec(page).getByRole('button',{name:'고객사 등록',exact:true}).click();await fill(page,'중복 합성');await sec(page).getByRole('button',{name:'고객사 저장',exact:true}).click();await expect(current(page)).toContainText('이미 등록');await expect(field(page,'name')).toHaveValue('중복 합성');await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();
-  await sec(page).locator('[data-company-list]').getByRole('button',{name:'상세 관리'}).click();await expect(field(page,'name')).toHaveValue('중복 합성');
+  await sec(page).locator('[data-company-list]').getByRole('button',{name:'고객사 설정'}).click();await expect(field(page,'name')).toHaveValue('중복 합성');
   h.state.tables.client_companies[0].updated_at='2099-01-01T00:00:00Z';await field(page,'pm_name').fill('덮어쓰지 않을 PM');await sec(page).getByRole('button',{name:'고객사 정보 저장'}).click();await expect(current(page)).toContainText('다른 변경');expect(h.state.tables.client_companies[0].pm_name).toBe('가상 PM');
-  await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();h.state.failReadsOf='client_companies';await sec(page).locator('[data-company-list]').getByRole('button',{name:'상세 관리'}).click();await expect(current(page)).toContainText('처리하지 못했습니다');await expect(sec(page).locator('[data-company-form]')).toHaveCount(0);
+  await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();h.state.failReadsOf='client_companies';await sec(page).locator('[data-company-list]').getByRole('button',{name:'고객사 설정'}).click();await expect(current(page)).toContainText('처리하지 못했습니다');await expect(sec(page).locator('[data-company-form]')).toHaveCount(0);
 });
 
 test('many masters use page navigation, status and search, and escape labels',async({page})=>{
@@ -260,6 +266,29 @@ test('mobile sidebar opens and closes after navigation',async({page})=>{
   await expect(page.locator('#admin-dashboard')).toBeVisible();await toggle.click();await expect(toggle).toHaveAttribute('aria-expanded','true');
   await page.locator('a[href="#admin-progress"]').click();await expect(toggle).toHaveAttribute('aria-expanded','false');await expect(page.locator('#admin-progress')).toBeVisible();
   await toggle.click();await page.locator('a[href="#admin-companies"]').click();await sec(page).getByRole('button',{name:a.name,exact:true}).click();
-  await expect(page.locator('.admin-content')).toContainText(a.name);await toggle.click();await page.locator('[data-company-dashboard-tab="operations"]').click();
-  await expect(toggle).toHaveAttribute('aria-expanded','false');await expect(page.locator('section[aria-live="polite"] > h3').first()).toHaveText('운영 관리');
+  await expect(page.locator('.admin-content')).toContainText(a.name);await page.locator('[data-company-dashboard-tab="operations"]').click();
+  await expect(toggle).toHaveAttribute('aria-expanded','false');await expect(page.locator('.admin-company-view').getByRole('heading',{name:'내담자 관리',exact:true})).toBeVisible();
+});
+
+test('company list, operations and settings fit desktop and mobile viewports',async({page},testInfo)=>{
+  const h=harness(),[a]=await seedAssignmentCompanies(h);await open(page,h);await login(page);await openCompanies(page);
+  const company=sec(page).locator(`[data-company-id="${a.id}"]`);
+  for(const width of [1280,1440,1920,375]){
+    await page.setViewportSize({width,height:900});
+    const fits=async file=>{
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      if(width===1440||width===375)await page.screenshot({path:testInfo.outputPath(`${file}-${width}.png`)});
+    };
+    await expect(company).toBeVisible();await fits('company-list');
+    await company.getByRole('button',{name:'운영 현황 보기'}).click();
+    await expect(page.locator('.admin-company-view [data-kpi="total"]')).toBeVisible();
+    await fits('company-operations');
+    await page.locator('[data-company-dashboard-back]').click();
+    await company.getByRole('button',{name:'고객사 설정'}).click();
+    await expect(sec(page).getByRole('group',{name:'기본정보'})).toBeVisible();
+    await expect(sec(page).getByRole('group',{name:'담당 PM 정보'})).toBeVisible();
+    await expect(sec(page).getByRole('heading',{name:'고객사 담당자 계정 관리'})).toBeVisible();
+    await fits('company-settings');
+    await sec(page).getByRole('button',{name:'고객사 목록으로'}).click();
+  }
 });

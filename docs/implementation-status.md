@@ -1,5 +1,20 @@
 # 요구사항별 구현 현황 점검
 
+## 2026-11-24 관리자 UX 2차
+
+검증 기준은 `feat/admin-ux-improvement`의 `401d7bda1c43e8887874c68ac635d543ed61f341` 위 로컬 작업본이다. 관리자 화면의 구현·검증 근거를 추가했으며 역할별·전체 구현 판정은 기존과 같다.
+
+| 요구사항 ID | 구현 및 검증 근거 | 미검증·후속 |
+|---|---|---|
+| REQ-A-001·004·006 | `admin-companies.js`의 운영·설정 진입과 `app.js`의 본문 탭 및 세션 복원. 모의 API·Chromium에서 고객사 범위, 지연 응답 차단, 진단 현황과 통합 분석 인쇄 확인 | 실제 서버·고객사 연결 (P0) |
+| REQ-A-002 | `admin-directory-view.js`·`admin-dashboard-view.js`의 검색·상태와 KPI 이동. `app.js`의 ID 기반 상세 패널 및 개별 저장. 모의 API·Chromium에서 동명이인, 제출일 정렬, 재시도 요청 ID, 충돌, 저장 후 재조회 및 목록 갱신 확인 | 실제 DB 동시성 및 대규모 조직 목록 성능 (P0) |
+| REQ-A-003 | `admin-company-managers.js`의 담당자 목록·연결·발급. 모의 API·Chromium에서 발급 영역 접기 후 안내 확인, 화면 이동·로그아웃 후 민감정보 제거, 접근 변경 검증 | 운영 Auth·DB·RLS (P0) |
+| REQ-A-005·016 | 결과물 메뉴와 목록 복귀 동선. Chromium에서 검색·필터 및 선택 복원, 개인 PDF 1·3·5쪽과 통합 분석 PDF 확인 | 실제 프린터 및 Chromium 외 브라우저 (P1) |
+
+공용 사전진단 링크 DB 연계는 3차 범위다. 관리자 레이아웃은 1280·1440·1920·375px에서 확인했다.
+
+최종 로컬 검증은 `npm.cmd run build` 종료 0, 관련 Playwright 59건 통과, 추가 재조회 실패 사례를 포함한 전체 `npm.cmd test` 416건 통과·조건부 건너뜀 5건(종료 0)이다. 레거시 SHA256과 `git diff --check`를 확인했다.
+
 ## 2026-11-24 관리자 UX 1차
 
 검증 기준은 `feat/admin-ux-improvement`의 `621ae2d7367f81f20d5d1ca2e46a1d4ca07aaeaa` 위 로컬 작업본이다. 요청된 화면과 이동 경로를 구현했으며 기존 구현 판정 및 역할별·전체 집계는 유지한다.

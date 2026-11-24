@@ -43,7 +43,7 @@ test('live admin issues counselor, company-wide assignment controls are absent, 
   await page.getByRole('button',{name:'상담사 목록 조회',exact:true}).click();await expect(page.locator('#admin-counselors tbody')).toContainText('new_counselor');
   await issued.getByRole('button',{name:'비밀번호 숨기기'}).click();await expect(issued).toHaveCount(0);
   await page.locator('a[href="#admin-companies"]').click();await page.getByRole('button',{name:'고객사 목록 조회',exact:true}).click();
-  await page.locator(`[data-company-id="${c.id}"]`).getByRole('button',{name:'상세 관리'}).click();
+  await page.locator(`[data-company-id="${c.id}"]`).getByRole('button',{name:'고객사 설정'}).click();
   await expect(page.locator('[data-company-assignments], #company-counselor')).toHaveCount(0);
   await page.getByRole('button',{name:'로그아웃',exact:true}).first().click();await login(page,'new_counselor',pw);
   await expect(page.locator('#new-password')).toBeVisible();await expect(page.locator('#admin-counselors')).toHaveCount(0);
