@@ -1,2 +1,5 @@
 [functions.secondcareer-public-assessment]
 verify_jwt = false
+
+[functions.secondcareer-admin-public-intake-links]
+verify_jwt = true

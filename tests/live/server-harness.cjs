@@ -11,6 +11,7 @@ function harness(){
   const tables={user_profiles:profiles,organizations:[{id:ids.org,name:'테스트 기업'}],server_login_lookup:profiles.map(p=>({user_id:p.user_id,login_id:loginIds[p.user_id],internal_email:users[p.user_id].email})),participant_registration_requests:[],participants:[{id:'existing-participant',auth_user_id:ids.participant,counselor_user_id:ids.counselor,organization_id:ids.org,display_name:'기존참여자',company_name:'테스트기업'}],assessments:[],assessment_history:[]};
   // pageSize caps each read like the Data API row limit; reads/failReadsOf record and fail reads per table.
   tables.counselor_registration_requests=[];tables.client_companies=[];tables.client_company_counselors=[];tables.company_manager_accounts=[];tables.company_manager_access=[];tables.company_manager_registration_requests=[];tables.participant_company_link_events=[];
+  tables.public_intake_links=[];
   const state={tables,users,created:[],updated:[],enabled:true,postEnabled:false,managerEnabled:false,pageSize:Infinity,reads:[],writes:[],failWritesOf:null,failReadsOf:null,failCreate:false,failComplete:false,failProfile:false,failUpdate:false,companyClock:0};
   const db={from(name){
     let filters=[],insert=null,update=null,columns=null,order=null,limit=Infinity,range=null,orders=[],selectOptions={},deleting=false;
@@ -218,7 +219,7 @@ function harness(){
     return u?{data:{user:u,session:{access_token:u.id,refresh_token:'refresh-'+u.id,expires_at:Math.floor(Date.now()/1000)+3600}},error:null}:{data:{},error:{code:'INVALID'}};
   };
   const cache=new Map(),root=path.resolve('supabase/functions');
-  const context=vm.createContext({Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,btoa,crypto:webcrypto,Deno:{env:{get:key=>key==='SECONDCAREER_COUNSELOR_REGISTRATION_ENABLED'?(state.counselorEnabled?'true':'false'):key==='SECONDCAREER_COMPANY_MANAGER_ENABLED'?(state.managerEnabled?'true':'false'):key==='SECONDCAREER_REGISTRATION_ENABLED'?(state.enabled?'true':'false'):key==='SECONDCAREER_POST_DRAFT_ENABLED'?(state.postEnabled?'true':'false'):'fixture'},serve:f=>{served=f}}});
+  const context=vm.createContext({Request,Response,URL,TextEncoder,TextDecoder,Uint8Array,btoa,crypto:webcrypto,Deno:{env:{get:key=>key==='SECONDCAREER_PUBLIC_INTAKE_ALLOWED_ORIGINS'?state.publicIntakeAllowedOrigins:key==='SECONDCAREER_PUBLIC_INTAKE_ENABLED'?(state.publicIntakeEnabled?'true':'false'):key==='SECONDCAREER_COUNSELOR_REGISTRATION_ENABLED'?(state.counselorEnabled?'true':'false'):key==='SECONDCAREER_COMPANY_MANAGER_ENABLED'?(state.managerEnabled?'true':'false'):key==='SECONDCAREER_REGISTRATION_ENABLED'?(state.enabled?'true':'false'):key==='SECONDCAREER_POST_DRAFT_ENABLED'?(state.postEnabled?'true':'false'):'fixture'},serve:f=>{served=f}}});
   let served=null;
   function load(filename){
     filename=path.resolve(filename);if(cache.has(filename))return cache.get(filename).exports;
@@ -234,6 +235,7 @@ function harness(){
   const access=load(path.join(root,'_shared/participant-access.ts'));
   const progress=load(path.join(root,'secondcareer-admin-progress/index.ts'));
   const directory=load(path.join(root,'secondcareer-admin-directory/index.ts'));
+  const publicIntakeLinks=load(path.join(root,'secondcareer-admin-public-intake-links/index.ts'));
   const unlinked=load(path.join(root,'secondcareer-admin-unlinked/index.ts'));
   const unlinkedLink=load(path.join(root,'secondcareer-admin-unlinked-link/index.ts'));
   const adminReport=load(path.join(root,'secondcareer-admin-report/index.ts'));
@@ -266,6 +268,6 @@ function harness(){
     const user=mapping&&Object.values(users).find(u=>u.email===mapping.internal_email);
     return user&&user.id===mapping.user_id&&credentials.get(user.id)===password?user:null;
   }
-  return {state,assignment,db,ids,login,registration,account,access,progress,directory,unlinked,unlinkedLink,adminReport,aggregate,companies,counselors,managers,manager,managerProgress,assessment,call,signIn,completeCounselor:args=>db.rpc('secondcareer_complete_counselor_registration',args),recoverCompany:args=>db.rpc('secondcareer_recover_company_registration',args)};
+  return {state,assignment,db,ids,login,registration,account,access,progress,directory,publicIntakeLinks,unlinked,unlinkedLink,adminReport,aggregate,companies,counselors,managers,manager,managerProgress,assessment,call,signIn,completeCounselor:args=>db.rpc('secondcareer_complete_counselor_registration',args),recoverCompany:args=>db.rpc('secondcareer_recover_company_registration',args)};
 }
 module.exports={harness,ids};

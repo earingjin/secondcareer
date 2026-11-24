@@ -155,6 +155,9 @@ test('directory response check rejects lists and counts that disagree',async()=>
   expect(filterParticipants(ok,{counselor:'unassigned'}).map(p=>p.name)).toEqual(['참여-d4']);
   expect(filterParticipants(ok,{counselor:ids.counselor,status:'submitted'}).map(p=>p.name)).toEqual(['참여-d1']);
   expect(filterParticipants(ok,{company:'2'}).map(p=>p.name)).toEqual(['참여-d4']);
+  expect(filterParticipants(ok,{work:'unclassified'})).toEqual([]);
+  expect(filterParticipants(ok,{work:'complete'})).toEqual([]);
+  expect(filterParticipants(ok,{work:'pending'}).map(p=>p.id)).toEqual(['d4']);
 });
 
 // Browser screen with the same mock.
@@ -162,7 +165,7 @@ test.describe('admin screen',()=>{
   let server;
   test.beforeAll(async()=>{server=await serve('src')});
   test.afterAll(async()=>{await server.close()});
-  async function open(page,h,{directoryStatus=null}={}){
+  async function open(page,h,options={}){
     const calls=[];
     await page.route('**/main.js',route=>route.fulfill({contentType:'text/javascript',body:"import './live/app.js';"}));
     await page.route('https://tafrbtqjlrokdnhudswb.supabase.co/**',async route=>{
@@ -171,10 +174,14 @@ test.describe('admin screen',()=>{
       calls.push(url.pathname);let result;
       if(url.pathname.endsWith('/secondcareer-login')){const id=h.signIn(body.loginId,body.password)?.id;result=id?{status:200,data:{access_token:id,refresh_token:'refresh-'+id,expires_at:Math.floor(Date.now()/1000)+3600}}:{status:401,data:{error:'INVALID_CREDENTIALS'}}}
       else if(url.pathname.endsWith('/secondcareer-account'))result=await h.call(h.account.handleAccount,token,body,request.method());
+      else if(url.pathname.endsWith('/secondcareer-admin-public-intake-links'))result={status:404,data:{error:'NOT_FOUND'}};
       else if(url.pathname.endsWith('/secondcareer-register-participant'))result=await h.call(h.registration.handleRegistration,token,body,request.method());
       else if(url.pathname.endsWith('/secondcareer-admin-progress'))result=await h.call(h.progress.handleAdminProgress,token,body,request.method());
       else if(url.pathname.endsWith('/secondcareer-admin-companies'))result=await h.call(h.companies.handleAdminCompanies,token,body,request.method(),'https://fixture.invalid/'+url.search);
-      else if(url.pathname.endsWith('/secondcareer-admin-directory'))result=directoryStatus?{status:directoryStatus,data:{error:'FIXTURE'}}:await h.call(h.directory.handleAdminDirectory,token,body,request.method(),'https://fixture.invalid/'+url.search);
+      else if(url.pathname.endsWith('/secondcareer-admin-directory')){
+        if(options.held)await options.held;
+        result=options.directoryStatus?{status:options.directoryStatus,data:{error:'FIXTURE'}}:await h.call(h.directory.handleAdminDirectory,token,body,request.method(),'https://fixture.invalid/'+url.search);
+      }
       else if(url.pathname.endsWith('/secondcareer-admin-participant-assignment'))result=await h.call(h.assignment.handleParticipantAssignment,token,body);
       else if(url.pathname.endsWith('/secondcareer-assessment'))result={status:200,data:{profile:{role:'counselor',display_name:'상담사'},participants:[],assessments:[],counselors:{}}};
       else if(url.pathname==='/auth/v1/logout')return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*'}});
@@ -184,8 +191,155 @@ test.describe('admin screen',()=>{
     await page.goto(server.url);
     return calls;
   }
-  async function login(page,id='admin01'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill('Fixture-password-123!');await page.getByRole('button',{name:'로그인',exact:true}).click();if(id==='admin01')await page.locator('a[href="#admin-directory"]').click()}
+  async function login(page,id='admin01',section='admin-directory'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill('Fixture-password-123!');await page.getByRole('button',{name:'로그인',exact:true}).click();if(id==='admin01'&&section)await page.locator(`a[href="#${section}"]`).click()}
   const kpi=(page,key)=>page.locator(`#admin-directory [data-dir-kpi="${key}"] b`);
+  const dashboard=page=>page.locator('#admin-dashboard');
+  const dashboardKpi=(page,key)=>dashboard(page).locator(`[data-admin-dashboard-kpi="${key}"] b`);
+
+  function dashboardFixture(){
+    const h=seed(),t=h.state.tables;
+    t.client_companies.push({id:companyId,name:'공식 고객사',status:'active',organization_id:ids.org});
+    t.participants.find(p=>p.id==='d1').company_id=companyId;
+    t.participants.find(p=>p.id==='d2').company_id=companyId;
+    t.assessments.find(a=>a.id==='a-d1').submitted_at='2026-11-23T01:00:00Z';
+    t.assessments.find(a=>a.id==='a-d5').submitted_at='2026-11-23T02:00:00Z';
+    t.assessments.push({id:'a-d3',participant_id:'d3',phase:'pre',status:'submitted',submitted_at:'2026-11-24T02:00:00Z'});
+    t.participants.find(p=>p.id==='d3').counselor_user_id=null;
+    return h;
+  }
+
+  test('dashboard uses the verified directory once, deduplicates work and opens the selected row',async({page})=>{
+    const calls=await open(page,dashboardFixture());await login(page,'admin01',null);
+    await expect(dashboard(page)).toBeVisible();
+    await expect(page.getByRole('navigation',{name:'운영 업무'}).getByRole('link')).toHaveText(['운영 대시보드','내담자 관리','고객사 관리','상담사 관리','진단 링크 관리']);
+    await expect(page.getByRole('navigation',{name:'통계 및 분석'}).getByRole('link')).toHaveText(['진단 진행 현황','통합 분석보고서']);
+    for(const [key,value] of [['participants','5'],['submitted','3'],['unclassified','3'],['unassigned','2']]){
+      await expect(dashboardKpi(page,key)).toHaveText(value);
+    }
+    const work=dashboard(page).locator('[data-admin-work-row]');
+    await expect(work.locator('td:first-child')).toHaveText(['참여-d3','참여-d5','참여-d4']);
+    await expect(work.nth(0).locator('td:nth-child(3) time')).toHaveAttribute('datetime','2026-11-24T02:00:00Z');
+    await expect(work.nth(1).locator('td:nth-child(5)')).toHaveText('담당 확인 필요');
+    await expect(work.nth(2).locator('td:nth-child(3)')).toHaveText('—');
+    await dashboard(page).getByRole('button',{name:'내담자 목록',exact:true}).click();
+    await page.locator('#dir-status').selectOption('draft');
+    await page.getByRole('link',{name:'운영 대시보드',exact:true}).click();
+    await work.first().getByRole('button',{name:'내담자 관리',exact:true}).click();
+    await expect(page.getByRole('link',{name:'내담자 관리',exact:true})).toHaveAttribute('aria-current','page');
+    await expect(page.getByRole('dialog',{name:'참여-d3'})).toBeVisible();
+    await expect(page.locator('#dir-status')).toHaveValue('all');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('[data-dir-participant="d3"] [data-directory-manage]')).toBeFocused();
+    expect(calls.filter(path=>path.endsWith('/secondcareer-admin-directory'))).toHaveLength(1);
+    await page.getByRole('link',{name:'운영 대시보드',exact:true}).click();
+    await expect(dashboard(page)).toContainText('공용 사전진단 링크를 불러오지 못했습니다.');
+    await dashboard(page).getByRole('button',{name:'진단 링크 관리',exact:true}).click();
+    await expect(page.locator('#admin-assessment-url')).toBeVisible();
+  });
+
+  test('directory combines name, company and work filters and dashboard links replace prior conditions',async({page})=>{
+    const h=dashboardFixture();
+    for(const id of ['d1','d3'])h.state.tables.participants.find(p=>p.id===id).display_name='Alex Kim';
+    await open(page,h);await login(page);
+    const rows=page.locator('#admin-directory [data-dir-participant]');
+    const rowIds=()=>rows.evaluateAll(elements=>elements.map(row=>row.dataset.dirParticipant));
+    const filter=key=>page.locator(`[data-directory-filter="${key}"]`);
+    await expect(rows).toHaveCount(5);
+    expect(await rowIds()).toEqual(['d3','d5','d1','d2','d4']);
+    await expect(rows.first().locator('time')).toContainText('오전 11:00');
+    await filter('name').fill('  aLeX  ');
+    expect(await rowIds()).toEqual(['d3','d1']);
+    await filter('officialCompany').selectOption(companyId);
+    expect(await rowIds()).toEqual(['d1']);
+    await filter('company').selectOption({label:'나 기업'});
+    await expect(rows).toHaveCount(0);
+    await page.getByRole('button',{name:'조건 초기화'}).click();
+    for(const [value,expected] of [['pending',['d3','d5','d4']],['unclassified',['d3','d5','d4']],['unassigned',['d3','d4']],['complete',['d1','d2']],['unknown',['d5']]]){
+      await filter('work').selectOption(value);expect(await rowIds()).toEqual(expected);
+    }
+    await filter('work').selectOption('all');
+    for(const [id,company] of [['d3','나 기업'],['d1','가 기업']]){
+      await page.locator(`[data-dir-participant="${id}"] [data-directory-manage]`).click();
+      const panel=page.getByRole('dialog',{name:'Alex Kim'});
+      await expect(panel.locator('dd').first()).toHaveText(company);
+      await expect(panel.locator('form').first()).toHaveAttribute('data-participant-id',id);
+      await panel.getByRole('button',{name:'닫기'}).click();
+    }
+    for(const [key,expected] of [['participants',['d3','d5','d1','d2','d4']],['submitted',['d3','d5','d1']],['unclassified',['d3','d5','d4']],['unassigned',['d3','d4']],['unknown',['d5']]]){
+      await filter('name').fill('대상 없음');
+      await page.getByRole('link',{name:'운영 대시보드',exact:true}).click();
+      const button=key==='unknown'?dashboard(page).getByRole('button',{name:'담당 확인 필요 1명'}):dashboardKpi(page,key).locator('..').locator('..');
+      await button.click();
+      await expect(filter('name')).toHaveValue('');
+      expect(await rowIds()).toEqual(expected);
+    }
+  });
+
+  test('dashboard separates pending, failed and empty reads and can retry safely',async({page})=>{
+    const h=seed();h.state.tables.participants.length=0;
+    let release;
+    const options={directoryStatus:503,held:new Promise(resolve=>{release=resolve})};
+    await open(page,h,options);await login(page,'admin01',null);
+    await expect(dashboard(page).locator('.admin-dashboard-status')).toHaveText('내담자 현황을 조회하고 있습니다.');
+    await expect(dashboard(page).locator('[data-admin-dashboard-kpi]')).toHaveCount(0);
+    release();
+    await expect(dashboard(page).locator('.admin-dashboard-status')).toHaveText('운영 관리 목록을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
+    await expect(dashboard(page).locator('[data-admin-dashboard-kpi]')).toHaveCount(0);
+    options.directoryStatus=null;
+    await dashboard(page).getByRole('button',{name:'다시 불러오기',exact:true}).click();
+    await expect(dashboard(page).locator('.admin-dashboard-status')).toHaveText('등록된 내담자가 없습니다.');
+    await expect(dashboard(page).locator('[data-admin-dashboard-kpi] b')).toHaveText(['0','0','0','0']);
+  });
+
+  test('dashboard and directory fit desktop and mobile viewports with local table scrolling',async({page},testInfo)=>{
+    await open(page,dashboardFixture());await login(page,'admin01',null);
+    await expect(dashboardKpi(page,'participants')).toHaveText('5');
+    for(const width of [1280,1440,1920,375]){
+      await page.setViewportSize({width,height:900});
+      const mobile=width===375;
+      const toggle=page.getByRole('button',{name:'관리 메뉴'});
+      const workspace=await page.locator('.admin-workspace').boundingBox();
+      const sidebar=await page.locator('.admin-sidebar').boundingBox();
+      const content=await page.locator('.admin-content').boundingBox();
+      expect(workspace.width).toBe(Math.min(width,1600));
+      if(mobile){
+        expect(sidebar.y+sidebar.height).toBeLessThan(content.y);
+        await expect(toggle).toHaveAttribute('aria-expanded','false');
+      }else{
+        expect(sidebar.width).toBe(232);
+        expect(sidebar.x+sidebar.width).toBeLessThan(content.x);
+      }
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      if(width===1440||mobile)await page.screenshot({path:testInfo.outputPath(`dashboard-${width}.png`)});
+      if(mobile)await toggle.click();
+      await page.getByRole('link',{name:'내담자 관리',exact:true}).click();
+      const scroll=page.locator('#admin-directory .admin-table-scroll');
+      const dimensions=await scroll.evaluate(el=>({client:el.clientWidth,table:el.scrollWidth,columns:[...el.querySelectorAll('tr')].map(r=>r.cells.length)}));
+      expect(dimensions.columns).toEqual([8,8,8,8,8,8]);
+      const row=scroll.locator('[data-dir-participant]').first();
+      const rowBox=await row.boundingBox();
+      if(!mobile){expect(rowBox.height).toBeGreaterThanOrEqual(56);expect(rowBox.height).toBeLessThanOrEqual(72)}
+      if(mobile){
+        expect(dimensions.table).toBeGreaterThan(dimensions.client);
+        await expect(toggle).toHaveAttribute('aria-expanded','false');
+      }
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      if(width===1440||mobile)await page.screenshot({path:testInfo.outputPath(`directory-${width}.png`)});
+      await row.getByRole('button',{name:'관리',exact:true}).click();
+      const panel=page.getByRole('dialog');
+      expect((await panel.boundingBox()).width).toBe(mobile?375:460);
+      if(width===1440||mobile)await page.screenshot({path:testInfo.outputPath(`participant-panel-${width}.png`)});
+      await panel.getByRole('button',{name:'닫기'}).click();
+      if(!mobile){
+        await page.evaluate(()=>window.scrollTo({top:400,behavior:'instant'}));
+        const header=await page.locator('header.nav').boundingBox();
+        const sticky=await page.locator('.admin-sidebar').boundingBox();
+        expect(sticky.y).toBeGreaterThanOrEqual(header.y+header.height);
+      }
+      if(mobile)await toggle.click();
+      await page.getByRole('link',{name:'운영 대시보드',exact:true}).click();
+    }
+  });
 
   test('administrator saves and clears each field independently and sees reloaded rows',async({page})=>{
     const h=seed(),t=h.state.tables;
@@ -196,8 +350,9 @@ test.describe('admin screen',()=>{
     t.client_companies.push({id:secondCompany,name:'공식 고객사',organization_id:ids.org,status:'active'});
     t.assessments.push({id:'a-d3',participant_id:p.id,phase:'pre',status:'submitted',submitted_at:'2026-11-23T00:00:00Z',answers:{},result:{}});
     const original=structuredClone(t.assessments);
-    let lostRequest=null;
+    let lostRequest=null;const requests=[];
     h.db.rpc=async(_,a)=>{
+      requests.push(a);
       if(lostRequest===a.p_request)return {data:{requestId:a.p_request}};
       const key=a.p_kind==='company'?'company_id':'counselor_user_id';
       expect(a.p_expected).toBe(p[key]);p[key]=a.p_target;
@@ -207,15 +362,34 @@ test.describe('admin screen',()=>{
     await open(page,h);await login(page);
     const row=page.locator('[data-dir-participant]').filter({hasText:'참여-d3'});
     await expect(row).toContainText('제출 완료');await expect(row).toContainText('미분류');
+    await expect(row).not.toContainText(p.id);
+    await page.locator('[data-directory-filter="work"]').selectOption('pending');
+    await row.getByRole('button',{name:'관리',exact:true}).click();
+    const panel=page.getByRole('dialog',{name:'참여-d3'});
+    const companyOptions=panel.locator('[data-participant-assignment="company"] option');
+    await expect(companyOptions).toHaveText(['미분류','공식 고객사 (00000001)','공식 고객사 (00000002)']);
     for(const [kind,id,button] of [['counselor',ids.counselor,'상담사 저장'],['counselor',ids.counselor,'상담사 저장'],['company',companyId,'고객사 저장'],['company',secondCompany,'고객사 저장'],['counselor',C2,'상담사 저장'],['counselor','','상담사 저장'],['company','','고객사 저장']]){
-      const form=row.locator('[data-participant-assignment="'+kind+'"]');
+      const form=panel.locator('[data-participant-assignment="'+kind+'"]');
       const retry=!lostRequest;
       await form.locator('select').selectOption(id);await form.getByRole('button',{name:button}).click();
       await expect(form.locator('select')).toBeEnabled();
-      await expect(form.locator('select')).toHaveValue(retry?'':id);
+      await expect(form.locator('select')).toHaveValue(id);
+      if(!retry){
+        await expect(form.getByRole('button',{name:button})).toBeDisabled();
+        const metric=kind==='company'?'unclassified':'unassigned';
+        await expect(dashboardKpi(page,metric)).toHaveText(String((kind==='company'?4:1)+Number(!id)));
+      }
+      if(kind==='company'&&id===companyId){
+        await expect(panel.getByRole('status')).toContainText('미처리 목록에서 제외');
+        await expect(row).toHaveCount(0);
+      }
     }
+    expect(requests[0]).toEqual(requests[1]);
     expect(p).toMatchObject({company_name:'나 기업',company_id:null,counselor_user_id:null});
     expect(t.assessments).toEqual(original);
+    await panel.getByRole('button',{name:'닫기'}).click();await page.getByRole('link',{name:'운영 대시보드',exact:true}).click();
+    await expect(dashboardKpi(page,'unclassified')).toHaveText('5');
+    await expect(dashboardKpi(page,'unassigned')).toHaveText('2');
   });
 
   test('admin sees counselors, companies and participants; filters work; progress, URL and registration stay',async({page})=>{
@@ -232,13 +406,16 @@ test.describe('admin screen',()=>{
     await expect(page.locator('[data-dir-companies] tbody tr')).toHaveText([/가 기업\s*2\s*2/,/나 기업\s*2\s*1/,/소속기업 미지정\s*1\s*0/]);
     const rows=page.locator('[data-dir-participants] tbody tr[data-dir-participant]');
     await expect(rows).toHaveCount(5);
-    await expect(rows.nth(3)).toHaveText(/참여-d5\s*part0005\s*나 기업\s*담당 확인 필요\s*제출 완료/);
-    await expect(rows.nth(4)).toHaveText(/참여-d4\s*part0004\s*소속기업 미지정\s*미배정\s*미시작/);
+    const unknown=rows.filter({hasText:'참여-d5'}),unassigned=rows.filter({hasText:'참여-d4'});
+    await expect(unknown).toHaveText(/참여-d5\s*나 기업\s*미분류\s*담당 확인 필요\s*제출 완료/);
+    await expect(unassigned).toHaveText(/참여-d4\s*소속기업 미지정\s*미분류\s*미배정\s*미시작/);
+    await expect(unknown).not.toContainText('part0005');
+    await expect(unassigned).not.toContainText('part0004');
     await page.locator('#dir-company').selectOption({label:'가 기업'});await expect(rows).toHaveCount(2);
     await page.locator('#dir-status').selectOption('draft');await expect(rows).toHaveCount(1);await expect(rows.first()).toContainText('참여-d2');
     await page.locator('#dir-company').selectOption('all');await page.locator('#dir-status').selectOption('all');
     await page.locator('#dir-counselor').selectOption('unassigned');await expect(rows).toHaveCount(1);await expect(rows.first()).toContainText('참여-d4');
-    await expect(page.locator('[data-dir-count]')).toHaveText('조건에 맞는 참여자 1명 / 등록 참여자 5명');
+    await expect(page.locator('[data-dir-count]')).toHaveText('조건에 맞는 내담자 1명 / 등록 내담자 5명');
     const text=await page.locator('#admin-directory').innerText();
     for(const hidden of ['비밀 기업','other001','01099998888','응답원문'])expect(text).not.toContain(hidden);
     // URL setting and directory refresh remain available through separate menus.
@@ -255,13 +432,67 @@ test.describe('admin screen',()=>{
     expect(errors).toEqual([]);
   });
 
+  test('assignment conflict reloads the current owner and requires a new explicit choice',async({page})=>{
+    const h=dashboardFixture();
+    const participant=h.state.tables.participants.find(p=>p.id==='d3');
+    participant.id='40000000-0000-4000-8000-000000000003';
+    let writes=0;
+    h.db.rpc=async()=>{
+      writes++;
+      participant.counselor_user_id=C2;
+      return {error:{code:'40001'}};
+    };
+    await open(page,h);await login(page);
+    await page.locator(`[data-dir-participant="${participant.id}"] [data-directory-manage]`).click();
+    const panel=page.getByRole('dialog');
+    const select=panel.getByLabel('상담사 선택');
+    const save=panel.getByRole('button',{name:'상담사 저장'});
+    await select.selectOption(ids.counselor);await save.click();
+    await expect(panel.getByRole('status')).toContainText('다른 변경이 먼저 저장되었습니다');
+    await expect(select).toHaveValue(C2);
+    await expect(save).toBeDisabled();
+    expect(writes).toBe(1);
+  });
+
+  test('assignment keeps a known save visible after refresh fails and drops unavailable pending choices',async({page})=>{
+    const h=dashboardFixture(),options={};
+    const participant=h.state.tables.participants.find(p=>p.id==='d3');
+    participant.id='40000000-0000-4000-8000-000000000003';
+    const company=h.state.tables.client_companies.find(c=>c.id===companyId);
+    let writes=0;
+    h.db.rpc=async(_,request)=>{
+      writes++;
+      expect(request.p_kind).toBe('counselor');
+      participant.counselor_user_id=request.p_target;
+      if(writes===1)company.status='inactive';else options.directoryStatus=503;
+      return {data:{requestId:request.p_request}};
+    };
+    await open(page,h,options);await login(page);
+    await page.locator(`[data-dir-participant="${participant.id}"] [data-directory-manage]`).click();
+    const panel=page.getByRole('dialog');
+    const companySelect=panel.getByLabel('고객사 선택');
+    const counselor=panel.getByLabel('상담사 선택');
+    const save=panel.getByRole('button',{name:'상담사 저장'});
+    await companySelect.selectOption(companyId);
+    await counselor.selectOption(ids.counselor);await save.click();
+    await expect(panel.getByRole('status')).toHaveText('변경을 저장했습니다.');
+    await expect(companySelect).toHaveValue('');
+    await expect(panel.getByRole('button',{name:'고객사 저장'})).toBeDisabled();
+    await counselor.selectOption(C2);await save.click();
+    await expect(panel).toBeHidden();
+    await expect(page.locator('#admin-directory-status')).toContainText('불러오지 못했습니다');
+    await expect(page.locator('#admin-directory')).toContainText('변경을 저장했습니다. 목록을 다시 조회해 반영 상태를 확인해 주세요.');
+    expect(participant.counselor_user_id).toBe(C2);
+    expect(writes).toBe(2);
+  });
+
   test('empty organization and refused lists are shown without breaking the rest of the page',async({page})=>{
     const empty=harness();empty.state.tables.participants.length=0;
     empty.state.tables.user_profiles.splice(0,empty.state.tables.user_profiles.length,...empty.state.tables.user_profiles.filter(p=>p.role==='admin'));
     await open(page,empty);await login(page);
     await expect(kpi(page,'participants')).toHaveText('0');
     await expect(page.locator('[data-dir-counselors]')).toContainText('등록된 상담사가 없습니다.');
-    await expect(page.locator('[data-dir-participants]')).toContainText('등록된 참여자가 없습니다.');
+    await expect(page.locator('[data-dir-participants]')).toContainText('등록된 내담자가 없습니다.');
     await page.getByRole('button',{name:'로그아웃',exact:true}).click();
     await open(page,seed(),{directoryStatus:403});await login(page);
     await expect(page.locator('#admin-directory-status')).toHaveText('운영 관리 목록을 조회할 권한이 없습니다.');

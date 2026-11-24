@@ -25,6 +25,7 @@ async function setup(page,{pending=false,enabled=true}={}){
       result=id&&h.state.users[id]?{status:200,data:{access_token:id,refresh_token:'refresh-'+id,expires_in:3600}}:{status:400,data:{error:'INVALID_REFRESH_TOKEN'}};
     }else if(url.pathname.endsWith('/secondcareer-account'))result=await h.call(h.account.handleAccount,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-register-participant'))result=await h.call(h.registration.handleRegistration,token,body,request.method());
+    else if(url.pathname.endsWith('/secondcareer-admin-public-intake-links'))result=await h.call(h.publicIntakeLinks.handleAdminPublicIntakeLinks,token);
     else if(url.pathname.endsWith('/secondcareer-admin-progress'))result=await h.call(h.progress.handleAdminProgress,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-admin-directory'))result=await h.call(h.directory.handleAdminDirectory,token,body,request.method());
     else if(url.pathname.endsWith('/secondcareer-admin-companies'))result=await h.call(h.companies.handleAdminCompanies,token,body,request.method(),'https://fixture.invalid/'+url.search);
@@ -58,7 +59,7 @@ async function setup(page,{pending=false,enabled=true}={}){
   return {h,assessments,reads:()=>assessmentReads,drafts:()=>drafts,submissions:()=>submissions};
 }
 async function login(page,id,password='Fixture-password-123!'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill(password);await page.getByRole('button',{name:'로그인',exact:true}).click()}
-for(const [id,heading] of [['admin01','고객사 관리'],['consult01','상담사 페이지']]){
+for(const [id,heading] of [['admin01','운영 대시보드'],['consult01','상담사 페이지']]){
   test(`${id} restores its role after refresh and logout clears the session`,async({page})=>{
     await setup(page);await login(page,id);
     await expect(page.getByRole('heading',{name:heading})).toBeVisible();
