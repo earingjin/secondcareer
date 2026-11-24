@@ -30,13 +30,24 @@ async function setup(page){
 async function login(page,id='admin01',pw='Fixture-password-123!'){await page.locator('#lg-id').fill(id);await page.locator('#lg-pw').fill(pw);await page.getByRole('button',{name:'로그인',exact:true}).click();if(id==='admin01')await page.locator('a[href="#admin-counselors"]').click()}
 
 async function issueForm(page,id='new_counselor'){
-  await page.getByRole('button',{name:'상담사 목록 조회',exact:true}).click();
   await page.getByLabel('상담사 이름',{exact:true}).fill('합성 상담사');await page.getByLabel('로그인 아이디',{exact:true}).fill(id);
   await page.getByRole('button',{name:'상담사 계정 등록',exact:true}).click();
 }
 
-test('live admin issues counselor, company-wide assignment controls are absent, first login changes password',async({page})=>{
-  const {h,c}=await setup(page);await login(page);await issueForm(page);
+test('live admin issues counselor, company-wide assignment controls are absent, first login changes password',async({page},testInfo)=>{
+  const {h,c}=await setup(page);await login(page);
+  await page.getByRole('button',{name:'상담사 목록 조회',exact:true}).click();
+  const viewport=page.viewportSize();
+  for(const width of [1280,1440,1920,375]){
+    await page.setViewportSize({width,height:900});
+    const section=page.locator('#admin-counselors');
+    await section.getByRole('button',{name:'상담사 목록 조회',exact:true}).click({trial:true});
+    await section.getByLabel('상담사 이름',{exact:true}).scrollIntoViewIfNeeded();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    if(width===1440||width===375)await page.screenshot({path:testInfo.outputPath(`counselors-${width}.png`)});
+  }
+  await page.setViewportSize(viewport);
+  await issueForm(page);
   const issued=page.locator('[data-counselor-issued]');await expect(issued).toBeVisible();const pw=await issued.locator('code').innerText();
   const id=h.state.tables.user_profiles.find(p=>p.display_name==='합성 상담사').user_id;
   expect(await page.evaluate(()=>JSON.stringify({...localStorage,...sessionStorage}))).not.toContain(pw);
@@ -54,7 +65,9 @@ test('live admin issues counselor, company-wide assignment controls are absent, 
 });
 
 test('duplicate rejection permits correction; ambiguous outcome locks issuance and exposes request identifier only',async({page})=>{
-  const {h,calls}=await setup(page);await login(page);await issueForm(page,'consult01');
+  const {h,calls}=await setup(page);await login(page);
+  await page.getByRole('button',{name:'상담사 목록 조회',exact:true}).click();
+  await issueForm(page,'consult01');
   await expect(page.locator('#admin-counselors')).toContainText('이미 사용 중인');await expect(page.getByRole('button',{name:'상담사 계정 등록',exact:true})).toBeEnabled();
   h.state.failCreate=true;await page.getByLabel('로그인 아이디',{exact:true}).fill('unknown_counselor');await page.getByRole('button',{name:'상담사 계정 등록',exact:true}).click();
   await expect(page.locator('#admin-counselors')).toContainText('확인용 요청 ID');await expect(page.getByRole('button',{name:'상담사 계정 등록',exact:true})).toBeDisabled();
@@ -70,5 +83,6 @@ test('disabled feature lists counselors without offering creation; failed/malfor
     if(route.request().method()==='POST')return route.fulfill({status:201,headers:{'Access-Control-Allow-Origin':'*'},contentType:'application/json',body:'{}'});
     return route.fallback();
   });
+  await page.getByRole('button',{name:'상담사 목록 조회',exact:true}).click();
   await issueForm(page);await expect(page.getByRole('button',{name:'상담사 계정 등록',exact:true})).toBeDisabled();await expect(page.locator('[data-counselor-issued]')).toHaveCount(0);
 });

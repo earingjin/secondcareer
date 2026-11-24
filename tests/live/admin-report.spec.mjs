@@ -208,7 +208,7 @@ test.describe('admin report screen',()=>{
     await page.evaluate(()=>window.dispatchEvent(new Event('afterprint')));await page.emulateMedia({media:null});
   });
 
-  test('10 admin opens both report kinds from the list, prints and returns with filters kept',async({page})=>{
+  test('10 admin opens both report kinds from the list, prints and returns with filters kept',async({page},testInfo)=>{
     const errors=[];page.on('pageerror',e=>errors.push(String(e)));
     const h=seed();const calls=await open(page,h);await login(page);
     await page.locator('a[href="#admin-directory"]').click();
@@ -218,7 +218,14 @@ test.describe('admin report screen',()=>{
     await page.locator('#dir-company').selectOption({label:'가 기업'});
     const summary=row(page,'보고서대상').locator('summary');
     await summary.focus();await page.keyboard.press('Enter');
-    await expect(row(page,'보고서대상').getByRole('button',{name:'상담사용 세컨플래닝 프로파일 (5페이지)'})).toBeVisible();
+    const viewport=page.viewportSize();
+    for(const width of [1280,1440,1920,375]){
+      await page.setViewportSize({width,height:900});
+      for(const button of await row(page,'보고서대상').locator('[data-admin-report]').all())await button.click({trial:true});
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+      if(width===1440||width===375)await page.screenshot({path:testInfo.outputPath(`report-menu-${width}.png`)});
+    }
+    await page.setViewportSize(viewport);
     await page.keyboard.press('Escape');await expect(summary).toBeFocused();
     await expect(row(page,'보고서대상').locator('details')).not.toHaveAttribute('open','');
     await page.locator('#dir-name').fill('보고서대상');

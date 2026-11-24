@@ -179,7 +179,7 @@ test.describe('admin link screens',()=>{
     return calls;
   }
 
-  test('one active link is copyable, manual selection works and new tab is isolated',async({page,context})=>{
+  test('one active link is copyable, manual selection works and new tab is isolated',async({page,context},testInfo)=>{
     const row=fixtureLink(),h=fixture(row);
     const expected=`${baseUrl}?entry=pre&linkId=${row.id}`;
     await page.addInitScript(()=>{
@@ -219,6 +219,9 @@ test.describe('admin link screens',()=>{
       await page.setViewportSize({width,height:900});
       expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       await expect(input).toBeVisible();
+      await input.scrollIntoViewIfNeeded();
+      await settings(page).getByRole('button',{name:'복사',exact:true}).click({trial:true});
+      if(width===1440||width===375)await page.screenshot({path:testInfo.outputPath(`intake-links-${width}.png`)});
     }
   });
 
@@ -272,6 +275,10 @@ test.describe('admin link screens',()=>{
     await retry.click();
     await expect(settings(page)).toContainText('조회할 권한이 없습니다.');
     await expect(page.locator('#assessment-url')).toBeEnabled();
+    options.override=()=>({status:503,data:{error:'QUERY_FAILED'}});
+    await retry.click();
+    await expect(settings(page)).toContainText('불러오지 못했습니다.');
+    await expect(page.locator('#assessment-url')).toBeEnabled();
     options.override=null;h.state.publicIntakeEnabled=false;await retry.click();
     await expect(settings(page)).toContainText('접수가 중지되어 있습니다.');
     await expect(settings(page).locator('[data-intake-copy],[data-intake-open]')).toHaveCount(0);
@@ -282,6 +289,33 @@ test.describe('admin link screens',()=>{
     await expect(settings(page).locator('[data-intake-copy],[data-intake-open]')).toHaveCount(0);
     h.state.tables.public_intake_links=[];await retry.click();
     await expect(settings(page)).toContainText('등록된 공용 링크가 없습니다.');
+  });
+
+  test('a link gateway 401 leaves a valid admin session and permits a scoped retry',async({page})=>{
+    const h=fixture(fixtureLink());
+    const options={override:()=>({status:401,data:{code:401,message:'Invalid JWT'}})};
+    const calls=await open(page,h,options);await login(page);
+    await expect(dashboard(page)).toContainText('공용 사전진단 링크를 불러오지 못했습니다.');
+    await expect(page.locator('[data-admin-dashboard-kpi="participants"]')).toBeVisible();
+    await page.getByRole('link',{name:'내담자 관리',exact:true}).click();
+    await expect(page.locator('#admin-directory [data-dir-participant]')).toHaveCount(1);
+    expect(calls.filter(path=>path.endsWith('/secondcareer-account'))).toHaveLength(2);
+    options.override=null;
+    await page.getByRole('link',{name:'진단 링크 관리',exact:true}).click();
+    await settings(page).getByRole('button',{name:'다시 조회'}).click();
+    await expect(settings(page).getByLabel('공용 설문 URL')).toBeVisible();
+  });
+
+  test('a link 401 confirmed by the account endpoint clears an invalid admin session',async({page})=>{
+    const h=fixture(fixtureLink());
+    const calls=await open(page,h);await login(page);await manage(page);
+    await expect(settings(page).getByLabel('공용 설문 URL')).toBeVisible();
+    delete h.state.users[ids.admin];
+    await settings(page).getByRole('button',{name:'다시 조회'}).click();
+    await expect(page.locator('#lg-id')).toBeVisible();
+    await expect(settings(page)).toHaveCount(0);
+    expect(calls.filter(path=>path.endsWith('/secondcareer-account'))).toHaveLength(2);
+    expect(await page.evaluate(()=>sessionStorage.getItem('sp-live-refresh-token'))).toBeNull();
   });
 
   test('a delayed old-organization response cannot replace a new session and other roles never request links',async({page})=>{

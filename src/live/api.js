@@ -1,5 +1,8 @@
 import {resolveConfig,requestTarget} from './config.js';
 
+const accountPath='/functions/v1/secondcareer-account';
+const publicIntakeLinksPath='/functions/v1/secondcareer-admin-public-intake-links';
+
 // Only the rotating refresh token is kept for the lifetime of this browser tab.
 function runtimeEnv(){
   try{return {MODE:import.meta.env.MODE,VITE_SP_ENV:import.meta.env.VITE_SP_ENV,VITE_SP_TEST_PROJECT_ID:import.meta.env.VITE_SP_TEST_PROJECT_ID,VITE_SP_TEST_SUPABASE_URL:import.meta.env.VITE_SP_TEST_SUPABASE_URL,VITE_SP_TEST_PUBLISHABLE_KEY:import.meta.env.VITE_SP_TEST_PUBLISHABLE_KEY}}
@@ -34,7 +37,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
   }
   async function request(path,{body,anonymous=false,method=body?'POST':'GET'}={}){
     const epoch=generation;
-    const accountRead=path==='/functions/v1/secondcareer-account'&&method==='GET';
+    const accountRead=path===accountPath&&method==='GET';
     const reportRead=path.startsWith('/functions/v1/secondcareer-assessment?id=')&&method==='GET';
     const unavailable=()=>Object.assign(Error('계정 상태 서비스를 사용할 수 없습니다.'),{accountUnavailable:true});
     if(!anonymous&&session&&Date.now()>=session.expires_at*1000)await refresh();
@@ -44,12 +47,18 @@ export function createAPI(onExpired,env=runtimeEnv()){
     try{response=await fetch(target,{method,headers:{apikey:config.key,...(!anonymous?{Authorization:'Bearer '+session.access_token}:{}),...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),cache:'no-store',credentials:'omit',...(config.mode==='test'?{redirect:'error'}:{}),signal:AbortSignal.timeout(20000)})}
     catch{if(accountRead)throw unavailable();throw Error('서비스에 연결하지 못했습니다. 저장 여부를 확인한 뒤 다시 시도해 주세요.')}
     if(epoch!==generation)throw Error('세션이 변경되어 요청을 취소했습니다.');
+    if(path===publicIntakeLinksPath&&response.status===401){
+      // The optional function's gateway can reject a valid session. Confirm with the
+      // existing account endpoint, whose 401 still follows the normal expiry path.
+      try{await request(accountPath)}catch{}
+      throw Error('공용 사전진단 링크 인증을 확인하지 못했습니다.');
+    }
     let data;try{data=await response.json()}catch{if(accountRead&&(response.status===404||response.status>=500))throw unavailable();throw Error('처리 결과를 확인할 수 없습니다.')}
     if(epoch!==generation)throw Error('세션이 변경되어 요청을 취소했습니다.');
     if(!response.ok){
       if(response.status===401&&!anonymous){clear();onExpired()}
       if(accountRead&&(response.status===404||response.status>=500))throw unavailable();
-      if(path==='/functions/v1/secondcareer-admin-public-intake-links'&&response.status===403){
+      if(path===publicIntakeLinksPath&&response.status===403){
         throw Object.assign(Error('공용 사전진단 링크를 조회할 권한이 없습니다.'),{forbidden:true});
       }
       if(reportRead){
@@ -122,7 +131,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
   }
   async function read(){
     let account;
-    try{account=await request('/functions/v1/secondcareer-account')}
+    try{account=await request(accountPath)}
     catch(error){if(error.accountUnavailable)return readExistingAccount();throw error}
     if(!account.profile||!['participant','counselor','admin','company_manager'].includes(account.profile.role)||typeof account.mustChangePassword!=='boolean')throw Error('계정 상태를 확인하지 못했습니다.');
     passwordChangeRequired=account.mustChangePassword;
@@ -148,7 +157,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
       return read();
     },
     updateAssessmentUrl:assessmentUrl=>request('/functions/v1/secondcareer-account',{body:{action:'update-assessment-url',assessmentUrl}}),
-    adminPublicIntakeLinks:()=>request('/functions/v1/secondcareer-admin-public-intake-links'),
+    adminPublicIntakeLinks:()=>request(publicIntakeLinksPath),
     // REQ-A-004: counts only; the server derives the scope from the signed-in profile.
     adminProgress:(companyId=null)=>request('/functions/v1/secondcareer-admin-progress'+(companyId?'?companyId='+encodeURIComponent(companyId):'')),
     // REQ-A-001/002 read only: organization, companies, counselors and participants in the server-checked scope.
