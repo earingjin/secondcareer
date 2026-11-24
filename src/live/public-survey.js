@@ -65,6 +65,7 @@ async function initialize(){
 }
 window.addEventListener('beforeunload',e=>{if(dirty||saving||pending||submitting){e.preventDefault();e.returnValue=''}});
 window.publicRetry=()=>{if(phase==='error')void initialize();else if(phase==='ready')void flush().catch(()=>{})};
+window.fmtDate=view.fmtDate;window.fmtPhone=view.fmtPhone;
 for(const name of ['setF','setCareer','toggleChip','answer','setConsent','setBirth'])window[name]=(...args)=>{if(phase==='ready'&&!submitting&&(name==='setConsent'||agreed())){if(name==='setConsent'&&args[0]!=='동의'){clearTimeout(timer);dirty=false;pending=null;message='동의하지 않아 임시저장을 중단했습니다.'}return survey[name](...args)}};
 for(const name of ['goStep','goQ','nextFrom'])window[name]=(...args)=>{if(phase==='ready'&&!submitting&&(name==='goStep'&&args[0]===0||agreed()))return mobile[name](...args)};
 window.mobilePrevious=()=>mobile.previous();window.mobileNext=()=>mobile.next();window.submitPre=()=>{if(phase==='ready'&&!submitting)survey.submitPre()};window.render=render;window.a2Hint=()=>{};
