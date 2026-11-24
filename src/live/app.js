@@ -14,6 +14,7 @@ import {postTestGate} from './post-test-gate.js';
 import {adminProgressView,validProgress,adminCompanyProgressView,validCompanyProgress} from './admin-progress-view.js';
 import {adminDirectoryView,validDirectory,adminCompanyDirectoryView,validCompanyDirectory,ADMIN_REPORT_LABELS,NO_FILTER,directoryEditorView,filterParticipants,isPending} from './admin-directory-view.js';
 import {adminDashboardView} from './admin-dashboard-view.js';
+import {validPublicIntakeLinks,publicIntakeUrl,publicIntakeView} from './admin-public-intake-links.js';
 import {createAdminCounselors} from './admin-counselors.js';
 import {createAdminCompanies} from './admin-companies.js';
 import {adminAggregateView,adminAggregatePrintView,validAggregate,validCompanyAggregate} from './admin-aggregate-view.js';
@@ -30,6 +31,7 @@ let postApproved=false;
 let counselorFilter={name:'',status:'all'};
 let mustChangePassword=false,managerCompanies=[];
 let assessmentUrl='',assessmentUrlMessage='',assessmentUrlInput='';
+let publicIntakeLinks={data:null,loading:false,error:'',feedback:''},publicIntakeRun=0,publicIntakeTimer=null;
 // REQ-A-004: update counts without re-rendering the URL input.
 let progress={data:null,loading:false,message:''},progressRun=0;
 let directory={data:null,loading:false,message:'',filter:{...NO_FILTER}},directoryRun=0;
@@ -121,9 +123,11 @@ const survey=createSurvey({save:()=>{},render,nav,toast,getPath,setPath,OPT,LIM,
 const mobileSurvey=createMobileSurvey({getProfile:()=>profile,steps:view.WSTEPS,missing:survey.missing,goStep:survey.goStep,goQ:survey.goQ,nextFrom:survey.nextFrom,render,toast});
 const edits=createCounselorEdit({byId,getDB:()=>records,save:()=>{},nav,render,toast,missing:survey.missing,ansText:view.ansText,getWSTEPS:()=>view.WSTEPS,getCounselors:()=>COUNSELORS,persistEdit, EVAL_VERSION:'',toAssessment:()=>null});
 
-function reset(){assignmentRetries.clear();adminReportReturn=null;clearCompanyProgress();selectedAdminCompany=null;adminCompanyTab='progress';counselorAccounts.reset();managerCompanies=[];managerProgress={companyId:null,data:null,loading:false,message:''};managerRun++;companyManager.reset();clearAggregatePrint();organizationName='';mobileSurvey.reset();progress={data:null,loading:false,message:''};progressRun++;directory={data:null,loading:false,message:'',filter:{...NO_FILTER}};directoryRun++;aggregate={data:null,loading:false,message:'',tab:'r1'};aggregateRun++;assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];postAvailable=false;postApproved=false;compareData=null;profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;reportHTML='';counselorFilter={name:'',status:'all'}}
+function reset(){clearPublicIntakeLinks();assignmentRetries.clear();adminReportReturn=null;clearCompanyProgress();selectedAdminCompany=null;adminCompanyTab='progress';counselorAccounts.reset();managerCompanies=[];managerProgress={companyId:null,data:null,loading:false,message:''};managerRun++;companyManager.reset();clearAggregatePrint();organizationName='';mobileSurvey.reset();progress={data:null,loading:false,message:''};progressRun++;directory={data:null,loading:false,message:'',filter:{...NO_FILTER}};directoryRun++;aggregate={data:null,loading:false,message:'',tab:'r1'};aggregateRun++;assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];postAvailable=false;postApproved=false;compareData=null;profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;reportHTML='';counselorFilter={name:'',status:'all'}}
 function hydrate(data){
   if(!data.profile||!['participant','counselor','admin','company_manager'].includes(data.profile.role)||!Array.isArray(data.participants)||!Array.isArray(data.assessments))throw Error('권한 또는 조회 응답이 올바르지 않습니다.');
+  if(profile&&(profile.user_id!==data.profile.user_id||profile.organization_id!==data.profile.organization_id||
+    profile.role!==data.profile.role||data.mustChangePassword===true))clearPublicIntakeLinks();
   managerCompanies=[];
   if(data.profile.role==='company_manager'){
     if(!Array.isArray(data.companies)||!data.companies.every(c=>typeof c.id==='string'&&typeof c.name==='string')||data.participants.length||data.assessments.length)throw Error('고객사 권한 응답을 확인하지 못했습니다.');
@@ -184,7 +188,7 @@ function openAccount(data){
     if(records.length!==1)throw Error('내담자 배정 정보를 확인하지 못했습니다.');
     S.user=records[0];S.step=0;S.view='home';mobileSurvey.reset();
   }else S.view='cns';
-  if(profile.role==='admin'&&!mustChangePassword){loadProgress();loadDirectory()}
+  if(profile.role==='admin'&&!mustChangePassword){loadProgress();loadDirectory();void loadPublicIntakeLinks()}
   if(profile.role==='company_manager'&&!mustChangePassword)loadManagerProgress();
 }
 function paintManager(){
@@ -311,7 +315,65 @@ function closeDirectoryEditor(){
 function paintDashboard(){
   const el=$('#admin-dashboard');if(!el)return;
   el.innerHTML=adminDashboardView(directory);
+  paintPublicIntakeLinks();
   if(busy)el.querySelectorAll('button').forEach(button=>button.disabled=true);
+}
+function clearPublicIntakeLinks(){
+  clearTimeout(publicIntakeTimer);publicIntakeTimer=null;publicIntakeRun++;
+  publicIntakeLinks={data:null,loading:false,error:'',feedback:''};
+}
+function publicIntakeNow(){
+  const {data,startedAt,wallStart}=publicIntakeLinks;
+  if(!data)return 0;
+  return Date.parse(data.serverTime)+Math.max(0,performance.now()-startedAt,Date.now()-wallStart);
+}
+function paintPublicIntakeLinks(){
+  for(const [selector,dashboard] of [['[data-intake-dashboard]',true],['[data-intake-settings]',false]]){
+    const slot=$(selector);if(!slot)continue;
+    const focused=slot.contains(document.activeElement)?document.activeElement:null;
+    const id=focused?.closest('[data-intake-link]')?.dataset.intakeLink;
+    const action=['data-intake-copy','data-intake-open','data-intake-url','data-intake-refresh','data-admin-menu'].find(attr=>focused?.hasAttribute(attr));
+    slot.innerHTML=publicIntakeView(publicIntakeLinks,publicIntakeNow(),{dashboard});
+    if(busy)slot.querySelectorAll('button').forEach(button=>button.disabled=true);
+    if(action){
+      const row=id?slot.querySelector(`[data-intake-link="${id}"]`):slot;
+      (row?.querySelector(`[${action}]`)||slot.querySelector('[data-intake-refresh],[data-admin-menu]'))?.focus({preventScroll:true});
+    }
+  }
+}
+function schedulePublicIntakeExpiry(){
+  clearTimeout(publicIntakeTimer);publicIntakeTimer=null;
+  const {data}=publicIntakeLinks;
+  if(!data)return;
+  const now=publicIntakeNow();
+  const next=data.links.reduce((time,link)=>{
+    const expiry=Date.parse(link.expiresAt);
+    return link.enabled&&expiry>now?Math.min(time,expiry):time;
+  },Infinity);
+  if(!Number.isFinite(next))return;
+  publicIntakeTimer=setTimeout(()=>{
+    publicIntakeLinks.feedback='';
+    paintPublicIntakeLinks();
+    schedulePublicIntakeExpiry();
+  },Math.min(2147483647,Math.max(1,Math.ceil(next-now))));
+}
+async function loadPublicIntakeLinks({supersede=false}={}){
+  if(profile?.role!=='admin'||mustChangePassword||(publicIntakeLinks.loading&&!supersede))return;
+  const run=++publicIntakeRun,accountEpoch=epoch;
+  clearTimeout(publicIntakeTimer);
+  publicIntakeLinks={data:null,loading:true,error:'',feedback:''};paintPublicIntakeLinks();
+  const startedAt=performance.now(),wallStart=Date.now();
+  try{
+    const data=await api.adminPublicIntakeLinks();
+    if(run!==publicIntakeRun||accountEpoch!==epoch)return;
+    if(!validPublicIntakeLinks(data))throw Error('공용 링크 응답을 확인하지 못했습니다.');
+    publicIntakeLinks={data,startedAt,wallStart,loading:false,error:'',feedback:''};
+  }catch(error){
+    if(run!==publicIntakeRun||accountEpoch!==epoch)return;
+    const message=error.forbidden?'공용 사전진단 링크를 조회할 권한이 없습니다.':'공용 사전진단 링크를 불러오지 못했습니다. 다시 조회해 주세요.';
+    publicIntakeLinks={data:null,loading:false,error:message,feedback:''};
+  }
+  paintPublicIntakeLinks();schedulePublicIntakeExpiry();
 }
 async function loadDirectory(){
   if(profile?.role!=='admin'||mustChangePassword)return;
@@ -419,7 +481,7 @@ async function logout(){
   if(busy)return;
 
 
-  clearStoredCompany();
+  clearStoredCompany();clearPublicIntakeLinks();
   clearPostEntry();busy=true;render();
   let message='';try{await api.logout()}catch{message='이 브라우저에서는 로그아웃했지만, 서비스에서 로그아웃 처리가 완료됐는지는 확인하지 못했습니다.'}
   reset();S.err=message;render();
@@ -427,7 +489,7 @@ async function logout(){
 }
 async function refresh(){
   if(busy)return;busy=true;render();
-  try{const id=S.user?.id;hydrate(await api.read());if(id)S.user=byId(id);mobileSurvey.reset();S.err='';if(profile.role==='company_manager')loadManagerProgress()}catch(e){if(profile?.role==='company_manager'){api.clear();reset();managerCompanies=[]}S.err=e.message}finally{busy=false;render()}
+  try{const id=S.user?.id;hydrate(await api.read());if(id)S.user=byId(id);mobileSurvey.reset();S.err='';if(profile.role==='company_manager')loadManagerProgress();if(profile.role==='admin')void loadPublicIntakeLinks()}catch(e){if(profile?.role==='company_manager'){api.clear();reset();managerCompanies=[]}S.err=e.message}finally{busy=false;render()}
 }
 async function saveAssessmentUrl(){
   if(busy||profile?.role!=='admin')return;
@@ -437,6 +499,7 @@ async function saveAssessmentUrl(){
     if(data.assessmentUrl!==null&&typeof data.assessmentUrl!=='string')throw Error('저장 결과를 확인하지 못했습니다.');
     assessmentUrl=data.assessmentUrl||'';assessmentUrlInput=assessmentUrl;
     assessmentUrlMessage='진단 접속 주소를 저장했습니다.';
+    void loadPublicIntakeLinks({supersede:true});
   }catch(error){assessmentUrlMessage=error.message}
   finally{busy=false;render()}
 }
@@ -708,10 +771,16 @@ function render(){
     <section class="card sec noprint" id="admin-counselors"></section>
     <section class="card sec" id="admin-progress" aria-label="진단 진행 현황">${adminProgressView(progress)}</section>
     <section class="card sec" id="admin-aggregate" aria-label="통합 분석보고서">${adminAggregateView(aggregate)}</section>
-    <section class="card sec" id="admin-assessment-url">
-      <h2>진단 링크 관리</h2><p>현재 주소: ${esc(assessmentUrl||'미설정')}</p>
-      <div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div>
-      <button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p>
+    <section id="admin-assessment-url">
+      <h2>진단 링크 관리</h2>
+      <section class="card sec admin-intake-section" data-intake-settings></section>
+      <section class="card sec admin-intake-section">
+        <h3>기존 계정 기반 진단 접속 주소</h3>
+        <p class="hintline">이 주소는 로그인과 사후진단 안내에 사용하며, 공용 사전진단 링크의 기준 주소에도 반영됩니다.</p>
+        <p>현재 주소: ${esc(assessmentUrl||'미설정')}</p>
+        <div class="field"><label for="assessment-url">진단 접속 주소 (HTTPS) · https://로 시작하는 주소</label><input class="in" id="assessment-url" type="url" value="${esc(assessmentUrlInput)}"></div>
+        <button class="btn" onclick="saveAssessmentUrl()">주소 저장</button><p role="status">${esc(assessmentUrlMessage)}</p>
+      </section>
     </section></div><dialog class="admin-directory-editor" id="directory-editor" aria-labelledby="directory-editor-title"></dialog>`;
   else if(S.view==='post'&&postAllowed())html=postLocked?postConfirmView():S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):postConfirmView();
   else if(S.view==='wizard'&&S.cedit)html=view.vWizard();
@@ -723,6 +792,7 @@ function render(){
     :participantPreClosed();
   if(profile&&S.err)html=`<div class="narrow err noprint" role="alert">${esc(S.err)}</div>`+html;
   $('#app').innerHTML=html;
+  if(profile?.role==='admin'&&!mustChangePassword)paintPublicIntakeLinks();
   if(profile?.role==='admin'&&!mustChangePassword&&S.view!=='admin-report')setupAdminNavigation();
   mobileSurvey.mount();
   $('#app').querySelector('[data-company-dashboard-back]')?.addEventListener('click',()=>{
@@ -770,6 +840,34 @@ $('#app').addEventListener('click',event=>{
   const button=event.target.closest('[data-admin-directory="refresh"]');
   if(!button||button.disabled||busy||directory.loading||directory.assignmentBusy||profile?.role!=='admin')return;
   loadDirectory();
+});
+$('#app').addEventListener('click',async event=>{
+  const control=event.target.closest('[data-intake-refresh],[data-intake-copy],[data-intake-open]');
+  if(!control)return;
+  if(profile?.role!=='admin'||mustChangePassword||busy){event.preventDefault();return}
+  if(control.hasAttribute('data-intake-refresh')){void loadPublicIntakeLinks();return}
+  const id=control.closest('[data-intake-link]')?.dataset.intakeLink;
+  const {data}=publicIntakeLinks,link=data?.links.find(link=>link.id===id);
+  const url=publicIntakeUrl(data,link,publicIntakeNow());
+  if(!url){event.preventDefault();paintPublicIntakeLinks();return}
+  if(control.hasAttribute('data-intake-open'))return;
+  const slot=control.closest('[data-intake-dashboard],[data-intake-settings]');
+  const attempt=Symbol();
+  publicIntakeLinks.copyAttempt=attempt;
+  let copied=false;
+  try{await navigator.clipboard.writeText(url);copied=true}catch{}
+  if(publicIntakeLinks.copyAttempt!==attempt||profile?.role!=='admin'||!publicIntakeUrl(data,link,publicIntakeNow()))return;
+  publicIntakeLinks.feedback=copied?'공용 사전진단 링크를 복사했습니다.':'자동 복사에 실패했습니다. URL을 선택해 직접 복사해 주세요.';
+  for(const status of document.querySelectorAll('[data-intake-feedback]'))status.textContent=publicIntakeLinks.feedback;
+  if(!copied){
+    const input=slot?.querySelector(`[data-intake-link="${id}"] [data-intake-url]`);
+    input?.focus();input?.select();
+  }
+});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&publicIntakeLinks.data){
+    paintPublicIntakeLinks();schedulePublicIntakeExpiry();
+  }
 });
 $('#app').addEventListener('click',event=>{
   if(profile?.role!=='admin'||busy||mustChangePassword||adminScope!=='company')return;

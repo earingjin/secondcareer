@@ -127,6 +127,22 @@ body:has(#app > .admin-workspace) .nav-inner,
 .admin-kpi-value { display: block; color: var(--coral-deep); font-size: .85rem; }
 .admin-dashboard-kpis b { font-size: 1.9rem; font-variant-numeric: tabular-nums; }
 .admin-dashboard-status { padding: 18px 0; color: var(--ink-soft); }
+.admin-intake-section { margin-top: 16px; }
+.admin-intake-section .admin-section-head { align-items: center; }
+.admin-intake-section [role="status"]:empty { display: none; }
+.admin-intake-section [aria-disabled="true"] { opacity: .55; cursor: wait; }
+.admin-intake-link {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-block: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.admin-intake-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.admin-intake-url { width: 100%; min-width: 0; resize: vertical; overflow-wrap: anywhere; }
+.admin-intake-link .acts { flex-wrap: wrap; }
 .admin-dashboard-work { margin-bottom: 18px; }
 .admin-dashboard-work h3 span { margin-left: 6px; color: var(--coral-deep); font-size: .88rem; }
 .admin-dashboard-work .hintline { margin-bottom: 8px; }

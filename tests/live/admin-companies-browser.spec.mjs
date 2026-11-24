@@ -19,6 +19,7 @@ async function open(page,h,options={}){
     if(u.pathname.endsWith('/secondcareer-login')){const id=h.signIn(body.loginId,body.password)?.id;r=id?{status:200,data:{access_token:id,refresh_token:'refresh-'+id,expires_at:Math.floor(Date.now()/1000)+3600}}:{status:401,data:{error:'INVALID_CREDENTIALS'}}}
     else if(u.pathname==='/auth/v1/token'){const id=body.refresh_token?.replace(/^refresh-/,'');r=h.state.users[id]?{status:200,data:{access_token:id,refresh_token:'refresh-'+id,expires_at:Math.floor(Date.now()/1000)+3600}}:{status:401,data:{error:'INVALID_CREDENTIALS'}}}
     else if(u.pathname.endsWith('/secondcareer-account'))r=await h.call(h.account.handleAccount,token,body,req.method());
+    else if(u.pathname.endsWith('/secondcareer-admin-public-intake-links'))r=await h.call(h.publicIntakeLinks.handleAdminPublicIntakeLinks,token);
     else if(u.pathname.endsWith('/secondcareer-admin-progress')){
       r=await h.call(h.progress.handleAdminProgress,token,body,req.method(),url);
       if(options.progressResponse)r=await options.progressResponse(u,r);

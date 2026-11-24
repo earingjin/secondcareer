@@ -45,9 +45,13 @@ export function createAPI(onExpired,env=runtimeEnv()){
     catch{if(accountRead)throw unavailable();throw Error('서비스에 연결하지 못했습니다. 저장 여부를 확인한 뒤 다시 시도해 주세요.')}
     if(epoch!==generation)throw Error('세션이 변경되어 요청을 취소했습니다.');
     let data;try{data=await response.json()}catch{if(accountRead&&(response.status===404||response.status>=500))throw unavailable();throw Error('처리 결과를 확인할 수 없습니다.')}
+    if(epoch!==generation)throw Error('세션이 변경되어 요청을 취소했습니다.');
     if(!response.ok){
       if(response.status===401&&!anonymous){clear();onExpired()}
       if(accountRead&&(response.status===404||response.status>=500))throw unavailable();
+      if(path==='/functions/v1/secondcareer-admin-public-intake-links'&&response.status===403){
+        throw Object.assign(Error('공용 사전진단 링크를 조회할 권한이 없습니다.'),{forbidden:true});
+      }
       if(reportRead){
         const messages={400:'보고서 종류 또는 조회 요청을 확인해 주세요.',401:'세션이 만료되었습니다. 다시 로그인해 주세요.',403:'보고서를 조회할 권한이 없거나 최종 제출이 완료되지 않았습니다.',404:'보고서를 찾을 수 없습니다.'};
         throw Error(messages[response.status]||'보고서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
@@ -144,6 +148,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
       return read();
     },
     updateAssessmentUrl:assessmentUrl=>request('/functions/v1/secondcareer-account',{body:{action:'update-assessment-url',assessmentUrl}}),
+    adminPublicIntakeLinks:()=>request('/functions/v1/secondcareer-admin-public-intake-links'),
     // REQ-A-004: counts only; the server derives the scope from the signed-in profile.
     adminProgress:(companyId=null)=>request('/functions/v1/secondcareer-admin-progress'+(companyId?'?companyId='+encodeURIComponent(companyId):'')),
     // REQ-A-001/002 read only: organization, companies, counselors and participants in the server-checked scope.

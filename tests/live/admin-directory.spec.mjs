@@ -174,6 +174,7 @@ test.describe('admin screen',()=>{
       calls.push(url.pathname);let result;
       if(url.pathname.endsWith('/secondcareer-login')){const id=h.signIn(body.loginId,body.password)?.id;result=id?{status:200,data:{access_token:id,refresh_token:'refresh-'+id,expires_at:Math.floor(Date.now()/1000)+3600}}:{status:401,data:{error:'INVALID_CREDENTIALS'}}}
       else if(url.pathname.endsWith('/secondcareer-account'))result=await h.call(h.account.handleAccount,token,body,request.method());
+      else if(url.pathname.endsWith('/secondcareer-admin-public-intake-links'))result={status:404,data:{error:'NOT_FOUND'}};
       else if(url.pathname.endsWith('/secondcareer-register-participant'))result=await h.call(h.registration.handleRegistration,token,body,request.method());
       else if(url.pathname.endsWith('/secondcareer-admin-progress'))result=await h.call(h.progress.handleAdminProgress,token,body,request.method());
       else if(url.pathname.endsWith('/secondcareer-admin-companies'))result=await h.call(h.companies.handleAdminCompanies,token,body,request.method(),'https://fixture.invalid/'+url.search);
@@ -231,7 +232,7 @@ test.describe('admin screen',()=>{
     await expect(page.locator('[data-dir-participant="d3"] [data-directory-manage]')).toBeFocused();
     expect(calls.filter(path=>path.endsWith('/secondcareer-admin-directory'))).toHaveLength(1);
     await page.getByRole('link',{name:'운영 대시보드',exact:true}).click();
-    await expect(dashboard(page)).toContainText('공용 링크 조회 연계 준비 중');
+    await expect(dashboard(page)).toContainText('공용 사전진단 링크를 불러오지 못했습니다.');
     await dashboard(page).getByRole('button',{name:'진단 링크 관리',exact:true}).click();
     await expect(page.locator('#admin-assessment-url')).toBeVisible();
   });
@@ -279,14 +280,14 @@ test.describe('admin screen',()=>{
     let release;
     const options={directoryStatus:503,held:new Promise(resolve=>{release=resolve})};
     await open(page,h,options);await login(page,'admin01',null);
-    await expect(dashboard(page).getByRole('status')).toHaveText('내담자 현황을 조회하고 있습니다.');
+    await expect(dashboard(page).locator('.admin-dashboard-status')).toHaveText('내담자 현황을 조회하고 있습니다.');
     await expect(dashboard(page).locator('[data-admin-dashboard-kpi]')).toHaveCount(0);
     release();
-    await expect(dashboard(page).getByRole('status')).toHaveText('운영 관리 목록을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
+    await expect(dashboard(page).locator('.admin-dashboard-status')).toHaveText('운영 관리 목록을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
     await expect(dashboard(page).locator('[data-admin-dashboard-kpi]')).toHaveCount(0);
     options.directoryStatus=null;
     await dashboard(page).getByRole('button',{name:'다시 불러오기',exact:true}).click();
-    await expect(dashboard(page).getByRole('status')).toHaveText('등록된 내담자가 없습니다.');
+    await expect(dashboard(page).locator('.admin-dashboard-status')).toHaveText('등록된 내담자가 없습니다.');
     await expect(dashboard(page).locator('[data-admin-dashboard-kpi] b')).toHaveText(['0','0','0','0']);
   });
 

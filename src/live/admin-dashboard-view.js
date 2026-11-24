@@ -6,10 +6,7 @@ export function adminDashboardView({data,loading,message}){
     <div><h2>운영 대시보드</h2>${data?.organizationName?`<p class="hintline">${esc(data.organizationName)}</p>`:''}</div>
     <button class="btn ghost" data-admin-directory="refresh" ${loading?'disabled':''}>다시 불러오기</button>
   </div>`;
-  const links=`<section class="card sec admin-section-head">
-    <div><h3>공용 사전진단 링크</h3><p class="hintline">공용 링크 조회 연계 준비 중</p></div>
-    <button class="btn ghost" data-admin-menu="admin-assessment-url">진단 링크 관리</button>
-  </section>`;
+  const links='<section class="card sec admin-intake-section" data-intake-dashboard></section>';
   if(loading||!data){
     const status=loading?'내담자 현황을 조회하고 있습니다.':message||'내담자 현황을 조회해 주세요.';
     return heading+`<p class="admin-dashboard-status" role="status">${esc(status)}</p>`+links;
