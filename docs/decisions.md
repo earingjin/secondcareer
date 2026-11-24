@@ -260,3 +260,7 @@
 ### 운영 origin 검증 보완
 
 플랫폼 도메인 일괄 제외 정책을 서버의 정확한 운영 origin 허용 목록으로 교체한다. 운영 배포 승인 후 Supabase Edge Function Secrets에서 `SECONDCAREER_PUBLIC_INTAKE_ALLOWED_ORIGINS=https://secondcareer.vercel.app`을 설정한다. 여러 운영 origin이 필요하면 쉼표로 구분하며 경로·쿼리·와일드카드를 넣지 않는다. 환경변수가 비어 있거나 일치하는 origin이 없으면 기준 주소 오류로 표시한다. 브라우저는 인증된 API가 승인한 주소의 HTTPS 형식을 확인한다.
+
+## 2026-11-24 공용 사전진단 링크 만료 선택
+
+`public_intake_links.expires_at`의 NULL은 무기한을 뜻한다. 기존 링크 ID·조직·활성 상태와 개별 접수 만료일을 보존한다. 운영 공용 링크를 무기한으로 전환할 때는 관리 API와 프론트엔드의 호환 버전을 먼저 반영하고, 승인된 대상 행의 만료일만 별도 변경한다. 링크 유효기간 관리 UI는 추가하지 않는다.

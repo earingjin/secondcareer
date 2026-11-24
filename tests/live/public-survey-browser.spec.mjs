@@ -51,6 +51,15 @@ test('anonymous survey saves, resumes and submits through mocked HTTP',async({pa
  await page.reload();await expect(page.getByText('설문 제출이 완료되었습니다.',{exact:false}).first()).toBeVisible();
 });
 test('invalid link is rejected without network',async({page})=>{await page.goto(server.url+'/?entry=pre');await expect(page.getByRole('alert')).toContainText('링크');});
+test('an individual intake must still have an expiry',async({page})=>{
+ await page.route('**/functions/v1/secondcareer-public-assessment',async route=>{
+  const {intakeId}=route.request().postDataJSON();
+  await route.fulfill({json:{intakeId,status:'draft',version:0,expiresAt:null}});
+ });
+ await page.goto(server.url+'/?entry=pre&linkId='+link);
+ await expect(page.getByRole('alert')).toHaveText('서버 응답을 확인하지 못했습니다.');
+ await expect(page.locator('#q-A1')).toHaveCount(0);
+});
 test('mobile advances from consent directly to basic information',async({page})=>{
  await page.setViewportSize({width:375,height:800});
  await page.route('**/functions/v1/secondcareer-public-assessment',async route=>{const b=route.request().postDataJSON();await route.fulfill({json:{intakeId:b.intakeId,status:'draft',version:b.action==='draft'?1:0,expiresAt:'2099-01-01T00:00:00Z'}})});

@@ -38,10 +38,11 @@ export async function handleAdminPublicIntakeLinks(req: Request) {
     const rows = await readAll(() => admin.from('public_intake_links').select('id,enabled,expires_at,created_at')
       .eq('organization_id', organizationId), 'id');
     const links = rows.map(({id,enabled,expires_at,created_at}) => {
-      if (!linkIdPattern.test(id) || typeof enabled !== 'boolean' || !validDate(expires_at) || !validDate(created_at)) {
+      if (!linkIdPattern.test(id) || typeof enabled !== 'boolean' ||
+          (expires_at !== null && !validDate(expires_at)) || !validDate(created_at)) {
         throw new APIError('QUERY_FAILED', 503);
       }
-      return {id,enabled,expiresAt:new Date(expires_at).toISOString(),createdAt:new Date(created_at).toISOString()};
+      return {id,enabled,expiresAt:expires_at === null ? null : new Date(expires_at).toISOString(),createdAt:new Date(created_at).toISOString()};
     });
     response = respond({
       baseUrl:publicBaseUrl(organization.assessment_url),

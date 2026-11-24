@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {createRequire} from 'node:module';
 import vm from 'node:vm';
-import {randomUUID,randomBytes,webcrypto} from 'node:crypto';
+import {createHash,randomUUID,randomBytes,webcrypto} from 'node:crypto';
 import fs from 'node:fs';
 const require=createRequire(import.meta.url),{buildSync}=require('esbuild');
 const code=buildSync({entryPoints:['supabase/functions/secondcareer-public-assessment/service.ts'],bundle:true,platform:'node',format:'cjs',write:false}).outputFiles[0].text;
@@ -15,11 +15,31 @@ const answers=()=>Object.fromEntries(['reg','goal','expect','done','pre'].map(k=
 const request=()=>({action:'start',linkId:randomUUID(),intakeId:randomUUID(),requestId:randomUUID(),accessToken:randomBytes(32).toString('base64url')});
 const call=async(h,b)=>{const r=await h(new Request('http://localhost/intake',{method:'POST',body:JSON.stringify(b)}));return {status:r.status,data:await r.json()}};
 
+test('optional link expiry migration recognizes the original RPC and changes only link checks and new intake expiry',()=>{
+ const original=fs.readFileSync('supabase/migrations/20261123000000_public_assessment_intake.sql','utf8').replace(/\r\n/g,'\n');
+ const migration=fs.readFileSync('supabase/migrations/20261124000000_public_intake_optional_link_expiry.sql','utf8');
+ const body=original.match(/ as \$\$([\s\S]*?)\$\$;/)[1];
+ const hash=createHash('md5').update(body).digest('hex');
+ expect(migration).toContain(`md5(replace(prosrc, E'\\r\\n', E'\\n')) = '${hash}'`);
+ const replacements=[...migration.matchAll(/^\s*'((?:''|[^'\r\n])+)'(?:[),;])+$/gm)].slice(-4)
+   .map(match=>match[1].replaceAll("''","'"));
+ expect(replacements).toEqual([
+  'where id=p_link and enabled and expires_at>ts for share;',
+  'where id=p_link and enabled and (expires_at is null or expires_at>ts) for share;',
+  "least(l.expires_at,ts+interval '7 days')",
+  "case when l.expires_at is null then ts+interval '7 days' else least(l.expires_at,ts+interval '7 days') end"
+ ]);
+ for(const source of [replacements[0],replacements[2]])expect(body.split(source)).toHaveLength(2);
+ expect(migration.match(/alter table [^;]+;/gi)).toEqual(['alter table public.public_intake_links alter column expires_at drop not null;']);
+});
+
 test('public protocol forwards only hashed capability and RPC result; no report or identity leakage',async()=>{
  let captured;
- const h=makeHandler({rpc:async(name,p)=>{captured={name,p};return {data:{status:'draft',version:0,expiresAt:'2026-11-30',participantId:'secret',result:{raw:[1]}}}}},()=>true);
+ const expiresAt='2035-01-08T00:00:00Z';
+ const h=makeHandler({rpc:async(name,p)=>{captured={name,p};return {data:{status:'draft',version:0,expiresAt,participantId:'secret',result:{raw:[1]}}}}},()=>true);
  const b=request(),r=await call(h,b);
  expect(r.status).toBe(200);expect(captured.p.p_hash).toMatch(/^[0-9a-f]{64}$/);expect(JSON.stringify(captured)).not.toContain(b.accessToken);
+ expect(r.data.expiresAt).toBe(expiresAt);
  expect(r.data).not.toHaveProperty('result');expect(r.data).not.toHaveProperty('participantId');
 });
 test('reuse complete validation except A2 and compute with the existing engine',async()=>{

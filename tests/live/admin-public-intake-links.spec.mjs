@@ -26,7 +26,7 @@ const read=(h,token=ids.admin,query='',method='GET')=>h.call(
   h.publicIntakeLinks.handleAdminPublicIntakeLinks,token,undefined,method,'https://fixture.invalid'+apiPath+query);
 
 test('admin endpoint reads scoped columns only, pages all rows and does not write',async()=>{
-  const own=[fixtureLink({token_hash:'mock-private-hash'}),fixtureLink()];
+  const own=[fixtureLink({expires_at:null,token_hash:'mock-private-hash'}),fixtureLink()];
   const foreign=fixtureLink({organization_id:'other-org'});
   const h=fixture(...own,foreign);
   h.state.tables.organizations.push({id:'other-org',assessment_url:'https://other.example.invalid'});
@@ -41,6 +41,10 @@ test('admin endpoint reads scoped columns only, pages all rows and does not writ
   expect(response.data).toEqual({baseUrl,intakeEnabled:true,serverTime:expect.any(String),links:own
     .map(row=>({id:row.id,enabled:row.enabled,expiresAt:row.expires_at,createdAt:row.created_at.replace('Z','.000Z')}))
     .sort((a,b)=>a.id.localeCompare(b.id))});
+  for(const expiresAt of [undefined,'','invalid']){
+    const links=[{...response.data.links[0],expiresAt}];
+    expect(validPublicIntakeLinks({...response.data,links})).toBe(false);
+  }
   expect((await read(h,ids.other)).data.links.map(row=>row.id)).toEqual([foreign.id]);
   expect(h.state.reads.filter(read=>read.table==='public_intake_links').slice(0,3).every(read=>
     read.columns==='id,enabled,expires_at,created_at'&&read.filters.some(([key,value])=>key==='organization_id'&&value===ids.org))).toBe(true);
@@ -179,8 +183,8 @@ test.describe('admin link screens',()=>{
     return calls;
   }
 
-  test('one active link is copyable, manual selection works and new tab is isolated',async({page,context},testInfo)=>{
-    const row=fixtureLink(),h=fixture(row);
+  test('one active link without expiry is copyable, compact and opens an isolated tab',async({page,context},testInfo)=>{
+    const row=fixtureLink({expires_at:null}),h=fixture(row);
     const expected=`${baseUrl}?entry=pre&linkId=${row.id}`;
     await page.addInitScript(()=>{
       Object.defineProperty(navigator,'clipboard',{value:{writeText:async value=>{
@@ -190,17 +194,21 @@ test.describe('admin link screens',()=>{
     });
     const calls=await open(page,h);await login(page);
     await expect(dashboard(page).getByLabel('공용 설문 URL')).toHaveValue(expected);
+    await expect(dashboard(page)).not.toContainText('유효기간');
     await dashboard(page).getByRole('button',{name:'복사',exact:true}).click();
     await expect(dashboard(page).getByRole('status')).toHaveText('공용 사전진단 링크를 복사했습니다.');
     expect(await page.evaluate(()=>window.copiedLink)).toBe(expected);
     await manage(page);
     await expect(settings(page)).toContainText('실제 임시 접수 기록이 생성될 수 있습니다.');
     await expect(settings(page)).toContainText('조회 시각 (한국시간)');
+    await expect(settings(page)).not.toContainText('유효기간');
     await page.evaluate(()=>window.rejectClipboard=true);
     await settings(page).getByRole('button',{name:'복사',exact:true}).click();
     await expect(settings(page).getByRole('status')).toContainText('직접 복사');
     const input=settings(page).getByLabel('공용 설문 URL');
     await expect(input).toBeFocused();
+    await expect(input).toHaveAttribute('type','text');
+    await expect(input).toHaveAttribute('readonly','');
     expect(await input.evaluate(el=>el.selectionEnd-el.selectionStart)).toBe(expected.length);
     const link=settings(page).getByRole('link',{name:'설문 새 탭에서 열기'});
     await expect(link).toHaveAttribute('href',expected);
@@ -219,6 +227,7 @@ test.describe('admin link screens',()=>{
       await page.setViewportSize({width,height:900});
       expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       await expect(input).toBeVisible();
+      expect((await input.boundingBox()).height).toBeLessThan(50);
       await input.scrollIntoViewIfNeeded();
       await settings(page).getByRole('button',{name:'복사',exact:true}).click({trial:true});
       if(width===1440||width===375)await page.screenshot({path:testInfo.outputPath(`intake-links-${width}.png`)});
@@ -228,7 +237,7 @@ test.describe('admin link screens',()=>{
   test('multiple links are individual, expire without another read and refresh after address save',async({page})=>{
     await page.clock.install();
     const expiredSoon=fixtureLink({expires_at:new Date(Date.now()+30_000).toISOString()});
-    const stable=fixtureLink(),disabled=fixtureLink({enabled:false});
+    const stable=fixtureLink({expires_at:null}),disabled=fixtureLink({enabled:false,expires_at:null});
     const h=fixture(expiredSoon,stable,disabled),options={},calls=await open(page,h,options);
     await login(page);
     await expect(dashboard(page)).toContainText('접수 가능한 링크가 2개');
@@ -238,10 +247,12 @@ test.describe('admin link screens',()=>{
     const disabledRow=settings(page).locator(`[data-intake-link="${disabled.id}"]`);
     await expect(disabledRow).toContainText('비활성');
     await expect(disabledRow.locator('[data-intake-copy],[data-intake-open]')).toHaveCount(0);
-    await page.clock.fastForward(40_000);
     const expiredRow=settings(page).locator(`[data-intake-link="${expiredSoon.id}"]`);
+    await expect(expiredRow.locator('time')).toHaveAttribute('datetime',expiredSoon.expires_at);
+    await page.clock.fastForward(40_000);
     await expect(expiredRow).toContainText('만료');
     await expect(expiredRow.locator('[data-intake-copy],[data-intake-open]')).toHaveCount(0);
+    await expect(settings(page).getByLabel('공용 설문 URL')).toHaveValue(`${baseUrl}?entry=pre&linkId=${stable.id}`);
     expect(calls.filter(path=>path===apiPath)).toHaveLength(1);
     options.override=result=>({...result,data:{
       ...result.data,serverTime:new Date(Date.parse(result.data.serverTime)+40_000).toISOString()

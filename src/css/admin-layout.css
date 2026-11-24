@@ -141,7 +141,7 @@ body:has(#app > .admin-workspace) .nav-inner,
   border-radius: 12px;
 }
 .admin-intake-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
-.admin-intake-url { width: 100%; min-width: 0; resize: vertical; overflow-wrap: anywhere; }
+.admin-intake-url { width: 100%; min-width: 0; }
 .admin-intake-link .acts { flex-wrap: wrap; }
 .admin-dashboard-work { margin-bottom: 18px; }
 .admin-dashboard-work h3 span { margin-left: 6px; color: var(--coral-deep); font-size: .88rem; }

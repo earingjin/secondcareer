@@ -347,6 +347,7 @@ function schedulePublicIntakeExpiry(){
   if(!data)return;
   const now=publicIntakeNow();
   const next=data.links.reduce((time,link)=>{
+    if(link.expiresAt===null)return time;
     const expiry=Date.parse(link.expiresAt);
     return link.enabled&&expiry>now?Math.min(time,expiry):time;
   },Infinity);

@@ -21,13 +21,13 @@ export function validPublicIntakeLinks(data){
   return !!data&&timestamp(data.serverTime)&&typeof data.intakeEnabled==='boolean'&&
     (data.baseUrl===null||validBaseUrl(data.baseUrl))&&Array.isArray(data.links)&&
     data.links.every(link=>link&&typeof link.id==='string'&&linkIdPattern.test(link.id)&&
-      typeof link.enabled==='boolean'&&timestamp(link.expiresAt)&&timestamp(link.createdAt))&&
+      typeof link.enabled==='boolean'&&(link.expiresAt===null||timestamp(link.expiresAt))&&timestamp(link.createdAt))&&
     new Set(data.links.map(link=>link.id.toLowerCase())).size===data.links.length;
 }
 
 export function publicIntakeStatus(data,link,now){
   if(!link.enabled)return 'disabled';
-  if(Date.parse(link.expiresAt)<=now)return 'expired';
+  if(link.expiresAt!==null&&Date.parse(link.expiresAt)<=now)return 'expired';
   if(!data.intakeEnabled)return 'stopped';
   return data.baseUrl?'active':'invalid';
 }
@@ -64,10 +64,10 @@ export function publicIntakeView({data,loading,error,feedback},now,{dashboard=fa
       const key=`${dashboard?'dashboard':'settings'}-${link.id}`;
       return `<article class="admin-intake-link" data-intake-link="${esc(link.id)}">
         <div class="admin-intake-meta"><b class="admin-status-chip ${status==='active'?'':'needs-action'}">${statusLabels[status]}</b>
-        <span>유효기간 (한국시간) <time datetime="${esc(link.expiresAt)}">${format(link.expiresAt)}</time></span></div>
+        ${link.expiresAt===null?'':`<span>유효기간 (한국시간) <time datetime="${esc(link.expiresAt)}">${format(link.expiresAt)}</time></span>`}</div>
         ${dashboard?'':`<p class="hintline">등록 시각 (한국시간) ${format(link.createdAt)} ${url?'':`· 링크 ID ${esc(link.id)}`}</p>`}
         ${url?`<label for="intake-url-${key}">공용 설문 URL</label>
-        <textarea id="intake-url-${key}" class="in admin-intake-url" data-intake-url readonly rows="2" spellcheck="false">${esc(url)}</textarea>
+        <input type="text" id="intake-url-${key}" class="in admin-intake-url" data-intake-url readonly spellcheck="false" value="${esc(url)}">
         <div class="acts"><button type="button" class="btn ghost sm" data-intake-copy>복사</button>
         ${dashboard?'':`<a class="btn ghost sm" data-intake-open href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-describedby="intake-open-notice">설문 새 탭에서 열기</a>`}</div>`:''}
       </article>`;
