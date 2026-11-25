@@ -31,3 +31,17 @@
 .mobile-survey .mobile-question-nav{display:flex;justify-content:space-between;gap:12px;margin-top:16px}
 .mobile-survey .mobile-question-nav .btn{min-width:88px;min-height:48px;padding:12px 20px}
 .mobile-survey .mobile-review-edit{display:flex;margin-top:8px;min-height:44px}
+
+/* Anonymous questions use page scrolling. */
+.anonymous-survey.single-question .q[data-mobile-current]{max-height:none;overflow:visible;overscroll-behavior:auto}
+.anonymous-survey .qt{font-size:18px;line-height:1.65}
+.anonymous-survey .cons{font-size:16px;line-height:1.8}
+.anonymous-survey .scale.lk{grid-template-columns:1fr;gap:8px}
+.anonymous-survey .scale.lk button{min-height:48px;flex-direction:row;justify-content:flex-start;gap:12px;padding:10px 14px}
+.anonymous-survey .scale.lk button span{font-size:16px}
+.anonymous-survey .chip.on,.anonymous-survey .scale button.on{outline:2px solid var(--coral-deep);outline-offset:2px}
+.anonymous-survey .chip.on::after,.anonymous-survey .scale button.on::after{content:' \2713';font-weight:900}
+.anonymous-survey :is(button,input,select,textarea):focus-visible{outline:3px solid var(--coral-deep);outline-offset:3px}
+.anonymous-survey .selection-count{font-size:14px;font-weight:700;margin:0 0 10px}
+.anonymous-survey.single-question .whead>.hintline{display:block}
+.anonymous-survey .rv>div{padding:14px 2px;line-height:1.6}
