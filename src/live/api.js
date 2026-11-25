@@ -53,7 +53,8 @@ export function createAPI(onExpired,env=runtimeEnv()){
       try{await request(accountPath)}catch{}
       throw Error('공용 사전진단 링크 인증을 확인하지 못했습니다.');
     }
-    let data;try{data=await response.json()}catch{if(accountRead&&(response.status===404||response.status>=500))throw unavailable();throw Error('처리 결과를 확인할 수 없습니다.')}
+    if(response.status===401&&!anonymous&&(path===accountPath||path.startsWith('/functions/v1/secondcareer-assessment'))){clear();onExpired();throw Object.assign(Error('세션이 만료되었습니다. 다시 로그인해 주세요.'),{status:401})}
+    let data;try{data=await response.json()}catch{if(accountRead&&(response.status===404||response.status>=500))throw unavailable();if(response.status===403&&(accountRead||path.startsWith('/functions/v1/secondcareer-assessment')))throw Object.assign(Error('접근 권한을 확인할 수 없습니다.'),{status:403});throw Error('처리 결과를 확인할 수 없습니다.')}
     if(epoch!==generation)throw Error('세션이 변경되어 요청을 취소했습니다.');
     if(!response.ok){
       if(response.status===401&&!anonymous){clear();onExpired()}
@@ -63,7 +64,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
       }
       if(reportRead){
         const messages={400:'보고서 종류 또는 조회 요청을 확인해 주세요.',401:'세션이 만료되었습니다. 다시 로그인해 주세요.',403:'보고서를 조회할 권한이 없거나 최종 제출이 완료되지 않았습니다.',404:'보고서를 찾을 수 없습니다.'};
-        throw Error(messages[response.status]||'보고서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        throw Object.assign(Error(messages[response.status]||'보고서를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'),{status:response.status});
       }
       if(path==='/functions/v1/secondcareer-admin-progress'&&response.status!==401){
         throw Error(response.status===403?'진단 현황을 조회할 권한이 없습니다.':'진단 현황을 불러오지 못했습니다. 잠시 후 새로 조회해 주세요.');
@@ -96,7 +97,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
       }
       if(body?.action==='post-approve'&&response.status!==401){
         const approveMessages={PRE_REQUIRED:'사전진단을 최종 제출한 내담자만 사후진단을 허용할 수 있습니다.',LOCKED:'이미 사후진단을 제출한 내담자입니다.',FORBIDDEN:'담당 내담자만 사후진단을 허용할 수 있습니다.',POST_NOT_CONFIGURED:'사후진단 기능을 사용할 수 없습니다. 관리자에게 문의해 주세요.'};
-        throw Error(approveMessages[data?.error]||'사후진단 허용 여부를 확인하지 못했습니다. 새로 조회해 상태를 확인해 주세요.');
+        throw Object.assign(Error(approveMessages[data?.error]||'사후진단 허용 여부를 확인하지 못했습니다. 새로 조회해 상태를 확인해 주세요.'),{status:response.status});
       }
       if(path==='/functions/v1/secondcareer-admin-participant-assignment'&&response.status!==401){
         const messages={CONFLICT:'다른 변경이 먼저 저장되었습니다. 목록을 다시 조회해 주세요.',FORBIDDEN:'이 참여자를 변경할 권한이 없습니다.',TARGET_UNAVAILABLE:'선택한 고객사 또는 상담사를 지정할 수 없습니다.',INVALID_REQUEST:'변경 요청을 확인해 주세요.'};
@@ -110,7 +111,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
       }
       const messages={401:'아이디 또는 비밀번호를 확인해 주세요.',403:'이 작업에 대한 권한이 없습니다.',409:'다른 저장 또는 제출이 먼저 반영되었습니다. 새로 조회해 주세요.',429:'로그인 시도가 많습니다. 잠시 후 다시 시도해 주세요.'};
       const errors={INVALID_PASSWORD:'새 비밀번호는 12~128자로 입력해 주세요.',PASSWORD_UPDATE_FAILED:'비밀번호 변경을 확인하지 못했습니다. 다시 로그인해 상태를 확인해 주세요.',PASSWORD_CHANGE_REQUIRED:'먼저 임시 비밀번호를 변경해 주세요.',INVALID_ASSESSMENT_URL:'올바른 HTTPS 진단 접속 주소를 입력해 주세요. 주소는 https://로 시작해야 합니다.',ORGANIZATION_UPDATE_FAILED:'진단 접속 주소를 저장하지 못했습니다.'};
-      throw Error(errors[data?.error]||messages[response.status]||'처리 결과를 확인하지 못했습니다. 관리자에게 확인해 주세요.');
+      throw Object.assign(Error(errors[data?.error]||messages[response.status]||'처리 결과를 확인하지 못했습니다. 관리자에게 확인해 주세요.'),{status:response.status});
     }
     return data;
   }
@@ -138,7 +139,7 @@ export function createAPI(onExpired,env=runtimeEnv()){
     if(account.profile.role==='company_manager')return {...await request('/functions/v1/secondcareer-company-manager'),participants:[],assessments:[],registrationAvailable:false};
     if(passwordChangeRequired||account.profile.role==='admin')return {...account,registrationAvailable:account.registrationAvailable===true,participants:[],assessments:[]};
     const data=await request('/functions/v1/secondcareer-assessment');
-    if(data.profile?.role!==account.profile.role)throw Error('계정 권한 응답이 일치하지 않습니다.');
+    if(data.profile?.role!==account.profile.role)throw Object.assign(Error('계정 권한 응답이 일치하지 않습니다.'),{status:403});
     return {...data,...account,registrationAvailable:account.registrationAvailable===true,assessmentCounselors:data.counselors};
   }
   return {
