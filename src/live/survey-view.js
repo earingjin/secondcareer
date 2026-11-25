@@ -5,7 +5,7 @@ import {ITEM_COUNT,ITEMS_PER_AREA,SCALE,SCALE_MIN,SCALE_MAX} from '../js/02-eval
 import {QUESTION_STEPS,qdText,qdOptions,qdRequired,qdStepCodes} from '../js/00-question-defs-module.js';
 import {esc,getPath} from './fields.js';
 import {SAT_QUESTIONS,SAT_COMMENT_LABEL} from './sat-defs.js';
-export function createSurveyView({missing,pname,anonymous=false}){
+export function createSurveyView({missing,pname,anonymous=false,reviewOpen=()=>true}){
 const QT=qdText();
 // [문항] 시트 보기 문구 (설문 화면 표시용). 없는 항목은 OPT 문구를 그대로 표시
 const QLABEL={
@@ -162,6 +162,7 @@ function ansText(p,code){
 }
 function wReview(){
   const p=S.user,m=missing(p);
+  if(anonymous&&!reviewOpen())return `<div class="public-review-choice"><h2>모든 문항에 응답하셨습니다!</h2><p>제출하기 전에 작성하신 응답을 확인하시겠습니까?</p><p class="hintline">제출 후에는 직접 수정할 수 없습니다.</p><div class="acts"><button class="btn" onclick="publicSubmitDirect()">바로 제출하기</button><button class="btn ghost" onclick="publicShowReview()">응답 검토하기</button><button class="btn ghost" onclick="mobilePreviousOrStep()">이전</button></div></div>`;
   let h=wHead(5,'응답 검토','제출 전에 응답을 확인해 주세요. 제출한 뒤에는 직접 수정할 수 없습니다.');
   if(m.length)h+=`<div class="misslist" role="alert"><b>아직 답하지 않았거나 확인이 필요한 항목 ${m.length}개</b>${m.map(x=>`<button type="button" onclick="goQ(${x.step},'${x.code}')">${QNO(x.code)?'문항 '+QNO(x.code):x.code==='PH'?'휴대전화':'이메일'} · ${esc(x.msg)}</button>`).join('')}</div>`;
   WSTEPS.slice(0,5).forEach((s,si)=>{
@@ -170,7 +171,7 @@ function wReview(){
     h+='</dl>';
   });
   h+=`<div class="notice-s" style="margin-top:16px">제출한 응답과 결과는 담당 상담사에게 전달됩니다. 진단 결과는 상담에 참여하실 때 상담사가 직접 설명하고 지면으로 전달해 드립니다.</div>`;
-  return h+`<div class="acts" style="justify-content:space-between;margin-top:14px"><button class="btn ghost" onclick="goStep(4)">이전</button>${S.cedit?`<button class="btn ghost" onclick="cancelEdit()">수정 취소</button><button class="btn" onclick="saveEdit()">수정 저장·재계산</button>`:`<button class="btn" onclick="submitPre()">최종 제출</button>`}</div>`;
+  return h+`<div class="acts" style="justify-content:space-between;margin-top:14px"><button class="btn ghost" onclick="${anonymous?'publicReviewBack()':'goStep(4)'}">이전</button>${S.cedit?`<button class="btn ghost" onclick="cancelEdit()">수정 취소</button><button class="btn" onclick="saveEdit()">수정 저장·재계산</button>`:`<button class="btn" onclick="submitPre()">최종 제출</button>`}</div>`;
 }
 
 function vPost(saveStatus){
