@@ -52,7 +52,9 @@ function vResult(pp,role){
     <div class="ccard"><div class="cc-top">${jmLogo()}</div><div>✓ 커리어컨설팅 문의 안내</div><div>${cn?`<div class="ci"><i>${iconP}</i>${esc(cn.n)} PM</div><div class="ci"><i>${iconM}</i>${esc(cn.mail)}</div><div class="ci"><i>${iconT}</i>${esc(cn.tel)}</div>`:'<div class="ci">담당자 배정 전입니다</div>'}</div><div class="cc-priv">✓ 개인정보처리에 대한 안내 &nbsp;<small>제이엠커리어는 고객의 개인정보를 소중하게 보호합니다.</small></div></div></div>${sheetFoot(3,total)}</section>`;
 
   if(c){
-    h+=`<section class="sheet">${sheetHead('상담사용 프로파일')}<div class="ribbon">★ 응답자에게 공개하지 않음 ★</div>
+    const career=(r.careers||[])[0]||{},infoRow=(a,b,d,e)=>`<tr><th>${a}</th><td>${esc(b||'-')}</td><th>${d}</th><td>${esc(e||'-')}</td></tr>`;
+    h+=`<section class="sheet counselor-profile-page">${sheetHead('상담사용 프로파일')}<div class="ribbon">★ 응답자에게 공개하지 않음 ★</div>
+    <h3 class="st">01. 응답자 기본 정보</h3><div class="scroll"><table class="t counselor-basic-info">${infoRow('응답자 이름',r.name||p.nick,'담당 상담사',cn?.n)}${infoRow('성별',r.gender,'생년월일',r.birthDate||r.birth)}${infoRow('휴대폰',r.phone,'이메일',r.email)}${infoRow('소속회사',career.co,'최근 직급/직책',career.title)}${infoRow('업무/부서',career.task,'해당업종',r.industry==='기타'&&r.industryEtc?r.industryEtc:r.industry)}${infoRow('기대소득수준',r.income==='기타'&&r.incomeEtc?r.incomeEtc:r.income,'개인정보 동의',agreed(p)?'동의':'-')}</table></div>
     <h3 class="st">02. 경력목표별 응답</h3><div class="scroll"><table class="t">${goalRow('1 · 직업준비 시작 시기',g.b11)+goalRow('2 · 퇴직 후 계획수준',g.b12)+goalRow('3 · 가장 관심을 두는 분야',g.b13)+goalRow('4 · 경력목표 선택이유',g.b14)+goalRow('5 · 달성가능성(%)',g.b15)+goalRow('6 · 예상 소요기간(개월)',g.b16)}</table></div>
     <h3 class="st">03. 커리어 컨설팅 서비스 기대 (사전/사후 효과성 문항)</h3><div class="scroll"><table class="t">${goalRow('현재 마음상태',e.d32)}<tr><th>컨설팅 호소문제 (우선순위)</th><td>${(e.d33||[]).map((x,i)=>`${i+1}순위 ${esc(x)}`).join('<br>')}</td></tr>${goalRow('컨설팅 목표 (이번 컨설팅을 통한 기대)',e.d34)}${goalRow('경력의 장애요소 2가지',e.d35)}<tr><th>첫 회기 진행방식</th><td>${(e.d36||[]).map((x,i)=>`${i+1}번 ${esc(x)}`).join('<br>')}</td></tr></table></div>${sheetFoot(4,5)}</section>`;
     h+=`<section class="sheet">${sheetHead('상담사용 프로파일')}<h3 class="st">04. 응답자 종합결과</h3>

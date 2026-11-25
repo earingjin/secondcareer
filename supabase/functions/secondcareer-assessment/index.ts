@@ -99,7 +99,7 @@ async function readBody(req){
 }
 function person(part,a){
  return {id:part.id,nick:part.display_name,company:a?.answers?.reg?.careers?.[0]?.co||'',counselor:part.counselor_user_id,
- reg:{careers:[{},{},{}]},goal:{},expect:{},pre:[],...a?.answers,status:a?.status||'draft',preDate:a?.answers?.preDate||null,result:a?.result||null,history:[]};
+ reg:{careers:[{},{},{}]},goal:{},expect:{},pre:[],...a?.answers,status:a?.status||'draft',preDate:a?.answers?.preDate||null,submittedAt:a?.submitted_at||null,result:a?.result||null,history:[]};
 }
 function report(p,counselors,histories=[],kind='c'){
  S.res={id:p.id,role:kind};S.from=kind==='p'?'admin':'cns';S.prevEnt=null;setCounselors(counselors);
@@ -240,8 +240,8 @@ Deno.serve(async(req)=>{
  let assessments=[];
  for(const group of chunks(ids)){const {data,error}=await readAll(()=>db.from('assessments').select('id,participant_id,phase,status,answers,result,updated_at,submitted_at').in('participant_id',group).eq('phase','pre'),'id');if(error)return out({error:'QUERY_FAILED'},500);assessments.push(...data)}
  const counselorIds=[...new Set((parts||[]).map(p=>p.counselor_user_id).filter(Boolean))];
- const counselors={};
- if(counselorIds.length){const {data,error}=await db.from('user_profiles').select('user_id,display_name').eq('organization_id',me.organization_id).eq('role','counselor').in('user_id',counselorIds);if(error)return out({error:'QUERY_FAILED'},500);for(const c of data||[])counselors[c.user_id]={code:c.user_id,n:c.display_name||'담당 상담사',mail:'',tel:''}}
+ const counselors={},reportNames={};
+ if(counselorIds.length){const {data,error}=await db.from('user_profiles').select('user_id,display_name').eq('organization_id',me.organization_id).eq('role','counselor').in('user_id',counselorIds);if(error)return out({error:'QUERY_FAILED'},500);for(const c of data||[]){counselors[c.user_id]={code:c.user_id,n:c.display_name||'담당 상담사',mail:'',tel:''};reportNames[c.user_id]=c.display_name||''}}
  if(req.method==='GET'){
   const id=new URL(req.url).searchParams.get('id');
   if(id){
@@ -252,7 +252,8 @@ Deno.serve(async(req)=>{
    if(historyError)return out({error:'QUERY_FAILED'},500);
    const kind=new URL(req.url).searchParams.get('kind')||'c';
    if(!['p','c','i'].includes(kind))return out({error:'INVALID_REPORT_KIND'},400);
-   return out({html:renderReport(person(part,a),counselors,histories||[],kind)});
+   const reportCounselors=Object.fromEntries(Object.entries(counselors).map(([id,c])=>[id,{...c,verifiedName:reportNames[id]}]));
+   return out({html:renderReport(person(part,a),reportCounselors,histories||[],kind)});
   }
   if(compareId!==null){
    // Assignment and organization are re-checked by participantQuery; only submitted pre and
