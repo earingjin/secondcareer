@@ -217,7 +217,7 @@ test('counselor list shows post status and opens the submitted comparison',async
  const {state}=await setup(page,{role:'counselor',postAssessments:[{participant_id:'fixture',status:'submitted',submitted_at:'2026-10-20T00:00:00.000Z'}]});
  state.compare=await compareFixture(page);const data=state.compare;
  const row=page.locator('tr[data-participant="fixture"]');await expect(row.locator('[data-post-status]')).toHaveText('제출 완료');await expect(row).toContainText('2026-10-20');
- await expect(row.getByRole('button',{name:'결과 리포트 · 상담사용 5쪽'})).toBeVisible();
+ await expect(row.locator('summary')).toHaveText('결과물 조회');
  await row.getByRole('button',{name:'비교 결과 보기'}).click();await expect(page.getByRole('heading',{name:'사전·사후 비교'})).toBeVisible();
  const areas=await page.locator('#cmp-areas tbody tr').evaluateAll(rows=>rows.map(r=>[...r.cells].map(c=>c.textContent)));
  expect(areas).toEqual([['자기인식','50.0','100.0','+50.0'],['직업탐색','50.0','75.0','+25.0'],['의사결정','50.0','50.0','0.0'],['커리어플랜','50.0','25.0','-25.0'],['목표실행','50.0','0.0','-50.0']]);
@@ -296,7 +296,7 @@ const NOTICE_OPTIONS={role:'counselor',assessmentUrl:'https://example.invalid/di
 test('counselor copies the post notice with link, login ID and no password',async({page})=>{
  await setup(page,{...NOTICE_OPTIONS,postAssessments:[{participant_id:'fixture',status:'draft',submitted_at:null}]});await mockClipboard(page);
  const row=page.locator('tr[data-participant="fixture"]');await expect(row.getByRole('button',{name:'사전진단 안내 복사'})).toHaveCount(0);
- await expect(page.getByRole('columnheader',{name:'로그인 아이디'})).toBeVisible();await expect(row.locator('td').nth(1)).toHaveText('client01');
+ await expect(page.getByRole('columnheader',{name:'로그인 아이디'})).toHaveCount(0);await expect(row).not.toContainText('client01');
  await row.getByRole('button',{name:'사후진단 안내 복사'}).click();await expect(page.locator('#copy-notice-status')).toHaveText('사후진단 안내문을 복사했습니다.');
  const text=await page.evaluate(()=>window.__copied);
  expect(text).toContain('가상 참여자님, 사후진단 안내입니다.');expect(text).toContain('접속 링크: https://example.invalid/diagnosis?entry=post');

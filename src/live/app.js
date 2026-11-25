@@ -28,7 +28,8 @@ let postTimer=null,postSaving=null,postDirty=false,postUpdatedAt=null,postMessag
 let satIssues=[],postLocked=false,postSubmitting=false,postAvailable=false,compareData=null;
 // DEV-014: participant-side post approval from the server (the server still checks every request).
 let postApproved=false;
-let counselorFilter={name:'',status:'all'};
+let counselorFilter={name:'',status:'all',company:'all',page:1};
+let counselorReturn=null,counselorLoadError=false;
 let mustChangePassword=false,managerCompanies=[];
 let assessmentUrl='',assessmentUrlMessage='',assessmentUrlInput='';
 let publicIntakeLinks={data:null,loading:false,error:'',feedback:''},publicIntakeRun=0,publicIntakeTimer=null;
@@ -123,8 +124,9 @@ const survey=createSurvey({save:()=>{},render,nav,toast,getPath,setPath,OPT,LIM,
 const mobileSurvey=createMobileSurvey({getProfile:()=>profile,steps:view.WSTEPS,missing:survey.missing,goStep:survey.goStep,goQ:survey.goQ,nextFrom:survey.nextFrom,render,toast});
 const edits=createCounselorEdit({byId,getDB:()=>records,save:()=>{},nav,render,toast,missing:survey.missing,ansText:view.ansText,getWSTEPS:()=>view.WSTEPS,getCounselors:()=>COUNSELORS,persistEdit, EVAL_VERSION:'',toAssessment:()=>null});
 
-function reset(){clearPublicIntakeLinks();assignmentRetries.clear();adminReportReturn=null;clearCompanyProgress();selectedAdminCompany=null;adminCompanyTab='progress';counselorAccounts.reset();managerCompanies=[];managerProgress={companyId:null,data:null,loading:false,message:''};managerRun++;companyManager.reset();clearAggregatePrint();organizationName='';mobileSurvey.reset();progress={data:null,loading:false,message:''};progressRun++;directory={data:null,loading:false,message:'',filter:{...NO_FILTER}};directoryRun++;aggregate={data:null,loading:false,message:'',tab:'r1'};aggregateRun++;assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];postAvailable=false;postApproved=false;compareData=null;profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;reportHTML='';counselorFilter={name:'',status:'all'}}
+function reset(){counselorReturn=null;counselorLoadError=false;clearPublicIntakeLinks();assignmentRetries.clear();adminReportReturn=null;clearCompanyProgress();selectedAdminCompany=null;adminCompanyTab='progress';counselorAccounts.reset();managerCompanies=[];managerProgress={companyId:null,data:null,loading:false,message:''};managerRun++;companyManager.reset();clearAggregatePrint();organizationName='';mobileSurvey.reset();progress={data:null,loading:false,message:''};progressRun++;directory={data:null,loading:false,message:'',filter:{...NO_FILTER}};directoryRun++;aggregate={data:null,loading:false,message:'',tab:'r1'};aggregateRun++;assessmentUrl='';assessmentUrlInput='';assessmentUrlMessage='';epoch++;clearTimeout(postTimer);postSaving=null;postDirty=false;postUpdatedAt=null;postMessage='';postLocked=false;postSubmitting=false;satIssues=[];postAvailable=false;postApproved=false;compareData=null;profile=null;records=[];participants=[];setCounselors({});S.user=null;S.cedit=null;S.res=null;S.mode='participant';S.mode2='pre';S.view='login';S.step=0;S.showMiss={};busy=false;reportHTML='';counselorFilter={name:'',status:'all',company:'all',page:1}}
 function hydrate(data){
+  counselorLoadError=false;
   if(!data.profile||!['participant','counselor','admin','company_manager'].includes(data.profile.role)||!Array.isArray(data.participants)||!Array.isArray(data.assessments))throw Error('권한 또는 조회 응답이 올바르지 않습니다.');
   if(profile&&(profile.user_id!==data.profile.user_id||profile.organization_id!==data.profile.organization_id||
     profile.role!==data.profile.role||data.mustChangePassword===true))clearPublicIntakeLinks();
@@ -168,7 +170,7 @@ function nav(v){
   if(!profile||!allowed.includes(v))return;
   if(v==='wizard'&&(!S.user||(profile.role==='counselor'&&!S.cedit)))return;
   if(v==='cns'&&S.cedit)edits.abortEdit();
-  S.view=v;S.err='';render();window.scrollTo(0,0);
+  S.view=v;S.err='';render();if(v==='cns'&&counselorReturn){window.scrollTo(0,counselorReturn.top);document.querySelector(`[data-participant="${CSS.escape(counselorReturn.id)}"] summary`)?.focus({preventScroll:true});counselorReturn=null}else window.scrollTo(0,0);
 }
 async function doLogin(){
   if(busy)return;
@@ -490,7 +492,7 @@ async function logout(){
 }
 async function refresh(){
   if(busy)return;busy=true;render();
-  try{const id=S.user?.id;hydrate(await api.read());if(id)S.user=byId(id);mobileSurvey.reset();S.err='';if(profile.role==='company_manager')loadManagerProgress();if(profile.role==='admin')void loadPublicIntakeLinks()}catch(e){if(profile?.role==='company_manager'){api.clear();reset();managerCompanies=[]}S.err=e.message}finally{busy=false;render()}
+  try{const id=S.user?.id;hydrate(await api.read());if(id)S.user=byId(id);mobileSurvey.reset();S.err='';if(profile.role==='company_manager')loadManagerProgress();if(profile.role==='admin')void loadPublicIntakeLinks()}catch(e){if(profile?.role==='counselor')counselorLoadError=true;if(profile?.role==='company_manager'){api.clear();reset();managerCompanies=[]}S.err=e.message}finally{busy=false;render()}
 }
 async function saveAssessmentUrl(){
   if(busy||profile?.role!=='admin')return;
@@ -510,6 +512,7 @@ async function openCompare(id){
   if(S.cedit){S.err='수정 중인 응답이 있습니다. 수정 저장 또는 취소 후 조회해 주세요.';render();return}
   const r=byId(id);
   if(!r||r.status!=='submitted'||r.postStatus!=='submitted'){S.err='사전·사후 진단을 모두 제출한 내담자만 비교 결과를 조회할 수 있습니다.';render();return}
+  counselorReturn={id,top:window.scrollY};
   busy=true;compareData=null;render();
   try{
     const data=await api.compare(id);
@@ -548,14 +551,16 @@ async function openRes(id,kind='c'){
   if(S.cedit){S.err='수정 중인 응답이 있습니다. 수정 저장 또는 취소 후 보고서를 전환해 주세요.';render();return}
   if(!['c','p','i'].includes(kind)||!byId(id)){S.err='담당 내담자와 보고서 종류를 확인해 주세요.';render();return}
   if(byId(id).status!=='submitted'){S.err='최종 제출이 완료된 내담자만 보고서를 조회할 수 있습니다.';render();return}
+  if(S.view==='cns')counselorReturn={id,top:window.scrollY};
   busy=true;reportHTML='';render();
   try{const data=await api.report(id,kind);if(typeof data.html!=='string'||!data.html.trim())throw Error('보고서를 확인하지 못했습니다.');reportHTML=data.html;S.res={id,role:kind};S.from='cns';S.view='result';S.err=''}catch(e){S.err=e.message}finally{busy=false;render()}
 }
 function filterCounselor(clear=false){
   if(busy||profile?.role!=='counselor'||S.view!=='cns')return;
-  counselorFilter=clear?{name:'',status:'all'}:{name:$('#cns-name').value.trim(),status:$('#cns-status').value};
+  counselorFilter=clear?{name:'',status:'all',company:'all',page:1}:{name:$('#cns-name').value.trim(),status:$('#cns-status').value,company:$('#cns-company').value,page:1};
   render();
 }
+function counselorPage(page){if(busy||profile?.role!=='counselor'||S.view!=='cns'||!Number.isInteger(page)||page<1)return;counselorFilter.page=page;render();document.querySelector('#plist')?.scrollIntoView({block:'start'});}
 function postAllowed(){return postTestGate&&postApproved&&!busy&&!mustChangePassword&&profile?.role==='participant'&&S.user?.status==='submitted'}
 const validPost=a=>Array.isArray(a)&&a.length===ITEM_COUNT&&a.every(v=>v===null||(Number.isInteger(v)&&v>=SCALE_MIN&&v<=SCALE_MAX));
 const SAT_SCORES=['q1','q2','q3a','q3b','q3c','q5fit'],SAT_CHOICES=['d32','d33','d34','d35','q7'];
@@ -747,6 +752,7 @@ function render(){
   companyManager.unmount();counselorAccounts.unmount();
   if(!profile){mustChangePassword=false;adminScope='organization';adminMenu='admin-dashboard'}
   $('.seg')?.remove();
+  $('.proto-note').hidden=profile?.role==='counselor';
   $('.proto-note').textContent=profile?'세컨플래닝 · '+({counselor:'상담사',admin:'관리자',participant:'내담자',company_manager:'고객사 담당자'}[profile.role]):'계정으로 로그인해 주세요.';
   let html;
   if(restoring)html='<div class="narrow"><p role="status">로그인 세션을 확인하고 있습니다.</p></div>';
@@ -785,9 +791,9 @@ function render(){
     </section></div><dialog class="admin-directory-editor" id="directory-editor" aria-labelledby="directory-editor-title"></dialog>`;
   else if(S.view==='post'&&postAllowed())html=postLocked?postConfirmView():S.pstep===1||!full(S.user.post)?view.vPost(postMessage):S.pstep===2?view.vSat(satIssues,postMessage):postConfirmView();
   else if(S.view==='wizard'&&S.cedit)html=view.vWizard();
-  else if(profile.role==='counselor'&&S.view==='result')html=`<div class="narrow noprint"><div class="toolbar" id="live-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='i'?'고객정보':S.res?.role==='p'?'내담자용 3쪽':'상담사용 5쪽'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='i'}" onclick="openRes('${esc(S.res?.id)}','i')">고객정보 보기</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openRes('${esc(S.res?.id)}','c')">상담사용 5쪽</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openRes('${esc(S.res?.id)}','p')">내담자용 3쪽</button><button class="btn ghost sm" onclick="nav('cns')">담당 내담자 목록</button></div></div></div>`+reportHTML;
+  else if(profile.role==='counselor'&&S.view==='result')html=`<div class="narrow noprint"><div class="toolbar" id="live-report-kind" role="group" aria-label="보고서 종류"><span>${S.res?.role==='i'?'고객등록신청서':S.res?.role==='p'?'고객용 리포트':'상담사용 리포트'}</span><div class="acts"><button class="btn ghost sm" aria-pressed="${S.res?.role==='i'}" onclick="openRes('${esc(S.res?.id)}','i')">고객등록신청서</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='c'}" onclick="openRes('${esc(S.res?.id)}','c')">상담사용 리포트</button><button class="btn ghost sm" aria-pressed="${S.res?.role==='p'}" onclick="openRes('${esc(S.res?.id)}','p')">고객용 리포트</button><button class="btn ghost sm" onclick="nav('cns')">담당 내담자 목록</button></div></div></div>`+reportHTML;
   else if(profile.role==='counselor'&&S.view==='compare'&&compareData)html=compareView({record:byId(compareData.participantId),data:compareData,pname});
-  else if(profile.role==='counselor')html=counselorView({profile,records,counselorFilter,pname,assessmentUrl,postAvailable});
+  else if(profile.role==='counselor')html=counselorView({profile,records,counselorFilter,pname,assessmentUrl,postAvailable,loadError:counselorLoadError});
   else html=S.user.status==='submitted'
     ?`<div class="narrow" style="padding-top:34px"><div class="card"><h2>${esc(pname(S.user))}님, 제출이 완료되었습니다</h2><p class="sub">전체 응답과 진단 결과가 저장되었습니다. 결과는 담당 상담사가 안내합니다.</p>${postTestGate?`<button class="btn mint" onclick="startPost()" ${postApproved?'':'disabled'}>사후진단 실시</button> `:''}${postTestGate&&!postApproved?'<p class="hintline" id="post-approval-hint">담당 상담사가 사후진단을 허용하면 참여할 수 있습니다.</p>':''}<button class="btn ghost" onclick="logout()">로그아웃</button></div></div>`
     :participantPreClosed();
@@ -810,7 +816,7 @@ function render(){
   if(busy)$('#app').querySelectorAll('input,button,select,textarea').forEach(e=>e.disabled=true);
 }
 function editable(){return !busy&&!mustChangePassword&&profile&&(profile.role==='counselor'&&!!S.cedit)}
-const handlers={doLogin,changePassword,logout,refresh,saveAssessmentUrl,openRes,openAdminReport,openCompare,render,nav,filterCounselor,goHome:()=>nav(profile?.role==='counselor'?'cns':'home'),
+const handlers={counselorPage,doLogin,changePassword,logout,refresh,saveAssessmentUrl,openRes,openAdminReport,openCompare,render,nav,filterCounselor,goHome:()=>nav(profile?.role==='counselor'?'cns':'home'),
   startPost,answerPost,nextPost,leavePost,submitPost,setSatScore,toggleSat,setSatText,checkSat,backSat,savePost:async()=>{if(postAllowed()&&S.view==='post')try{await flushPost()}catch{}},backPost:()=>{if(postAllowed()&&!postLocked&&!postSubmitting&&S.view==='post'){S.pstep=1;S.err='';render()}},
   startEdit:id=>{if(!busy&&profile?.role==='counselor'&&byId(id)?.status==='submitted')edits.startEdit(id)},
   cancelEdit:()=>{if(!busy&&S.cedit){S.err='';edits.cancelEdit()}},
