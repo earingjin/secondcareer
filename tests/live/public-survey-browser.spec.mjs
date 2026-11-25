@@ -6,6 +6,23 @@ test.beforeAll(async()=>{server=await serve('src')});
 test.afterAll(async()=>server.close());
 test.beforeEach(async({page})=>{await page.route('**/main.js',route=>route.fulfill({contentType:'text/javascript',body:"if(new URLSearchParams(location.search).get('entry')==='pre') import('./live/public-survey.js'); else import('./live/app.js');"}));});
 const link='11111111-1111-4111-8111-111111111111';
+test('retry saves edits made after a failed pending draft',async({page})=>{
+ const drafts=[];
+ await page.route('**/functions/v1/secondcareer-public-assessment',async route=>{const b=route.request().postDataJSON();if(b.action==='draft'){drafts.push(b);if(drafts.length===1)return route.abort('failed')}await route.fulfill({json:{intakeId:b.intakeId,status:'draft',version:drafts.length>1?drafts.length-1:0,expiresAt:'2099-01-01T00:00:00Z'}})});
+ await page.goto(server.url+'/?entry=pre&linkId='+link);await page.getByRole('button',{name:'사전진단 시작하기'}).click();await page.getByRole('radio',{name:'동의',exact:true}).click();
+ await expect(page.locator('#public-save-retry')).toBeVisible();await page.getByRole('button',{name:'다음 · 기본정보'}).click();await page.getByLabel('성함').fill('합성 이름');await page.locator('#public-save-retry').click();
+ await expect.poll(()=>drafts.length).toBe(3);expect(drafts[1].requestId).toBe(drafts[0].requestId);expect(drafts[1].version).toBe(drafts[0].version);expect(drafts[2].requestId).not.toBe(drafts[0].requestId);expect(drafts[2].version).toBe(1);expect(drafts[2].answers.reg.name).toBe('합성 이름');
+});
+test('submission remains locked across render and unlocks on failure',async({page})=>{
+ let submissions=0,release;const waiting=new Promise(resolve=>release=resolve);
+ await page.route('**/functions/v1/secondcareer-public-assessment',async route=>{const b=route.request().postDataJSON();if(b.action==='submit'){submissions++;await waiting;return route.abort('failed')}await route.fulfill({json:{intakeId:b.intakeId,status:'draft',version:0,expiresAt:'2099-01-01T00:00:00Z'}})});
+ await page.goto(server.url+'/?entry=pre&linkId='+link);await page.getByRole('button',{name:'사전진단 시작하기'}).click();
+ const fixture=JSON.parse(fs.readFileSync('tests/snapshot/fixture.json','utf8')).db[0];await page.evaluate(async f=>{const {S}=await import('/shared/state.js');Object.assign(S.user,{reg:f.reg,goal:f.goal,expect:f.expect,done:f.done,pre:f.pre});goStep(5)},fixture);
+ page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'바로 제출하기'}).click();await expect.poll(()=>submissions).toBe(1);
+ await page.evaluate(()=>{render();mobilePreviousOrStep();mobilePrevious();mobileNext();publicReviewBack();setF('reg.name','변조');submitPre();publicRetry()});
+ await expect(page.getByRole('button',{name:'바로 제출하기'})).toBeDisabled();expect(await page.evaluate(async()=>{const {S}=await import('/shared/state.js');return [S.step,S.user.reg.name]})).toEqual([5,fixture.reg.name]);expect(submissions).toBe(1);
+ release();await expect(page.getByRole('button',{name:'바로 제출하기'})).toBeEnabled();await expect(page.locator('#public-save')).toContainText('제출 결과를 확인하지 못했습니다');
+});
 for(const mobile of [false,true])test(`real inputs format and restore contact details (${mobile?'mobile':'desktop'})`,async({page})=>{
  if(mobile)await page.setViewportSize({width:375,height:800});
  let saved=null,version=0;const errors=[];
