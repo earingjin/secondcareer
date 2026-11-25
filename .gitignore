@@ -9,3 +9,4 @@ tests/snapshot/baseline/img/
 .claude/
 .env
 .env.*
+/reference/

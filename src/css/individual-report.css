@@ -1,0 +1,23 @@
+.registration-report{font-size:11px;color:#222;background:#fff}
+.registration-report header{background:#173b91;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;font-size:20px}
+.registration-report header .logo-jm{color:#fff;font-size:12px}
+.registration-report h3{font-size:13px;margin:12px 0 5px}
+.registration-report h4{text-align:center;background:#ebebeb;margin:12px 0 0;padding:5px}
+.registration-report table{width:100%;border-collapse:collapse;table-layout:fixed;border-top:1px solid #478de3}
+.registration-report th,.registration-report td{border:1px solid #fff;padding:5px;overflow-wrap:anywhere;vertical-align:middle}
+.registration-report th{background:#ebebeb;font-weight:600}
+.registration-report td{background:#fcf5e6}
+.registration-consent{background:#fdf0d1;padding:8px;font-size:10px;line-height:1.45}
+.registration-sign{position:relative;line-height:2}
+.registration-sign span{position:absolute;right:5%}
+.counselor-profile-page .t{table-layout:fixed}
+.counselor-profile-page .t th,.counselor-profile-page .t td{overflow-wrap:anywhere}
+.counselor-profile-page table.t th{width:38%;white-space:normal}
+.counselor-profile-page table.counselor-basic-info th{width:20%}
+@media print{
+ .registration-report{font-size:10px}
+ .registration-report h3{margin:8px 0 3px}
+ .registration-report th,.registration-report td{padding:3px}
+ .counselor-profile-page .t th,.counselor-profile-page .t td{padding:4px 6px;font-size:11px}
+ .counselor-profile-page h3.st{margin:8px 0 4px;font-size:13px}
+}
