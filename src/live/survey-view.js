@@ -47,7 +47,7 @@ const isSubmitted=p=>p.status==='submitted'||(p.status==null&&preDone(p));
 const TOTAL_Q=Object.keys(QT).length-(anonymous?1:0);
 function chips(path){
   const sel=getPath(S.user,path)||[];const max=LIM[path]||1;
-  return '<div class="chips">'+OPT[path].map((o,i)=>{const k=sel.indexOf(o);return `<button type="button" class="chip ${k>=0?'on':''}" aria-pressed="${k>=0}" onclick="toggleChip('${path}',${i})">${max>1&&k>=0?'<b>'+(k+1)+'</b>':''}${esc(qLabel(path,i,o))}</button>`}).join('')+'</div>';
+  return (anonymous&&max>1?`<p class="selection-count">최대 ${max}개 선택 · 현재 ${sel.length}개 선택</p>`:'')+'<div class="chips">'+OPT[path].map((o,i)=>{const k=sel.indexOf(o);return `<button type="button" class="chip ${k>=0?'on':''}" aria-pressed="${k>=0}" onclick="toggleChip('${path}',${i})">${max>1&&k>=0?'<b>'+(k+1)+'</b>':''}${esc(qLabel(path,i,o))}</button>`}).join('')+'</div>';
 }
 
 /* ---------- 참여자: 로그인 ---------- */
@@ -92,7 +92,7 @@ function vWizard(){
   if(!post&&isSubmitted(p)&&!S.cedit)return `<div class="narrow" style="padding-top:34px"><div class="card"><h2>응답이 제출되어 수정할 수 없습니다</h2><p class="sub" style="margin-top:8px">제출한 응답은 담당 상담사만 수정할 수 있습니다. 고칠 내용이 있으면 상담사에게 요청해 주세요.</p><div class="acts" style="margin-top:16px"><button class="btn" onclick="nav('home')">처음 화면으로</button></div></div></div>`;
   let body='';
   if(post)body='';else body=[wConsent,wReg,wGoal,wDiagPre,wExpect,wReview][S.step]();
-  return `<div class="narrow${S.cedit?'':' mobile-survey'}" style="padding-top:20px">${S.cedit?`<div class="editbar">상담사 수정 모드 · ${esc(pname(p))}</div>`:''}${stepper(S.step,post)}<div class="card">${body}</div></div>`;
+  return `<div class="narrow${S.cedit?'':' mobile-survey'}${anonymous?' anonymous-survey':''}" style="padding-top:20px">${S.cedit?`<div class="editbar">상담사 수정 모드 · ${esc(pname(p))}</div>`:''}${stepper(S.step,post)}<div class="card">${body}</div></div>`;
 }
 function wConsent(){
   const p=S.user,r=p.reg,c=COUNSELORS[p.counselor];
@@ -102,7 +102,7 @@ function wConsent(){
   +qb('A1',`<div class="cons" style="margin-bottom:12px"><b>개인정보수집 이용 및 정보제공 동의</b><br>01. 수집 및 이용 목적 : 본인식별정보를 통한 컨설팅 서비스 제공을 위함<br>02. 수집 항목 : 본 서비스 이용을 위한 성명, 주소, 연락처 및 개인이력서 등 개인식별정보<br>03. 보유기간 및 개인정보의 파기 : 신청서 접수일부터 서비스 종료 후 1년 또는 고객사의 즉각적인 파기 요청시 정보를 파기<br>04. 제3자 정보제공 : 취업(또는 창업) 등 다른 기관에 개인정보를 의뢰할 목적일 때, 서비스의 위탁기관에서 수행 결과를 요청<br><span class="hintline">※ 원본 고객등록신청서 문구. 웹 서비스용 법정 고지문은 검토 후 확정 예정</span></div>`
     +`<div class="chips" role="radiogroup">${['동의','미동의'].map(o=>`<button type="button" role="radio" class="chip ${r.a1===o||(o==='동의'&&r.a1==null&&r.consent)?'on':''}" onclick="setConsent('${o}')">${o}</button>`).join('')}</div>`)
   +(anonymous?'':qb('A2',a2))
-  +`<div class="notice-s">응답을 임시저장한 후 다시 이어서 작성할 수 있습니다. 저장 상태를 확인해 주세요.</div>`
+  +`<div class="notice-s">${anonymous?'동의 후 응답이 자동 저장됩니다. 같은 탭과 세션에서 이어서 작성할 수 있습니다.':'응답을 임시저장한 후 다시 이어서 작성할 수 있습니다. 저장 상태를 확인해 주세요.'}</div>`
   +wNav(0,'다음 · 기본정보');
 }
 function a2Msg(v){v=String(v||'').trim();if(!v)return '';const c=COUNSELORS[v];return c?'담당 상담사: '+esc(c.n):'등록된 상담사 코드와 일치하지 않습니다. 코드를 다시 확인해 주세요.'}

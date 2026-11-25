@@ -11,18 +11,19 @@ import {toast} from '../browser/dom.js';
 const linkId=new URLSearchParams(location.search).get('linkId');
 const validId=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 const storageKey='sp-public-intake:'+linkId;
-let capability=null,version=0,phase='loading',message='',dirty=false,timer=null,saving=null,pending=null,submitting=false;
+let capability=null,version=0,phase='loading',message='',dirty=false,timer=null,saving=null,pending=null,submitting=false,retryNeeded=false;
 const answers=()=>structuredClone({reg:S.user.reg,goal:S.user.goal,expect:S.user.expect,done:S.user.done,pre:S.user.pre});
 const agreed=()=>S.user?.reg?.a1==='동의'||(S.user?.reg?.a1==null&&S.user?.reg?.consent===true);
 const view=createSurveyView({anonymous:true,missing:p=>survey.missing(p),pname:p=>p.reg?.name||''});
 const survey=createSurvey({anonymous:true,save,render,nav:()=>{},toast,getPath,setPath,OPT,LIM,ITEM_COUNT,...view,full:a=>Array.isArray(a)&&a.length===ITEM_COUNT&&a.every(v=>Number.isInteger(v)&&v>=SCALE_MIN&&v<=SCALE_MAX),submitAssessment:submit});
 const mobile=createMobileSurvey({anonymous:true,getProfile:()=>null,steps:view.WSTEPS,missing:survey.missing,goStep:survey.goStep,goQ:survey.goQ,nextFrom:survey.nextFrom,render,toast});
-function badge(){const el=document.getElementById('public-save');if(el)el.textContent=message}
+function badge(){const el=document.getElementById('public-save');if(el)el.textContent=message;const retry=document.getElementById('public-save-retry');if(retry)retry.style.display=retryNeeded?'':'none'}
 function render(){
  mobile.capture();mobile.prepare();const root=document.getElementById('app');
- if(phase==='done')root.innerHTML='<div class="narrow"><div class="card"><h2>설문 제출이 완료되었습니다</h2><p>설문 제출이 완료되었습니다. 제출하신 응답은 담당자가 확인한 후 상담사에게 전달됩니다.</p></div></div>';
+ if(phase==='done')root.innerHTML='<div class="narrow"><div class="card"><h2>설문 제출이 완료되었습니다</h2><p>설문 제출이 완료되었습니다. 제출 후에는 직접 수정할 수 없습니다. 제출하신 응답은 담당자가 확인한 후 상담사에게 전달됩니다.</p></div></div>';
+ else if(phase==='welcome')root.innerHTML='<div class="narrow"><div class="card"><h2>사전진단 참여 안내</h2><p>첫 상담에 앞서 현재 상황과 목표를 살펴보는 설문입니다. 로그인 없이 참여할 수 있습니다.</p><p>동의 후 응답은 자동 저장되며 같은 탭과 세션에서 이어서 작성할 수 있습니다. 결과는 상담 시 안내해 드립니다.</p><button class="btn" onclick="publicStart()">시작하기</button></div></div>';
  else if(phase!=='ready')root.innerHTML=`<div class="narrow"><div class="card"><p role="alert">${esc(message||'설문을 불러오고 있습니다.')}</p>${phase==='error'?'<button class="btn" onclick="publicRetry()">다시 확인</button>':''}</div></div>`;
- else root.innerHTML=`<div class="narrow"><p id="public-save" role="status">${esc(message)}</p><button class="btn ghost sm" onclick="publicRetry()">저장 재시도</button></div>`+view.vWizard();
+ else root.innerHTML=`<div class="narrow"><p id="public-save" role="status">${esc(message)}</p><button id="public-save-retry" class="btn ghost sm" onclick="publicRetry()" ${retryNeeded?'':'style="display:none"'}>저장 재시도</button></div>`+view.vWizard();
  if(phase==='ready')mobile.mount();
 }
 function persist(){sessionStorage.setItem(storageKey,JSON.stringify(capability))}
@@ -40,7 +41,7 @@ async function flush(){
  clearTimeout(timer);if(saving){await saving;if(dirty)return flush();return}if(!dirty||!agreed())return;
  if(!pending)pending={action:'draft',requestId:crypto.randomUUID(),version,answers:answers()};
  const request=pending;dirty=false;message='응답을 저장하고 있습니다…';badge();
- saving=(async()=>{try{const d=await api('draft',request);if(d.status!=='draft')throw Error('임시저장 상태를 확인해 주세요.');version=d.version;pending=null;message=dirty?'새 응답 저장 대기 중':'임시저장 완료';badge()}catch(e){dirty=true;message=e.message;badge();throw e}finally{saving=null}})();
+ saving=(async()=>{try{const d=await api('draft',request);if(d.status!=='draft')throw Error('임시저장 상태를 확인해 주세요.');version=d.version;pending=null;retryNeeded=false;message=dirty?'새 응답 저장 대기 중':'임시저장 완료';badge()}catch(e){dirty=true;retryNeeded=true;message=e.message;badge();throw e}finally{saving=null}})();
  await saving;if(dirty)await flush();
 }
 async function submit(){
@@ -60,10 +61,12 @@ async function initialize(){
   version=d.version;if(d.status==='submitted'){phase='done';render();return}
   const initial={reg:{careers:[{},{},{}],consent:false},goal:{},expect:{},done:{reg:false,goal:false,expect:false},pre:Array(ITEM_COUNT).fill(null)};
   if(d.answers!==undefined&&d.answers!==null){const a=d.answers;if(!a.reg||!a.goal||!a.expect||!a.done||!Array.isArray(a.pre)||a.pre.length!==ITEM_COUNT)throw Error('저장된 응답을 확인하지 못했습니다.');Object.assign(initial,a)}
-  S.user={...initial,status:'draft'};S.view='wizard';S.mode2='pre';S.step=0;S.showMiss={};phase='ready';message=d.answers?'임시저장 응답을 불러왔습니다.':'설문을 시작합니다.';mobile.reset();render();
+  S.user={...initial,status:'draft'};S.view='wizard';S.mode2='pre';S.step=0;S.showMiss={};phase=d.answers?'ready':'welcome';message=d.answers?'임시저장 응답을 불러왔습니다.':'설문을 시작합니다.';mobile.reset();render();
  }catch(e){phase='error';message=e.message||'서버에 연결할 수 없습니다.';render()}
 }
 window.addEventListener('beforeunload',e=>{if(dirty||saving||pending||submitting){e.preventDefault();e.returnValue=''}});
+document.querySelector('.proto-note')?.remove();
+window.publicStart=()=>{if(phase==='welcome'){phase='ready';render()}};
 window.publicRetry=()=>{if(phase==='error')void initialize();else if(phase==='ready')void flush().catch(()=>{})};
 window.fmtDate=view.fmtDate;window.fmtPhone=view.fmtPhone;
 for(const name of ['setF','setCareer','toggleChip','answer','setConsent','setBirth'])window[name]=(...args)=>{if(phase==='ready'&&!submitting&&(name==='setConsent'||agreed())){if(name==='setConsent'&&args[0]!=='동의'){clearTimeout(timer);dirty=false;pending=null;message='동의하지 않아 임시저장을 중단했습니다.'}return survey[name](...args)}};

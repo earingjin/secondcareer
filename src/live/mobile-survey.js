@@ -25,7 +25,7 @@ export function createMobileSurvey({getProfile,steps,missing,goStep,goQ,nextFrom
     snapshot=null;
     if(!question)return;
     const fields=[...question.querySelectorAll('input,textarea,select')],field=document.activeElement;
-    snapshot={code:question.id.slice(2),scroll:question.scrollTop,index:fields.indexOf(field),start:field?.selectionStart,end:field?.selectionEnd};
+    snapshot={code:question.id.slice(2),scroll:anonymous?window.scrollY:question.scrollTop,index:fields.indexOf(field),start:field?.selectionStart,end:field?.selectionEnd};
   }
   function move(item){
     code=item.code;focusNext=true;goStep(item.step);
@@ -99,9 +99,9 @@ export function createMobileSurvey({getProfile,steps,missing,goStep,goQ,nextFrom
     if(snapshot?.code===code){
       const field=question.querySelectorAll('input,textarea,select')[snapshot.index];
       if(field){field.focus({preventScroll:true});if(typeof snapshot.start==='number'&&field.setSelectionRange)field.setSelectionRange(snapshot.start,snapshot.end)}
-      question.scrollTop=snapshot.scroll;
+      if(anonymous)window.scrollTo(0,snapshot.scroll);else question.scrollTop=snapshot.scroll;
     }
-    if(focusNext){progress.focus({preventScroll:true});question.scrollTop=0;focusNext=false}
+    if(focusNext){progress.focus({preventScroll:true});if(anonymous)progress.scrollIntoView({block:"start"});else question.scrollTop=0;focusNext=false}
   }
   media.addEventListener('change',()=>{if(eligible())render()});
   return {active,reset,prepare,capture,mount,previous,next,goStep:selectStep,goQ:jump,nextFrom:advanceStep};
