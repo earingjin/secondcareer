@@ -33,8 +33,17 @@ test('세 결과물과 복귀, 미제출 및 타 담당 접근 제한',async({pa
  expect(calls).toHaveLength(3);await page.evaluate(()=>openRes('p24','c'));await expect(page.getByRole('alert')).toContainText('최종 제출');await page.evaluate(()=>openRes('other','c'));await expect(page.getByRole('alert')).toContainText('담당 내담자');expect(calls).toHaveLength(3);
 });
 test('무로그인 사후진단 미지원과 조회 실패 구분',async({page})=>{
- const {state}=await setup(page);await page.locator('#cns-name').fill('테스트00');await page.getByRole('button',{name:'검색',exact:true}).click();const row=page.locator('[data-participant="p0"]');await expect(row).toContainText('사후진단 미지원');await expect(row.locator('[data-post-status]')).toHaveCount(0);await expect(row.locator('[data-approve-post]')).toHaveCount(0);
+ const {state}=await setup(page);await page.locator('#cns-name').fill('테스트00');await page.getByRole('button',{name:'검색',exact:true}).click();const row=page.locator('[data-participant="p0"]');await expect(row.locator('[data-label="사후진단"]')).toHaveText('미지원');await expect(page.locator('.counselor-post-note')).toHaveText('무로그인 참여자의 사후진단은 추후 지원 예정입니다.');await expect(row.locator('[data-post-status]')).toHaveCount(0);await expect(row.locator('[data-approve-post]')).toHaveCount(0);
  state.fail=true;await page.getByRole('button',{name:'새로 조회'}).click();await expect(page.locator('[data-kpi=total] b')).toHaveText('—');await expect(page.locator('#plist')).toContainText('조회에 실패했습니다');
+});
+test('상담사 전용 표 스타일이 공통 table.t보다 우선한다',async({page})=>{
+ await page.setViewportSize({width:1440,height:900});await setup(page);
+ const table=page.locator('.counselor-table table'),cell=page.locator('#plist tbody tr').nth(1).locator('td').first();
+ expect(await table.evaluate(e=>getComputedStyle(e).fontSize)).toBe('15px');
+ const desktop=await cell.evaluate(e=>{const s=getComputedStyle(e);return {vertical:s.verticalAlign,padding:s.padding,borderLeft:s.borderLeftWidth,borderBottom:s.borderBottomWidth,background:s.backgroundColor}});
+ expect(desktop).toEqual({vertical:'middle',padding:'14px 12px',borderLeft:'0px',borderBottom:'1px',background:'rgb(255, 255, 255)'});
+ await cell.hover();await expect.poll(()=>cell.evaluate(e=>getComputedStyle(e).backgroundColor)).toBe('rgb(242, 250, 248)');
+ await page.setViewportSize({width:375,height:900});const mobile=await cell.evaluate(e=>{const s=getComputedStyle(e);return {display:s.display,padding:s.padding,border:s.borderBottomWidth}});expect(mobile).toEqual({display:'grid',padding:'8px',border:'0px'});
 });
 test('마지막 행 메뉴는 행 높이와 화면 경계를 유지하고 키보드로 닫힌다',async({page})=>{
  await setup(page);const row=page.locator('#plist tbody tr').last(),trigger=row.locator('summary');await trigger.scrollIntoViewIfNeeded();const before=await row.boundingBox();await trigger.focus();await page.keyboard.press('Enter');await expect(row.locator('details')).toHaveAttribute('open','');const panel=row.locator('.counselor-menu'),rect=await panel.boundingBox();expect(rect.x).toBeGreaterThanOrEqual(0);expect(rect.x+rect.width).toBeLessThanOrEqual(1280);expect(rect.y+rect.height).toBeLessThanOrEqual(720);expect((await row.boundingBox()).height).toBe(before.height);

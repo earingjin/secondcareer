@@ -12,7 +12,7 @@ export function postNoticeBlocker(p,state,postUrl){
   return '';
 }
 function postCell(p,state,url){
-  if(p.anonymousIntake)return '사후진단 미지원';
+  if(p.anonymousIntake)return '미지원';
   if(state!=='submitted')return '<span class="badge-s s-new">사전진단 완료 대기</span>';
   if(p.postStatus==='submitted')return `<span class="badge-s s-pre" data-post-status="submitted">제출 완료</span><span class="counselor-date">${esc(p.postSubmittedAt?.slice(0,10)||'-')}</span><button class="btn ghost sm" data-compare-post="${esc(p.id)}" onclick="openCompare('${esc(p.id)}')">비교 결과 보기</button>`;
   if(!p.postApproved)return `<span class="badge-s s-new">허용 대기</span><button class="btn sm" data-approve-post="${esc(p.id)}">사후진단 허용</button>`;

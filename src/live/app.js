@@ -154,14 +154,24 @@ function hydrate(data){
 }
 function answers(p){return {reg:p.reg,goal:p.goal,pre:p.pre,expect:p.expect,done:p.done}}
 async function persistEdit(p,e){
-  if(busy||profile?.role!=='counselor')return;busy=true;render();
+  if(busy||counselorLoadError||profile?.role!=='counselor')return;
+  const run=epoch;let saved=false,refreshed=false;busy=true;S.err='';render();
   try{const data=await api.write('edit',{participantId:p.id,answers:answers(p),expectedUpdatedAt:e.before._updatedAt});
+    if(run!==epoch)return;
     if(data.status!=='submitted')throw Error('수정 완료를 확인하지 못했습니다.');
-    const fresh=await api.read();hydrate(fresh);S.user=e.prevUser;S.cedit=null;S.res=e.res;S.from=e.from;
-    // Discard the old report after a successful save, even if reloading fails.
-    reportHTML='';S.view='result';
-    const report=await api.report(p.id,S.res?.role||'c');if(typeof report.html!=='string'||!report.html.trim())throw Error('저장 후 보고서를 확인하지 못했습니다. 보고서를 다시 조회해 주세요.');reportHTML=report.html;toast('수정한 응답과 결과를 저장했습니다');
-  }catch(error){S.err=error.message}finally{busy=false;render()}
+    saved=true;reportHTML='';S.user=e.prevUser;S.cedit=null;S.res=e.res;S.from=e.from;S.view='result';
+    const fresh=await api.read();if(run!==epoch)return;
+    if(fresh.profile?.role!=='counselor')throw Object.assign(Error('상담사 권한을 확인하지 못했습니다.'),{status:403});
+    hydrate(fresh);refreshed=true;
+    const report=await api.report(p.id,S.res?.role||'c');if(run!==epoch)return;
+    if(typeof report.html!=='string'||!report.html.trim())throw Error('보고서를 확인하지 못했습니다.');
+    reportHTML=report.html;toast('수정한 응답과 결과를 저장했습니다');
+  }catch(error){
+    if(run!==epoch)return;
+    if(counselorPermissionError(error))return;
+    if(saved){if(!refreshed)counselorLoadError=true;S.err=refreshed?'수정은 저장되었습니다. 보고서를 다시 조회해 주세요.':'수정은 저장되었습니다. 목록으로 돌아가 새로 조회해 주세요.'}
+    else S.err='수정 저장 결과를 확인하지 못했습니다. '+error.message;
+  }finally{if(run===epoch){busy=false;render()}}
 }
 function nav(v){
   if(busy||mustChangePassword)return;
