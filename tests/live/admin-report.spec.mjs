@@ -43,6 +43,14 @@ test('registration maps stored values, escapes text and leaves absent fields and
  expect(html.indexOf('첫 번째')).toBeLessThan(html.indexOf('두 번째'));expect(html).toContain('(서명)');expect(html).not.toContain('가상 <참여자>');expect(html).not.toContain('업무 <표시>');
  a.answers.reg={name:'가상',careers:[]};a.answers.goal={};a.submitted_at=null;const empty=(await counselor(h,ids.counselor,P.submitted,'i')).data.html;expect(empty).not.toContain('2026-10-01');expect(empty).toContain('<th>희망연봉</th><td></td>');expect(empty).toContain('<th>자택주소</th><td colspan="3"></td>');
 });
+test('registration uses Seoul submission date and labels non-employment goals accurately',async()=>{
+ const h=seed(),a=h.state.tables.assessments.find(x=>x.participant_id===P.submitted);a.answers.goal.b13=['창업','프리랜서'];
+ for(const [timestamp,date] of [['2026-10-01T14:59:59Z','2026-10-01'],['2026-10-01T15:00:00Z','2026-10-02'],[null,'']]){
+  a.submitted_at=timestamp;const r=await counselor(h,ids.counselor,P.submitted,'i');expect(r.status).toBe(200);const html=r.data.html;
+  expect(html).toContain('<th>경력목표</th><td>창업</td><td colspan="2">프리랜서</td>');expect(html).toContain(`<th>희망연봉</th><td>${a.answers.reg.wage||''}</td>`);
+  expect(html).toContain(`위와 같은 내용으로 서비스 참여를 신청합니다.　 ${date}</p>`);
+ }
+});
 test('registration and counselor profile restore the required sections and remain scoped',async()=>{
  const h=seed();h.state.tables.participants.find(p=>p.id===P.submitted).auth_user_id=null;
  for(const fetchReport of [()=>admin(h,ids.admin,P.submitted,'i'),()=>counselor(h,ids.counselor,P.submitted,'i')]){
@@ -99,7 +107,7 @@ test('1·7·8 allowed admin gets the 5-page counselor and 3-page client report',
 
 test('9 admin and assigned counselor get the same printed pages for the same report kind',async()=>{
   const h=seed();
-  for(const kind of ['c','p']){
+  for(const kind of ['c','p','i']){
     const a=await admin(h,ids.admin,P.submitted,kind),c=await counselor(h,ids.counselor,P.submitted,kind);
     expect(c.status).toBe(200);expect(a.status).toBe(200);
     expect(sheets(a.data.html)).toBe(sheets(c.data.html));
