@@ -41,7 +41,7 @@ test('missing account API: verified counselor opens assigned results and report 
   await expect(page.getByRole('heading',{name:'상담사 페이지'})).toBeVisible();
   await expect(page.getByRole('cell',{name:'테스트 참여자'})).toBeVisible();
   await expect(page.getByRole('heading',{name:'참여자 일괄 등록'})).toHaveCount(0);
-  await page.getByRole('button',{name:'결과 리포트'}).click();
+  await page.locator('#plist summary').click();await page.getByRole('button',{name:'상담사용 리포트'}).click();
   await expect(page.getByText('검증용 상담사 리포트')).toBeVisible();
   expect(calls.map(c=>c.path)).toEqual(['/functions/v1/secondcareer-login','/functions/v1/secondcareer-account','/auth/v1/user','/functions/v1/secondcareer-assessment','/functions/v1/secondcareer-assessment']);
   expect(calls.slice(1).every(c=>c.authorization==='Bearer fixture-token')).toBe(true);

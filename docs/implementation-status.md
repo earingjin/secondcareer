@@ -1,5 +1,13 @@
 # 요구사항별 구현 현황 점검
 
+**2026-11-25 상담사 UX 병합 전 검증:** 기준 `df72e1e` 위 테스트 정리. `tests/live/reports.spec.mjs` 전체 23건, `tests/live/counselor-ux.spec.mjs` 전체 12건 모두 통과(각 명령 종료 0, 실패 0건·해당 파일 내 생략 0건). `npm run build` 통과(종료 0). 보고서 메뉴·전환·인쇄 모의, 수정 및 401·403·500 대응을 확인했다. 전체 `npm test`와 그 밖의 테스트는 요청대로 생략했다. 실제 서버·DB·RLS 및 인쇄 장치는 미검증이며 기존 구현 판정과 집계는 유지한다.
+
+**2026-11-25 상담사 UX 최종 보완:** 기준 `b43bea1` 위 로컬 작업. REQ-C-002·005·006·008 관련 상담사 표의 공통 CSS 우선순위와 무로그인 미지원 문구를 보완하고, 응답 수정 저장·후속 조회 중 세션 변경 및 권한 오류 처리와 저장 단계별 실패 안내를 분리했다. 합성 데이터 Chromium에서 표 스타일·문구 2건, 수정 관련 10건, 계정·인증 18건이 통과했다. 실제 서버·DB·RLS와 인쇄 장치는 검증하지 않았다. 기존 구현 판정과 집계는 유지한다.
+
+**2026-11-25 상담사 UX 2차:** 기준 `898322e` 위 로컬 작업. REQ-C-002·003·004·006·007의 화면 근거를 확장했다. 사후 상태별 동작, 결과물 오버레이 메뉴와 반응형 목록, 필터·페이지 정상화, 조회 오류와 권한 상실 및 보고서 실패 처리를 보완했다. 합성 데이터 Chromium 상담사 UX 11건과 직접 관련 사후 기능 8건을 확인했다. 실제 서버·DB·RLS·인쇄 장치는 미검증이며 기존 판정과 집계는 유지한다.
+
+**2026-11-25 상담사 UX 1차:** 기준 `1ffe682` 위 로컬 작업. REQ-C-002·003·004·006·007의 화면 근거를 갱신했다. 담당 전체 집계, 기업·상태 필터, 제출일 정렬, 20명 페이지와 결과물 메뉴, 목록 복귀 및 무로그인 사후 미지원을 반영했다. 합성 데이터 Chromium 검증 6건과 기존 사후 관련 4건이 각각 정상 종료했다. 실제 서버·DB·RLS·인쇄 장치는 확인하지 않았다. 기존 구현 판정과 집계는 유지하며 전체 요구사항을 재검증한 것은 아니다.
+
 ## 2026-11-25 무로그인 사전진단 저장·제출 보완
 
 기준 `ac079b672660dbd9a624f8c8df10446c0cd2d140` 위 작업본. REQ-P-005·006 관련 실패한 임시저장 요청의 동일 ID·버전 재시도 후 추가 응답을 새 버전으로 후속 저장하고, 제출 중 재렌더링에도 입력·이동·제출을 잠그며 실패 시 복원한다. 변경 전 두 결함을 모의 브라우저 테스트로 재현했고 수정 후 `public-survey-browser.spec.mjs` 17건과 운영 빌드가 통과했다. 합성 데이터와 HTTP 모의를 사용했으며 실제 서버·DB와 전체 통합 검증은 미실행이다. 기존 구현 판정과 집계는 유지한다.
@@ -256,12 +264,12 @@ STEP 14-D에서 M-002~004의 부분 구현 추가로 고객사 담당자 0/6/0, 
 | ID | 기능명 | 구현 상태 | 코드 근거 | 테스트 근거·이번 실행 | 운영 검증 | 부족한 부분 | 우선순위 |
 |---|---|---|---|---|---|---|---|
 | REQ-C-001 | 내담자 등록·조회·관리 | 부분 구현 | `live/participant-registration.js`, `register`, `assessment` participantQuery. 상담사 직접 등록은 제거하고 본인 담당 조회·관리를 유지하며 고객사 ID 선택 권한은 확대하지 않음 | 상담사 직접 등록·미연결 등록 서버/Chromium 회귀와 상담사 companyId 요청 거부 재확인(18절) | 로컬 모의 확인, 실제 서버·DB 미검증 | 등록 플래그·SQL·실 DB 적용 및 관리 범위 검증 필요. 배정 상담사 제한은 관리자 companyId 신규 등록 범위에만 확정·구현(18절)하며 기존 내담자 담당 변경 없음 | P0 |
-| REQ-C-002 | 담당 내담자 사전·사후 진행 상태 확인 | 부분 구현 | `live/counselor-view.js` counselorView, `assessment` postStatus | `live/post-survey.spec.mjs` 미실행 | 미검증 | 사후 상태는 프런트·서버 게이트와 DB에 의존 | P1 |
-| REQ-C-003 | 이름 검색과 상태 필터 | 구현 | `live/counselor-view.js` rows 필터, `live/app.js` filterCounselor | `live/assessment-notice-server.spec.mjs` 미실행 | 미검증 | 클라이언트의 담당 목록에서 필터, 실제 대량 데이터 검증 필요 | P1 |
-| REQ-C-004 | 내담자 목록 페이지네이션 | 부분 구현 | `assessment` readAll의 제한 단위 반복 조회; `live/counselor-view.js` rows.map | `live/assessment-notice-server.spec.mjs` 미실행 | 미검증 | 서버 내부 읽기 분할만 존재; 화면 페이지 상태·이동 UI·필터 연계 없음 | P1 |
-| REQ-C-005 | 승인된 범위의 응답 수정과 재계산 | 구현 | `live/app.js` persistEdit, `assessment` edit, `src/js/05-engine.js` recomputeResultCore | `live/reports.spec.mjs`, `golden/golden.spec.mjs` 미실행 | 미검증 | 구체적 허용 범위 미확정, 실제 RPC·이력 검증 필요 | P0 |
-| REQ-C-006 | 개인 결과보고서 조회·인쇄 | 구현 | `live/app.js` openRes/fitSheets, `assessment` report, `shared/profile.js` | `live/reports.spec.mjs`, `snapshot/snapshot.spec.mjs` 미실행 | 미검증 | 실제 서버 렌더와 인쇄 환경 3쪽·5쪽 확인 필요 | P1 |
-| REQ-C-007 | 사후진단 허용과 안내 | 부분 구현 | `live/counselor-view.js` postApprovalCell, `live/app.js` post-approve, `assessment` | `live/post-survey.spec.mjs`, `live/post-draft-server.spec.mjs` 미실행 | 미검증 | 게이트·승인 RPC와 실제 배포·DB 적용 미검증 | P0 |
+| REQ-C-002 | 담당 내담자 사전·사후 진행 상태 확인 | 부분 구현 | `live/counselor-view.js` 전체 집계와 사후 상태·무로그인 미지원 표시, `assessment` postStatus | 이번 작업: 합성 데이터 브라우저 검증 및 사후 기능 4건 통과 | 실제 서버·DB 미검증 | 사후 상태는 프런트·서버 게이트와 DB에 의존 | P1 |
+| REQ-C-003 | 이름 검색과 상태 필터 | 구현 | `live/counselor-view.js` 이름·기업·상태 필터, `live/app.js` filterCounselor | 이번 작업: 합성 데이터 브라우저 검색·필터·전체 집계 검증 통과 | 실제 서버·DB 미검증 | 클라이언트의 담당 목록에서 필터, 실제 대량 데이터 검증 필요 | P1 |
+| REQ-C-004 | 내담자 목록 페이지네이션 | 부분 구현 | `assessment` readAll 반복 조회; `live/counselor-view.js` 20명 단위 정렬·이동·필터 연계 | 이번 작업: 합성 데이터 25명 브라우저 이동·필터 검증 통과 | 실제 서버·DB 미검증 | 실제 대량 데이터 및 서버 조회 경계 검증 필요 | P1 |
+| REQ-C-005 | 승인된 범위의 응답 수정과 재계산 | 구현 | `live/app.js` persistEdit의 세션·권한 오류 보호, `assessment` edit, `src/js/05-engine.js` recomputeResultCore | 이번 작업: 모의 저장 성공·실패 및 저장·후속 조회의 401/403 등 10건 통과; 골든 미실행 | 실제 서버·DB 미검증 | 구체적 허용 범위 미확정, 실제 RPC·이력 검증 필요 | P0 |
+| REQ-C-006 | 개인 결과보고서 조회·인쇄 | 구현 | `live/app.js` openRes/fitSheets, `live/counselor-view.js` 결과물 메뉴, `assessment` report | 2026-11-25 병합 전 검증: 모의 브라우저 보고서 전체 23건·상담사 UX 전체 12건 통과 | 실제 서버·인쇄 장치 미검증 | 실제 서버 렌더와 인쇄 환경 3쪽·5쪽 확인 필요 | P1 |
+| REQ-C-007 | 사후진단 허용과 안내 | 부분 구현 | `live/counselor-view.js` postCell, `live/app.js` post-approve, `assessment` | 이번 작업: 모의 브라우저 허용·안내 복사·비교·게이트 확인 | 실제 서버·DB 미검증 | 게이트·승인 RPC와 실제 배포·DB 적용 미검증 | P0 |
 | REQ-C-008 | 다른 상담사 내담자 접근 차단 | 부분 구현 | `assessment` participantQuery 조직·담당 필터; `register` | `live/assessment-notice-server.spec.mjs`, `live/post-draft-server.spec.mjs` 미실행 | 미검증 | 실제 RLS·직접 DB/RPC·재배정 우회 미검증 | P0 |
 | REQ-C-009 | 통합 분석보고서 생성·조회·관리 차단 | 구현 | 통합 분석 API `secondcareer-admin-aggregate`는 `_shared/admin-access.ts`로 admin 역할만 허용(상담사 403). live 상담사 화면에 통합 보고서 메뉴·호출 없음 | `live/admin-aggregate.spec.mjs` 상담사·참여자·기타 역할 거부, 상담사 화면 미호출 **실행·통과**(모의) | 미검증: 함수 미배포, 직접 DB/RPC 경로 미확인 | 생성·관리 API는 아직 없으므로(조회만) 그 경로가 생길 때 같은 거부를 다시 검증해야 함. 레거시 상담사 메뉴는 데모에만 존재 | P0 |
 | REQ-C-010 | 개인별 사전·사후 비교 화면 유지 여부 | 판정 보류 | `live/compare-view.js`, `live/app.js` openCompare, `assessment` compareId | `live/post-survey.spec.mjs`, `live/post-draft-server.spec.mjs` 미실행 | 미검증 | 코드 존재와 별개로 유지·권한·출력 미확정 | P1 |

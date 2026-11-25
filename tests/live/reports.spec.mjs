@@ -7,7 +7,7 @@ test.beforeAll(async()=>{server=await serve('src')});
 test.afterAll(async()=>{await server.close()});
 
 async function setup(page){
-  const calls=[],state={reportStatus:200,malformed:false,failAfterEdit:false,name:'서버 응답자',revision:0};
+  const calls=[],state={reportStatus:200,editStatus:200,readStatus:200,malformed:false,failAfterEdit:false,name:'서버 응답자',revision:0};
   let answers={reg:{name:state.name,careers:[{co:'서버 기업'}]},goal:{},expect:{},done:{},pre:[]};
   const parts=[{id:'submitted',display_name:state.name,counselor_user_id:'counselor'},{id:'draft',display_name:'작성 중 내담자',counselor_user_id:'counselor'}];
   const reportHTML=kind=>`<div id="server-report" data-kind="${kind}" data-revision="${state.revision}"><div class="toolbar noprint">${kind==='c'?'<button onclick="startEdit(\'submitted\')">응답 수정 (상담사)</button>':''}<button onclick="window.print()">PDF로 저장(인쇄)</button></div>${Array.from({length:kind==='p'?3:5},(_,i)=>`<section class="sheet"><h2>서버 전용 응답 ${state.name} · ${kind} · ${i+1}</h2></section>`).join('')}</div>`;
@@ -25,10 +25,11 @@ async function setup(page){
         data=status===200?{html:state.malformed?null:reportHTML(u.searchParams.get('kind'))}:{error:status===401?'AUTH_INVALID':'NOT_AVAILABLE'};
       }else if(r.method()==='POST'){
         expect(body.action).toBe('edit');expect(body.participantId).toBe('submitted');
+        if(state.editStatus!==200)return route.fulfill({status:state.editStatus,contentType:'application/json',body:JSON.stringify({error:'FORBIDDEN'})});
         answers=body.answers;state.name=answers.reg.name;state.revision++;
         data={status:'submitted',updatedAt:'2026-10-29T04:00:00Z'};
         if(state.failAfterEdit)state.reportStatus=500;
-      }else data={profile:{role:'counselor'},participants:parts,counselors:{counselor:{code:'counselor',n:'검증 상담사'}},assessments:[{id:'assessment',participant_id:'submitted',phase:'pre',status:'submitted',answers,updated_at:'2026-10-29T03:00:00Z'},{id:'draft-assessment',participant_id:'draft',phase:'pre',status:'draft',answers:{}}]};
+      }else {if(state.revision&&state.readStatus!==200)return route.fulfill({status:state.readStatus,contentType:'application/json',body:JSON.stringify({error:'FORBIDDEN'})});data={profile:{role:'counselor'},participants:parts,counselors:{counselor:{code:'counselor',n:'검증 상담사'}},assessments:[{id:'assessment',participant_id:'submitted',phase:'pre',status:'submitted',answers,updated_at:'2026-10-29T03:00:00Z'},{id:'draft-assessment',participant_id:'draft',phase:'pre',status:'draft',answers:{}}]}}
     }else if(u.pathname==='/auth/v1/logout')return route.fulfill({status:204});
     else throw Error('Unexpected mock endpoint');
     return route.fulfill({status,contentType:'application/json',body:JSON.stringify(data)});
@@ -37,6 +38,10 @@ async function setup(page){
   await page.getByRole('button',{name:'로그인',exact:true}).click();await expect(page.locator('#plist')).toBeVisible();
   return {state,calls,reportCalls:()=>calls.filter(c=>c.query.includes('id='))};
 }
+async function openFromList(page,label){
+  await page.locator('[data-participant="submitted"] summary').click();
+  await page.locator('[data-participant="submitted"]').getByRole('button',{name:label,exact:true}).click();
+}
 
 test('counselor keeps assigned list without a participant registration form',async({page})=>{
   await setup(page);await expect(page.locator('#plist')).toContainText('서버 응답자');
@@ -44,11 +49,11 @@ test('counselor keeps assigned list without a participant registration form',asy
   await page.locator('#cns-name').fill('서버 응답자');await expect(page.locator('#plist')).toContainText('서버 응답자');
 });
 
-for(const [kind,pages,label] of [['p',3,'내담자용 3쪽'],['c',5,'결과 리포트 · 상담사용 5쪽']]){
+for(const [kind,pages,label] of [['p',3,'고객용 리포트'],['c',5,'상담사용 리포트']]){
   test(`${kind}: list opens server HTML and reuses window.print`,async({page})=>{
     const h=await setup(page);
     await page.evaluate(()=>localStorage.setItem('sp-demo-v5',JSON.stringify({db:[{nick:'사용하면 안 되는 샘플'}]})));
-    await page.getByRole('button',{name:label,exact:true}).click();
+    await openFromList(page,label);
     await expect(page.locator('#server-report')).toHaveAttribute('data-kind',kind);
     await expect(page.locator('.sheet')).toHaveCount(pages);
     expect(h.reportCalls().at(-1).query).toBe(`?id=submitted&kind=${kind}`);
@@ -61,11 +66,11 @@ for(const [kind,pages,label] of [['p',3,'내담자용 3쪽'],['c',5,'결과 리�
 }
 
 test('report switches request fresh HTML and the selector stays out of print',async({page})=>{
-  const h=await setup(page);await page.getByRole('button',{name:'결과 리포트 · 상담사용 5쪽'}).click();
+  const h=await setup(page);await openFromList(page,'상담사용 리포트');
   h.state.name='다시 조회한 서버 응답자';
-  await page.locator('#live-report-kind').getByRole('button',{name:'내담자용 3쪽',exact:true}).click();
+  await page.locator('#live-report-kind').getByRole('button',{name:'고객용 리포트',exact:true}).click();
   await expect(page.locator('.sheet')).toHaveCount(3);await expect(page.locator('#server-report')).toContainText(h.state.name);
-  await page.locator('#live-report-kind').getByRole('button',{name:'상담사용 5쪽',exact:true}).click();
+  await page.locator('#live-report-kind').getByRole('button',{name:'상담사용 리포트',exact:true}).click();
   await expect(page.locator('.sheet')).toHaveCount(5);
   expect(h.reportCalls().map(c=>c.query)).toEqual(['?id=submitted&kind=c','?id=submitted&kind=p','?id=submitted&kind=c']);
   await page.emulateMedia({media:'print'});await expect(page.locator('#live-report-kind')).toBeHidden();
@@ -79,31 +84,43 @@ test('draft and unknown assignments cannot request a report',async({page})=>{
   expect(h.reportCalls()).toHaveLength(0);
 });
 
-for(const status of [403,500])test(`server HTTP ${status} displays an error without a sample report`,async({page})=>{
-  const h=await setup(page);h.state.reportStatus=status;
-  await page.getByRole('button',{name:'내담자용 3쪽',exact:true}).click();
-  await expect(page.getByRole('alert')).toContainText(status===403?'권한이 없거나 최종 제출':'보고서를 불러오지 못했습니다');
-  await expect(page.locator('.sheet')).toHaveCount(0);
-  h.state.reportStatus=200;await page.getByRole('button',{name:'내담자용 3쪽',exact:true}).click();
-  await expect(page.locator('.sheet')).toHaveCount(3);
+for(const status of [401,403])test(`initial report HTTP ${status} clears private data and requires login`,async({page})=>{
+  const h=await setup(page);h.state.reportStatus=status;await openFromList(page,'고객용 리포트');
+  await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();await expect(page.getByRole('alert')).toContainText(status===403?'권한':'세션이 만료');
+  await expect(page.locator('.sheet,#plist,#server-report')).toHaveCount(0);
+  const state=await page.evaluate(async()=>{const {S}=await import('/shared/state.js');return {user:S.user,edit:S.cedit,res:S.res}});expect(state).toEqual({user:null,edit:null,res:null});
+});
+test('initial report HTTP 500 displays an error and can be retried',async({page})=>{
+  const h=await setup(page);h.state.reportStatus=500;await openFromList(page,'고객용 리포트');
+  await expect(page.getByRole('alert')).toContainText('보고서를 불러오지 못했습니다');await expect(page.locator('.sheet')).toHaveCount(0);
+  h.state.reportStatus=200;await openFromList(page,'고객용 리포트');await expect(page.locator('.sheet')).toHaveCount(3);
 });
 
 test('expired report session clears previous report and returns to login',async({page})=>{
-  const h=await setup(page);await page.getByRole('button',{name:'결과 리포트 · 상담사용 5쪽'}).click();
-  h.state.reportStatus=401;await page.locator('#live-report-kind').getByRole('button',{name:'내담자용 3쪽',exact:true}).click();
+  const h=await setup(page);await openFromList(page,'상담사용 리포트');
+  h.state.reportStatus=401;await page.locator('#live-report-kind').getByRole('button',{name:'고객용 리포트',exact:true}).click();
   await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();
   await expect(page.getByRole('alert')).toContainText('세션이 만료');await expect(page.locator('.sheet')).toHaveCount(0);
 });
 
-test('failed kind switch clears the previous printable report',async({page})=>{
-  const h=await setup(page);await page.getByRole('button',{name:'결과 리포트 · 상담사용 5쪽'}).click();
-  h.state.reportStatus=403;await page.locator('#live-report-kind').getByRole('button',{name:'내담자용 3쪽',exact:true}).click();
-  await expect(page.getByRole('alert')).toContainText('권한이 없거나 최종 제출');
+test('forbidden kind switch clears the previous printable report and returns to login',async({page})=>{
+  const h=await setup(page);await openFromList(page,'상담사용 리포트');
+  h.state.reportStatus=403;await page.locator('#live-report-kind').getByRole('button',{name:'고객용 리포트',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();await expect(page.getByRole('alert')).toContainText('권한');
   await expect(page.locator('.sheet')).toHaveCount(0);await expect(page.getByRole('button',{name:'PDF로 저장(인쇄)'})).toHaveCount(0);
+  const state=await page.evaluate(async()=>{const {S}=await import('/shared/state.js');return {user:S.user,edit:S.cedit,res:S.res}});expect(state).toEqual({user:null,edit:null,res:null});
+});
+test('temporary kind switch failure preserves the printable report and permits retry',async({page})=>{
+  const h=await setup(page);await openFromList(page,'상담사용 리포트');
+  h.state.reportStatus=500;await page.locator('#live-report-kind').getByRole('button',{name:'고객용 리포트',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('보고서를 불러오지 못했습니다');await expect(page.locator('#server-report')).toHaveAttribute('data-kind','c');await expect(page.locator('.sheet')).toHaveCount(5);
+  await expect(page.locator('#live-report-kind').getByRole('button',{name:'상담사용 리포트'})).toHaveAttribute('aria-pressed','true');
+  await page.evaluate(()=>{window.printCalls=0;window.print=()=>window.printCalls++});await page.getByRole('button',{name:'PDF로 저장(인쇄)'}).click();expect(await page.evaluate(()=>window.printCalls)).toBe(1);
+  h.state.reportStatus=200;await page.locator('#live-report-kind').getByRole('button',{name:'고객용 리포트',exact:true}).click();await expect(page.locator('#server-report')).toHaveAttribute('data-kind','p');await expect(page.locator('.sheet')).toHaveCount(3);
 });
 
 test('malformed successful response is not replaced with generated HTML',async({page})=>{
-  const h=await setup(page);h.state.malformed=true;await page.getByRole('button',{name:'내담자용 3쪽',exact:true}).click();
+  const h=await setup(page);h.state.malformed=true;await openFromList(page,'고객용 리포트');
   await expect(page.getByRole('alert')).toContainText('보고서를 확인하지 못했습니다');await expect(page.locator('.sheet')).toHaveCount(0);
 });
 
@@ -116,7 +133,7 @@ async function validEdit(page){
 }
 
 test('report switching cannot discard an edit; cancel restores the prior report',async({page})=>{
-  const h=await setup(page);await page.getByRole('button',{name:'결과 리포트 · 상담사용 5쪽'}).click();
+  const h=await setup(page);await openFromList(page,'상담사용 리포트');
   await page.getByRole('button',{name:'응답 수정 (상담사)'}).click();await validEdit(page);
   const before=h.reportCalls().length;
   await page.evaluate(()=>openRes('submitted','p'));
@@ -129,12 +146,12 @@ test('report switching cannot discard an edit; cancel restores the prior report'
 
 for(const failAfterEdit of [false,true])test(`edit uses server persistence and reloads selected report; reload failure=${failAfterEdit}`,async({page})=>{
   const h=await setup(page);h.state.failAfterEdit=failAfterEdit;
-  await page.getByRole('button',{name:'결과 리포트 · 상담사용 5쪽'}).click();
+  await page.locator('#plist summary').click();await page.getByRole('button',{name:'상담사용 리포트'}).click();
   await page.getByRole('button',{name:'응답 수정 (상담사)'}).click();await validEdit(page);await page.evaluate(()=>goStep(5));
   await page.getByRole('button',{name:'수정 저장·재계산'}).click();
   if(failAfterEdit){
-    await expect(page.getByRole('alert')).toContainText('보고서를 불러오지 못했습니다');await expect(page.locator('.sheet')).toHaveCount(0);
-    h.state.reportStatus=200;await page.locator('#live-report-kind').getByRole('button',{name:'상담사용 5쪽',exact:true}).click();
+    await expect(page.getByRole('alert')).toContainText('수정은 저장되었습니다');await expect(page.locator('.sheet')).toHaveCount(0);
+    h.state.reportStatus=200;await page.locator('#live-report-kind').getByRole('button',{name:'상담사용 리포트',exact:true}).click();
   }
   await expect(page.locator('#server-report')).toHaveAttribute('data-revision','1');
   await expect(page.locator('#server-report')).toContainText('상담사가 수정한 이름');
@@ -142,4 +159,15 @@ for(const failAfterEdit of [false,true])test(`edit uses server persistence and r
   const writes=h.calls.filter(c=>c.method==='POST'&&c.path.endsWith('assessment'));
   expect(writes).toHaveLength(1);expect(writes[0].body).toMatchObject({action:'edit',expectedUpdatedAt:'2026-10-29T03:00:00Z'});
   expect(writes[0].body).not.toHaveProperty('result');
+});
+for(const phase of ['edit','read','report'])for(const status of [401,403])test(`edit ${phase} HTTP ${status} removes private state`,async({page})=>{
+ const h=await setup(page);await page.locator('#plist summary').click();await page.getByRole('button',{name:'상담사용 리포트'}).click();await page.getByRole('button',{name:'응답 수정 (상담사)'}).click();await validEdit(page);await page.evaluate(()=>goStep(5));
+ if(phase==='edit')h.state.editStatus=status;else if(phase==='read')h.state.readStatus=status;else h.state.reportStatus=status;
+ await page.getByRole('button',{name:'수정 저장·재계산'}).click();await expect(page.getByRole('heading',{name:'세컨플래닝 로그인'})).toBeVisible();await expect(page.locator('#app')).not.toContainText('상담사가 수정한 이름');await expect(page.locator('#server-report,#plist')).toHaveCount(0);
+ const state=await page.evaluate(async()=>{const {S}=await import('/shared/state.js');return {user:S.user,edit:S.cedit,res:S.res}});expect(state).toEqual({user:null,edit:null,res:null});
+});
+for(const phase of ['edit','read'])test(`edit ${phase} temporary failure distinguishes saved state`,async({page})=>{
+ const h=await setup(page);await page.locator('#plist summary').click();await page.getByRole('button',{name:'상담사용 리포트'}).click();await page.getByRole('button',{name:'응답 수정 (상담사)'}).click();await validEdit(page);await page.evaluate(()=>goStep(5));if(phase==='edit')h.state.editStatus=500;else h.state.readStatus=500;
+ await page.getByRole('button',{name:'수정 저장·재계산'}).click();await expect(page.getByRole('alert')).toContainText(phase==='edit'?'수정 저장 결과를 확인하지 못했습니다':'수정은 저장되었습니다');
+ if(phase==='edit')await expect(page.getByRole('button',{name:'수정 저장·재계산'})).toBeVisible();else {await expect(page.locator('#server-report')).toHaveCount(0);await expect(page.getByRole('button',{name:'수정 저장·재계산'})).toHaveCount(0)}
 });
